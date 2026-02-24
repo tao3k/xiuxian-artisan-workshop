@@ -282,7 +282,7 @@ jobs:
 
       - name: Upload knowledge recall perf reports
         if: ${{ always() && github.event_name == 'workflow_dispatch' && github.event.inputs.run_recall_perf_gates == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: knowledge-recall-perf-${{ matrix.os }}
           path: ${{ env.OMNI_KNOWLEDGE_RECALL_REPORT_DIR }}
@@ -290,7 +290,7 @@ jobs:
 
       - name: Upload skills tools benchmark reports
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: skills-tools-benchmark-${{ matrix.os }}
           path: ${{ env.OMNI_SKILLS_TOOLS_REPORT_DIR }}
@@ -298,7 +298,7 @@ jobs:
 
       - name: Upload wendao PPR gate reports
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wendao-ppr-gate-${{ matrix.os }}
           path: ${{ env.XIUXIAN_WENDAO_GATE_REPORT_DIR }}
@@ -306,7 +306,7 @@ jobs:
 
       - name: Upload wendao mixed-scope canary reports
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wendao-ppr-mixed-canary-${{ matrix.os }}
           path: ${{ env.XIUXIAN_WENDAO_MIXED_CANARY_REPORT_DIR }}
@@ -314,7 +314,7 @@ jobs:
 
       - name: Upload wendao rollout status reports
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wendao-rollout-status-${{ matrix.os }}
           path: |
@@ -350,7 +350,7 @@ jobs:
 
       - name: Upload omni-agent memory nightly reports
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: omni-agent-memory-nightly
           path: |

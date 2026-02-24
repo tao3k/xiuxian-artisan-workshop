@@ -58,7 +58,7 @@ jobs:
 
       - name: Upload omni-agent memory nightly reports
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: omni-agent-memory-nightly
           path: |
@@ -92,7 +92,7 @@ jobs:
 
       - name: Upload omni-agent memory A7 reports
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: omni-agent-memory-a7
           path: |
