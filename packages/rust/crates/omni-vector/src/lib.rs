@@ -50,6 +50,7 @@ pub use ops::{
     TableHealthReport, TableInfo, TableNewColumn, TableVersionInfo, schema_version_from_schema,
 };
 pub use search::SearchOptions;
+pub use search_impl::json_to_lance_where;
 pub use skill::{ToolSearchOptions, ToolSearchResult};
 
 // ============================================================================
@@ -65,6 +66,9 @@ pub mod ops;
 pub mod search;
 pub mod search_cache;
 pub mod skill;
+
+#[path = "search/search_impl/mod.rs"]
+mod search_impl;
 
 // ============================================================================
 // Vector Store Core
@@ -104,7 +108,6 @@ include!("ops/core.rs");
 include!("ops/writer_impl.rs");
 include!("ops/admin_impl.rs");
 include!("skill/ops_impl.rs");
-include!("search/search_impl.rs");
 
 impl VectorStore {
     /// Check if a metadata value matches the filter conditions.

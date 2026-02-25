@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import fnmatch
 
-from omni.foundation.config.logging import get_logger
 from pydantic import BaseModel
+
+from omni.foundation.config.logging import get_logger
 
 logger = get_logger("omni.core.config")
 
@@ -378,8 +379,8 @@ __all__ = [
     "is_filtered",
     "load_command_overrides",
     "load_filter_commands",
-    "load_skills_config",
     "load_skill_limits",
+    "load_skills_config",
     "reset_config",
     "resolve_alias",
 ]

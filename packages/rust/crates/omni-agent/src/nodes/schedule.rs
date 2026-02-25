@@ -6,7 +6,7 @@ use omni_agent::{
     run_recurring_schedule,
 };
 
-use crate::agent_builder::build_agent;
+use crate::runtime_agent_factory::build_agent;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_schedule_mode(

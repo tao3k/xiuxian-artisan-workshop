@@ -24,6 +24,7 @@ from typing import (
     TypeVar,
     runtime_checkable,
 )
+
 from pydantic import BaseModel, ConfigDict
 
 # Type aliases (PEP 695)

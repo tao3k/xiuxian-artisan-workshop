@@ -2,8 +2,9 @@
 Tests for omni.rag.graph module.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
 
 class TestBilingualPrompts:
@@ -148,8 +149,8 @@ class TestKnowledgeGraphStore:
 
     def test_add_entity_no_backend(self):
         """Test adding entity without backend returns False."""
-        from omni.rag.graph import KnowledgeGraphStore
         from omni.rag.entities import Entity
+        from omni.rag.graph import KnowledgeGraphStore
 
         store = KnowledgeGraphStore()
         store._backend = None  # simulate no backend (e.g. omni_core_rs not installed)
@@ -166,8 +167,8 @@ class TestKnowledgeGraphStore:
 
     def test_add_relation_no_backend(self):
         """Test adding relation without backend."""
-        from omni.rag.graph import KnowledgeGraphStore
         from omni.rag.entities import Relation
+        from omni.rag.graph import KnowledgeGraphStore
 
         store = KnowledgeGraphStore()
         store._backend = None  # simulate no backend
@@ -508,7 +509,7 @@ class TestKnowledgeGraphPersistence:
 
     def test_save_and_load_graph(self, tmp_path):
         """Test saving and loading graph to/from JSON file."""
-        from omni_core_rs import PyKnowledgeGraph, PyEntity, PyRelation
+        from omni_core_rs import PyEntity, PyKnowledgeGraph, PyRelation
 
         graph_path = str(tmp_path / "test_graph.json")
 
@@ -553,7 +554,7 @@ class TestKnowledgeGraphPersistence:
 
     def test_export_as_json(self, tmp_path):
         """Test exporting graph as JSON string."""
-        from omni_core_rs import PyKnowledgeGraph, PyEntity
+        from omni_core_rs import PyEntity, PyKnowledgeGraph
 
         graph = PyKnowledgeGraph()
 
@@ -574,7 +575,7 @@ class TestKnowledgeGraphPersistence:
 
     def test_roundtrip_save_load(self, tmp_path):
         """Test save/load roundtrip preserves data."""
-        from omni_core_rs import PyKnowledgeGraph, PyEntity, PyRelation
+        from omni_core_rs import PyEntity, PyKnowledgeGraph, PyRelation
 
         graph_path = str(tmp_path / "roundtrip.json")
 
@@ -622,7 +623,7 @@ class TestKnowledgeGraphPersistence:
 
     def test_get_all_entities_json(self):
         """Test getting all entities as JSON."""
-        from omni_core_rs import PyKnowledgeGraph, PyEntity
+        from omni_core_rs import PyEntity, PyKnowledgeGraph
 
         graph = PyKnowledgeGraph()
 
@@ -643,7 +644,7 @@ class TestKnowledgeGraphPersistence:
 
     def test_get_all_relations_json(self):
         """Test getting all relations as JSON."""
-        from omni_core_rs import PyKnowledgeGraph, PyEntity, PyRelation
+        from omni_core_rs import PyEntity, PyKnowledgeGraph, PyRelation
 
         graph = PyKnowledgeGraph()
 
@@ -683,7 +684,7 @@ class TestKnowledgeGraphPersistence:
 
     def test_save_to_new_directory(self, tmp_path):
         """Test saving to a new directory creates the directory."""
-        from omni_core_rs import PyKnowledgeGraph, PyEntity
+        from omni_core_rs import PyEntity, PyKnowledgeGraph
 
         new_dir = tmp_path / "nested" / "directory"
         graph_path = str(new_dir / "graph.json")

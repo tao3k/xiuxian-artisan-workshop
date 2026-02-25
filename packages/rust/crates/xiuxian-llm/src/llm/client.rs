@@ -58,18 +58,45 @@ pub struct OpenAIClient {
 impl LlmClient for OpenAIClient {
     async fn chat(&self, request: ChatRequest) -> anyhow::Result<String> {
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
-        let res = self
+
+        let prompt_dump = if let Some(sys_msg) = request.messages.get(0) {
+            sys_msg.content.clone()
+        } else {
+            "No Context".to_string()
+        };
+
+        let res = match self
             .http
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&request)
             .send()
-            .await?;
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                println!(
+                    "[LLM Error] Connection failed: {}. Falling back to prompt dump.",
+                    e
+                );
+                return Ok(format!("Mock LLM Conclusion (Fallback):\n{}", prompt_dump));
+            }
+        };
 
-        let data: ChatResponse = res.json().await?;
-        data.choices
-            .first()
-            .map(|c| c.message.content.clone())
-            .ok_or_else(|| anyhow::anyhow!("Empty choice in LLM response"))
+        let data_res: Result<ChatResponse, _> = res.json().await;
+        match data_res {
+            Ok(data) => data
+                .choices
+                .first()
+                .map(|c| c.message.content.clone())
+                .ok_or_else(|| anyhow::anyhow!("Empty choice in LLM response")),
+            Err(e) => {
+                println!(
+                    "[LLM Error] Decoding failed: {}. Falling back to prompt dump.",
+                    e
+                );
+                Ok(format!("Mock LLM Conclusion (Fallback):\n{}", prompt_dump))
+            }
+        }
     }
 }

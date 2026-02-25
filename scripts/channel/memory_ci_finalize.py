@@ -1,36 +1,18 @@
 #!/usr/bin/env python3
+"""Finalize memory CI gate run artifacts and latest pointers."""
 
 from __future__ import annotations
 
-import argparse
 import json
-import re
 import shutil
-import time
 from pathlib import Path
 
+from memory_ci_finalize_cli import parse_args
+from memory_ci_finalize_discovery import newest_failure
+from memory_ci_finalize_payloads import build_status_payload, write_fallback_failure_payload
 
-def newest_failure(
-    reports_dir: Path,
-    profile: str,
-    *,
-    extension: str,
-    start_stamp: int,
-) -> tuple[Path | None, int]:
-    pattern = re.compile(rf"omni-agent-memory-ci-failure-{re.escape(profile)}-(\d+)\.{extension}$")
-    best_path: Path | None = None
-    best_stamp = -1
-    for path in reports_dir.glob(f"omni-agent-memory-ci-failure-{profile}-*.{extension}"):
-        match = pattern.match(path.name)
-        if match is None:
-            continue
-        stamp = int(match.group(1))
-        if stamp < start_stamp:
-            continue
-        if stamp > best_stamp:
-            best_stamp = stamp
-            best_path = path
-    return best_path, best_stamp
+# Backward-compatible private alias.
+_parse_args = parse_args
 
 
 def finalize_gate_run(
@@ -69,24 +51,11 @@ def finalize_gate_run(
         if picked_json_path is not None:
             shutil.copy2(picked_json_path, latest_failure_json)
         else:
-            fallback_payload = {
-                "generated_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "profile": profile,
-                "category": "runner_unknown_failure",
-                "summary": f"{profile} gate failed before triage json emission",
-                "error": f"exit_code={exit_code}",
-                "artifacts": [
-                    {
-                        "name": "runtime_log",
-                        "path": str(log_file),
-                        "exists": bool(log_file.exists()),
-                    }
-                ],
-                "repro_commands": [f"tail -n 200 {log_file}"],
-            }
-            latest_failure_json.write_text(
-                json.dumps(fallback_payload, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
+            write_fallback_failure_payload(
+                latest_failure_json,
+                profile=profile,
+                exit_code=exit_code,
+                log_file=log_file,
             )
         if picked_md_path is not None:
             shutil.copy2(picked_md_path, latest_failure_md)
@@ -101,25 +70,19 @@ def finalize_gate_run(
                 encoding="utf-8",
             )
 
-    status_payload = {
-        "profile": profile,
-        "started_at_ms": start_stamp,
-        "finished_at_ms": finish_stamp,
-        "duration_ms": max(0, finish_stamp - start_stamp),
-        "exit_code": exit_code,
-        "status": "passed" if exit_code == 0 else "failed",
-        "log_file": str(log_file),
-        "latest_failure_json": str(latest_failure_json) if latest_failure_json.exists() else "",
-        "latest_failure_markdown": str(latest_failure_md) if latest_failure_md.exists() else "",
-        "selected_failure_report_json": str(picked_json_path)
-        if picked_json_path is not None
-        else "",
-        "selected_failure_report_json_stamp": picked_json_stamp if picked_json_stamp >= 0 else None,
-        "selected_failure_report_markdown": str(picked_md_path)
-        if picked_md_path is not None
-        else "",
-        "selected_failure_report_markdown_stamp": picked_md_stamp if picked_md_stamp >= 0 else None,
-    }
+    status_payload = build_status_payload(
+        profile=profile,
+        start_stamp=start_stamp,
+        finish_stamp=finish_stamp,
+        exit_code=exit_code,
+        log_file=log_file,
+        latest_failure_json=latest_failure_json,
+        latest_failure_md=latest_failure_md,
+        picked_json_path=picked_json_path,
+        picked_json_stamp=picked_json_stamp,
+        picked_md_path=picked_md_path,
+        picked_md_stamp=picked_md_stamp,
+    )
     latest_run_json.write_text(
         json.dumps(status_payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -139,22 +102,8 @@ def finalize_gate_run(
         )
 
 
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Finalize memory CI gate run artifacts.")
-    parser.add_argument("--reports-dir", required=True)
-    parser.add_argument("--profile", required=True, choices=("quick", "nightly"))
-    parser.add_argument("--start-stamp", required=True, type=int)
-    parser.add_argument("--exit-code", required=True, type=int)
-    parser.add_argument("--latest-failure-json", required=True)
-    parser.add_argument("--latest-failure-md", required=True)
-    parser.add_argument("--latest-run-json", required=True)
-    parser.add_argument("--log-file", required=True)
-    parser.add_argument("--finish-stamp", required=True, type=int)
-    return parser.parse_args()
-
-
 def main() -> int:
-    args = _parse_args()
+    args = parse_args()
     finalize_gate_run(
         reports_dir=Path(args.reports_dir),
         profile=str(args.profile),

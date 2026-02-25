@@ -8,14 +8,16 @@ use super::super::metrics::{
     format_memory_recall_metrics_json, format_memory_recall_metrics_lines,
 };
 use super::super::runtime::{
-    format_memory_gate_policy_compact_line, format_memory_runtime_status_json,
-    format_memory_runtime_status_lines, memory_backend_ready,
+    format_downstream_admission_compact_line, format_downstream_admission_status_json,
+    format_downstream_admission_status_lines, format_memory_gate_policy_compact_line,
+    format_memory_runtime_status_json, format_memory_runtime_status_lines, memory_backend_ready,
 };
 
 pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapshot(
     snapshot: crate::agent::SessionMemoryRecallSnapshot,
     metrics: crate::agent::MemoryRecallMetricsSnapshot,
     runtime_status: crate::agent::MemoryRuntimeStatusSnapshot,
+    admission_status: crate::agent::DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
     let mut lines = vec![
@@ -39,6 +41,8 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
         "### Persistence".to_string(),
     ];
     lines.extend(format_memory_runtime_status_lines(runtime_status));
+    lines.extend([String::new(), "### Admission".to_string()]);
+    lines.extend(format_downstream_admission_status_lines(admission_status));
     lines.extend([
         String::new(),
         "### Recall Plan".to_string(),
@@ -91,6 +95,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
     snapshot: crate::agent::SessionMemoryRecallSnapshot,
     metrics: crate::agent::MemoryRecallMetricsSnapshot,
     runtime_status: crate::agent::MemoryRuntimeStatusSnapshot,
+    admission_status: crate::agent::DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
     let backend_ready = memory_backend_ready(&runtime_status);
@@ -136,6 +141,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
             format_optional_string(runtime_status.configured_backend.clone())
         ),
         format_memory_gate_policy_compact_line(&runtime_status),
+        format_downstream_admission_compact_line(admission_status),
         String::new(),
         "### Adaptive Metrics".to_string(),
         format!(
@@ -159,6 +165,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
     snapshot: crate::agent::SessionMemoryRecallSnapshot,
     metrics: crate::agent::MemoryRecallMetricsSnapshot,
     runtime_status: crate::agent::MemoryRuntimeStatusSnapshot,
+    admission_status: crate::agent::DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
     json!({
@@ -194,6 +201,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
             "weakest_score": snapshot.weakest_score,
         },
         "runtime": format_memory_runtime_status_json(runtime_status),
+        "admission": format_downstream_admission_status_json(admission_status),
         "metrics": format_memory_recall_metrics_json(metrics),
     })
     .to_string()

@@ -57,7 +57,7 @@ def _shutdown_embedding_executor() -> None:
     """Shutdown executor on process exit. Do not set daemon on active threads (Python 3.13+ raises)."""
     try:
         _EMBEDDING_EXECUTOR.shutdown(wait=False)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
 

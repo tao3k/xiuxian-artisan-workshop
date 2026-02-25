@@ -5,15 +5,14 @@ from __future__ import annotations
 import pytest
 
 from omni.core.context import (
-    ContextProvider,
-    ContextResult,
-    ContextOrchestrator,
-    SystemPersonaProvider,
     ActiveSkillProvider,
     AvailableToolsProvider,
+    ContextOrchestrator,
+    ContextResult,
     EpisodicMemoryProvider,
-    create_planner_orchestrator,
+    SystemPersonaProvider,
     create_executor_orchestrator,
+    create_planner_orchestrator,
 )
 
 
@@ -87,7 +86,7 @@ class TestSystemPersonaProvider:
         for role in ["architect", "developer", "researcher"]:
             provider = SystemPersonaProvider(role=role)
             result = await provider.provide({}, 1000)
-            assert f"<role>You are a" in result.content
+            assert "<role>You are a" in result.content
 
     @pytest.mark.asyncio
     async def test_system_core_prompt_uses_relative_path_from_project_root(

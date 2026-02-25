@@ -24,12 +24,12 @@ import asyncio
 import base64
 import json
 import re
-import structlog
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+import structlog
 from PIL import Image
 
 logger = structlog.get_logger(__name__)
@@ -779,22 +779,22 @@ def extract_formulas(text: str) -> list[dict[str, str]]:
 
 
 __all__ = [
-    "ImageProcessor",
-    "ImageResult",
-    "TableExtractor",
-    "TableResult",
-    "FormulaParser",
-    "FormulaResult",
-    "MultimodalProcessor",
+    "CONTENT_TYPE_FORMULA",
     "CONTENT_TYPE_IMAGE",
     "CONTENT_TYPE_TABLE",
-    "CONTENT_TYPE_FORMULA",
-    "get_image_processor",
-    "get_table_extractor",
+    "FormulaParser",
+    "FormulaResult",
+    "ImageProcessor",
+    "ImageResult",
+    "MultimodalProcessor",
+    "TableExtractor",
+    "TableResult",
+    "extract_formulas",
     "get_formula_parser",
+    "get_image_processor",
     "get_multimodal_processor",
+    "get_table_extractor",
+    "process_formula",
     "process_image",
     "process_table",
-    "process_formula",
-    "extract_formulas",
 ]

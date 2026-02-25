@@ -137,8 +137,8 @@ def create_pipeline_node(
 
 
 __all__ = [
-    "ToolInvoker",
-    "NoOpToolInvoker",
     "MappingToolInvoker",
+    "NoOpToolInvoker",
+    "ToolInvoker",
     "create_pipeline_node",
 ]

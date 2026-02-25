@@ -19,15 +19,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from omni.agent.core.cortex import (
+    ConflictDetector,
+    Homeostasis,
+    HomeostasisConfig,
     TaskGraph,
     TaskGroup,
     TaskNode,
     TaskPriority,
     TransactionShield,
     TransactionStatus,
-    ConflictDetector,
-    Homeostasis,
-    HomeostasisConfig,
 )
 
 

@@ -3,7 +3,6 @@ Tests for omni.rag.chunking module.
 """
 
 import pytest
-import pytest_asyncio
 
 
 class TestChunkDataclass:
@@ -238,21 +237,21 @@ class TestChunkingFactoryFunctions:
 
     def test_create_chunker_sentence(self):
         """Test creating sentence chunker."""
-        from omni.rag.chunking import create_chunker, SentenceChunker
+        from omni.rag.chunking import SentenceChunker, create_chunker
 
         chunker = create_chunker("sentence")
         assert isinstance(chunker, SentenceChunker)
 
     def test_create_chunker_paragraph(self):
         """Test creating paragraph chunker."""
-        from omni.rag.chunking import create_chunker, ParagraphChunker
+        from omni.rag.chunking import ParagraphChunker, create_chunker
 
         chunker = create_chunker("paragraph")
         assert isinstance(chunker, ParagraphChunker)
 
     def test_create_chunker_sliding_window(self):
         """Test creating sliding window chunker."""
-        from omni.rag.chunking import create_chunker, SlidingWindowChunker
+        from omni.rag.chunking import SlidingWindowChunker, create_chunker
 
         chunker = create_chunker("sliding_window")
         assert isinstance(chunker, SlidingWindowChunker)

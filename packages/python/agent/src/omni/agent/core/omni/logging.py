@@ -7,11 +7,12 @@ Provides clean, human-readable logging for tool execution:
 """
 
 from typing import Any
+
 from rich.console import Console
 from rich.text import Text
 
 # [NEW] Import from foundation
-from omni.foundation.utils.formatting import sanitize_tool_args, one_line_preview
+from omni.foundation.utils.formatting import one_line_preview, sanitize_tool_args
 
 _console = Console()
 
@@ -92,4 +93,4 @@ def log_completion(step_count: int, tool_count: int) -> None:
     )
 
 
-__all__ = ["log_step", "log_result", "log_completion", "log_llm_response"]
+__all__ = ["log_completion", "log_llm_response", "log_result", "log_step"]

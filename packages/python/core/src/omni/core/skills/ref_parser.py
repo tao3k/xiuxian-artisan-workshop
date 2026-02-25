@@ -21,7 +21,7 @@ class RefParser:
     def parse(
         self,
         metadata: dict[str, Any],
-        skill_md_content: str | None = None,  # noqa: ARG002 - Kept for API compatibility
+        skill_md_content: str | None = None,
     ) -> list[str]:
         """Extract reference list from Rust metadata.
 
@@ -35,11 +35,9 @@ class RefParser:
         # Rust metadata is the only source of truth
         refs = self._extract_from_metadata(metadata)
 
-        if refs is None:
-            # Check if metadata is essentially empty (Rust unavailable or failed)
-            if not metadata or all(v is None for v in metadata.values() if v != "name"):
-                logger.warning(
-                    "Rust metadata unavailable - required_refs cannot be resolved. "
+        if refs is None and (not metadata or all(v is None for v in metadata.values() if v != "name")):
+            logger.warning(
+                "Rust metadata unavailable - required_refs cannot be resolved. "
                     "Ensure Rust scanner is properly initialized."
                 )
 

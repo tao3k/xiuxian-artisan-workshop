@@ -25,27 +25,27 @@ Usage:
     from omni.agent.core.evolution.immune import ImmuneSystem
 """
 
+from .factory import CrystallizationResult, SkillFactory
 from .harvester import Harvester, process_trace_for_skill
-from .factory import SkillFactory, CrystallizationResult
-from .tracer import ExecutionTrace, TraceCollector
-from .universal_solver import UniversalSolver, SolverResult, SolverStatus
-from .manager import EvolutionManager, EvolutionConfig, EvolutionState, CrystallizationCandidate
-from .schemas import CandidateSkill
+
+# Immune System (Rust Integration)
+from .immune import (
+    ImmuneReport,
+    ImmuneSystem,
+    SecurityViolation,
+    SimulationResult,
+    SkillSimulator,
+    StaticValidator,
+)
+from .manager import CrystallizationCandidate, EvolutionConfig, EvolutionManager, EvolutionState
 from .prompts import (
     SKILL_EXTRACTION_PROMPT,
     XML_GUIDE_TEMPLATE,
     render_xml_guide,
 )
-
-# Immune System (Rust Integration)
-from .immune import (
-    ImmuneSystem,
-    ImmuneReport,
-    StaticValidator,
-    SecurityViolation,
-    SkillSimulator,
-    SimulationResult,
-)
+from .schemas import CandidateSkill
+from .tracer import ExecutionTrace, TraceCollector
+from .universal_solver import SolverResult, SolverStatus, UniversalSolver
 
 __all__ = [
     # Core Types

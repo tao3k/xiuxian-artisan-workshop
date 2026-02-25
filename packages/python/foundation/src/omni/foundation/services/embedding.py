@@ -66,7 +66,7 @@ class EmbeddingPortInUseError(Exception):
 class EmbeddingService:
     """Singleton embedding service. Uses LiteLLM (Ollama/Xinference) for local models; no in-process load."""
 
-    _instance: "EmbeddingService | None" = None
+    _instance: EmbeddingService | None = None
     _dimension: int = 1024
     _backend: str = "fallback"
     _initialized: bool = False
@@ -129,7 +129,7 @@ class EmbeddingService:
         self._litellm_circuit_open_until = 0.0
         self._litellm_last_error = None
 
-    def __new__(cls) -> "EmbeddingService":
+    def __new__(cls) -> EmbeddingService:
         if cls._instance is None:
             instance = super().__new__(cls)
             instance._reset_runtime_state()
@@ -145,7 +145,7 @@ class EmbeddingService:
             try:
                 s.connect(("127.0.0.1", port))
                 return True
-            except (socket.timeout, ConnectionRefusedError):
+            except (TimeoutError, ConnectionRefusedError):
                 return False
             except Exception:
                 return False
@@ -658,7 +658,7 @@ class EmbeddingService:
 
 
 # Singleton accessor
-_service: "EmbeddingService | None" = None
+_service: EmbeddingService | None = None
 
 
 def get_embedding_service() -> EmbeddingService:
@@ -687,13 +687,13 @@ def get_dimension() -> int:
 
 __all__ = [
     "EmbeddingOverrideProtocol",
+    "EmbeddingPortInUseError",
     "EmbeddingService",
     "EmbeddingUnavailableError",
-    "EmbeddingPortInUseError",
+    "embed_batch",
+    "embed_text",
+    "get_dimension",
     "get_embedding_override",
     "get_embedding_service",
     "set_embedding_override",
-    "embed_text",
-    "embed_batch",
-    "get_dimension",
 ]

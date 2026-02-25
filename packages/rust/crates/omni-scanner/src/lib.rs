@@ -12,13 +12,15 @@
 //! ├── frontmatter.rs      # Shared YAML frontmatter parsing
 //! ├── skills/             # Skill scanning modules
 //! │   ├── mod.rs
-//! │   ├── metadata.rs      # Skill metadata types
-//! │   ├── scanner.rs       # SKILL.md parser
-//! │   ├── tools.rs         # @skill_command tool parser
+//! │   ├── metadata/        # Skill metadata types
+//! │   ├── scanner/         # SKILL.md parser
+//! │   ├── tools/           # @skill_command tool parser
+//! │   ├── prompt/          # @prompt parser
+//! │   ├── resource/        # @skill_resource parser
 //! │   └── skill_command/   # @skill_command parsing utilities
 //! └── knowledge/          # Knowledge document scanning
 //!     ├── mod.rs
-//!     ├── scanner.rs       # Knowledge document scanner
+//!     ├── scanner/         # Knowledge document scanner
 //!     └── types.rs         # KnowledgeEntry, KnowledgeCategory
 //! ```
 //!

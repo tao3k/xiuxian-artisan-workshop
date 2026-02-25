@@ -51,6 +51,10 @@ xiuxian_wendao_runner_os := env_var_or_default("RUNNER_OS", "local")
 default:
     @just --list
 
+# Test LLM Proxy multiple providers
+test-llm-proxy:
+    uv run python scripts/test_llm_proxy.py
+
 # ==============================================================================
 # AGENT INTERFACE (Non-interactive, argument-based)
 # Designed for AI agents - accepts parameters, no interactive prompts
@@ -411,7 +415,7 @@ rust-nextest:
         echo "Install with: nix profile add nixpkgs#cargo-nextest"; \
         exit 1; \
     fi
-    @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" cargo nextest run --workspace --no-fail-fast
+    @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" cargo nextest run --workspace --exclude omni-core-rs --no-fail-fast
 
 [group('validate')]
 rust-security-audit:
@@ -470,6 +474,22 @@ rust-omni-agent-dependency-assertions:
 rust-omni-agent-mcp-facade-smoke:
     @echo "Running omni-agent MCP facade smoke tests..."
     @bash scripts/rust/omni_agent_mcp_facade_smoke.sh
+
+[group('validate')]
+rust-omni-agent-backend-role-contracts:
+    @echo "Running omni-agent backend role contract tests..."
+    @bash scripts/rust/omni_agent_backend_role_contracts.sh
+
+[group('validate')]
+rust-omni-agent-embedding-role-perf-smoke single_runs="20" batch_runs="10" concurrent_total="64" concurrent_width="8":
+    @echo "Running omni-agent embedding role perf smoke (litellm_rs + mistral_local)..."
+    @OLLAMA_MODELS="${OLLAMA_MODELS:-${PRJ_DATA_HOME:-.data}/models}" \
+      OMNI_EMBED_UPSTREAM_BASE_URL="${OMNI_EMBED_UPSTREAM_BASE_URL:-http://127.0.0.1:11434}" \
+      OMNI_EMBED_SINGLE_RUNS="{{single_runs}}" \
+      OMNI_EMBED_BATCH_RUNS="{{batch_runs}}" \
+      OMNI_EMBED_CONCURRENT_TOTAL="{{concurrent_total}}" \
+      OMNI_EMBED_CONCURRENT_WIDTH="{{concurrent_width}}" \
+      cargo test -p omni-agent --test embedding_role_perf_smoke -- --ignored --nocapture
 
 [group('validate')]
 rust-xiuxian-mcp:
@@ -583,10 +603,13 @@ test:
 test-channel-cursor-contracts:
     @echo "Running channel cursor contract regressions..."
     @uv run pytest -q scripts/channel/test_log_io.py scripts/channel/test_memory_ci_gate.py \
+        scripts/channel/test_discord_ingress_stress_config.py \
+        scripts/channel/test_discord_ingress_stress_runtime.py \
         packages/python/test-kit/tests/test_agent_channel_blackbox.py \
         packages/python/test-kit/tests/test_agent_channel_memory_benchmark.py \
         packages/python/test-kit/tests/test_agent_channel_concurrent_sessions.py \
-        packages/python/test-kit/tests/test_agent_channel_dedup_events.py
+        packages/python/test-kit/tests/test_agent_channel_dedup_events.py \
+        packages/python/test-kit/tests/test_agent_channel_discord_ingress_stress.py
 
 [group('validate')]
 test-quick:
@@ -1378,16 +1401,18 @@ agent-channel valkey_port="6379":
     bash scripts/channel/agent-channel-polling.sh "{{valkey_port}}"
 
 # Run Telegram channel in webhook mode via modular script entrypoint.
-# Usage: TELEGRAM_BOT_TOKEN=xxx just agent-channel-webhook [valkey_port] [webhook_port]
+# By default this also starts Discord ingress runtime (from `discord.ingress_*` settings)
+# unless `DISCORD_INGRESS_ENABLED=0` is set.
+# Usage: TELEGRAM_BOT_TOKEN=xxx just agent-channel-webhook [valkey_port] [webhook_port] [gateway_port]
 # Requires: ngrok installed, TELEGRAM_BOT_TOKEN in env, valkey-server in PATH
 # Note: defaults to verbose debug logs (`--verbose`, `RUST_LOG=omni_agent=debug` when unset).
 # Logs are mirrored to `${OMNI_CHANNEL_LOG_FILE:-.run/logs/omni-agent-webhook.log}` for black-box probes.
 [group('channel')]
-agent-channel-webhook valkey_port="6379" webhook_port="":
+agent-channel-webhook valkey_port="6379" webhook_port="" gateway_port="":
     if [ -n "{{webhook_port}}" ]; then \
-        WEBHOOK_PORT="{{webhook_port}}" bash scripts/channel/agent-channel-webhook.sh "{{valkey_port}}"; \
+        WEBHOOK_PORT="{{webhook_port}}" GATEWAY_PORT="{{gateway_port}}" bash scripts/channel/agent-channel-webhook.sh "{{valkey_port}}"; \
     else \
-        bash scripts/channel/agent-channel-webhook.sh "{{valkey_port}}"; \
+        GATEWAY_PORT="{{gateway_port}}" bash scripts/channel/agent-channel-webhook.sh "{{valkey_port}}"; \
     fi
 
 # Run Discord channel in ingress mode for synthetic ingress replay/ACL probes.
@@ -1439,6 +1464,38 @@ agent-channel-discord-acl max_wait_secs="25" max_idle_secs="25" channel_id="" us
       args+=(--guild-id "{{guild_id}}")
     fi
     bash scripts/channel/test-omni-agent-discord-acl-events.sh "${args[@]}"
+
+# Stress Discord ingress with concurrent synthetic events and queue-pressure telemetry.
+# Usage:
+#   just agent-channel-discord-ingress-stress
+#   just agent-channel-discord-ingress-stress 6 1 8 20 10 0.2 "" "2001" "1001" "3001"
+# Reports:
+#   .run/reports/omni-agent-discord-ingress-stress.json
+#   .run/reports/omni-agent-discord-ingress-stress.md
+[group('channel')]
+agent-channel-discord-ingress-stress rounds="6" warmup_rounds="1" parallel="8" requests_per_worker="20" timeout_secs="10" cooldown_secs="0.2" ingress_url="" channel_id="" user_id="" guild_id="" username="" secret_token="" quality_max_failure_rate="0.0" quality_max_p95_ms="0" quality_min_rps="0" output_json=".run/reports/omni-agent-discord-ingress-stress.json" output_markdown=".run/reports/omni-agent-discord-ingress-stress.md":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    args=(--rounds "{{rounds}}" --warmup-rounds "{{warmup_rounds}}" --parallel "{{parallel}}" --requests-per-worker "{{requests_per_worker}}" --timeout-secs "{{timeout_secs}}" --cooldown-secs "{{cooldown_secs}}" --quality-max-failure-rate "{{quality_max_failure_rate}}" --quality-max-p95-ms "{{quality_max_p95_ms}}" --quality-min-rps "{{quality_min_rps}}" --output-json "{{output_json}}" --output-markdown "{{output_markdown}}")
+    if [ -n "{{ingress_url}}" ]; then
+      args+=(--ingress-url "{{ingress_url}}")
+    fi
+    if [ -n "{{channel_id}}" ]; then
+      args+=(--channel-id "{{channel_id}}")
+    fi
+    if [ -n "{{user_id}}" ]; then
+      args+=(--user-id "{{user_id}}")
+    fi
+    if [ -n "{{guild_id}}" ]; then
+      args+=(--guild-id "{{guild_id}}")
+    fi
+    if [ -n "{{username}}" ]; then
+      args+=(--username "{{username}}")
+    fi
+    if [ -n "{{secret_token}}" ]; then
+      args+=(--secret-token "{{secret_token}}")
+    fi
+    bash scripts/channel/test-omni-agent-discord-ingress-stress.sh "${args[@]}"
 
 # Run dedup black-box probe by posting the same update_id twice and asserting accepted/duplicate events.
 # Usage: just agent-channel-blackbox-dedup [max_wait_secs]

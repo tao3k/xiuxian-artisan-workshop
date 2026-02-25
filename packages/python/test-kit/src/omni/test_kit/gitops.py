@@ -1,7 +1,6 @@
-import subprocess
 import re
+import subprocess
 from pathlib import Path
-from typing import List, Optional
 
 
 class GitOpsVerifier:
@@ -14,7 +13,7 @@ class GitOpsVerifier:
     def __init__(self, repo_path: Path):
         self.repo_path = repo_path
 
-    def _run_git(self, args: List[str]) -> str:
+    def _run_git(self, args: list[str]) -> str:
         """Run a git command in the test repository."""
         try:
             result = subprocess.run(
@@ -62,7 +61,7 @@ class GitOpsVerifier:
         return self
 
     def assert_commit_exists(
-        self, message_pattern: str, files_changed: Optional[List[str]] = None
+        self, message_pattern: str, files_changed: list[str] | None = None
     ) -> "GitOpsVerifier":
         """
         Assert that the latest commit matches criteria.

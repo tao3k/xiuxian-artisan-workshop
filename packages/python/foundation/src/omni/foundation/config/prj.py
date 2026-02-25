@@ -34,7 +34,6 @@ Environment Variables (from direnv .envrc):
 from pathlib import Path
 from typing import Literal
 
-
 # =============================================================================
 # PRJ_SPEC Environment Variables
 # =============================================================================
@@ -313,17 +312,17 @@ def get_skills_dir() -> Path:
 
 
 __all__ = [
-    "PRJ_DIRS",
-    "PRJ_DATA",
     "PRJ_CACHE",
-    "PRJ_CONFIG",
-    "PRJ_RUNTIME",
-    "PRJ_PATH",
     "PRJ_CHECKPOINT",
-    "get_prj_dir",
-    "get_data_dir",
+    "PRJ_CONFIG",
+    "PRJ_DATA",
+    "PRJ_DIRS",
+    "PRJ_PATH",
+    "PRJ_RUNTIME",
     "get_cache_dir",
     "get_config_dir",
+    "get_data_dir",
+    "get_prj_dir",
     "get_runtime_dir",
     "get_skills_dir",
 ]

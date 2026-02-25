@@ -11,7 +11,6 @@ import httpx
 import pytest
 import pytest_asyncio
 from mcp.types import JSONRPCRequest, JSONRPCResponse
-
 from omni.mcp.transport.sse import SSEServer
 
 

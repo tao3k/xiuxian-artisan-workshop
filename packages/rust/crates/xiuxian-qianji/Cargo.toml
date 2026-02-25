@@ -9,7 +9,7 @@ publish = false
 
 [features]
 default = []
-llm = ["dep:xiuxian-llm"]
+llm = ["dep:xiuxian-llm", "dep:reqwest"]
 pyo3 = ["dep:pyo3"]
 
 [dependencies]
@@ -21,12 +21,16 @@ async-trait = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
+redis = { workspace = true, features = ["tokio-comp"] }
+log = { workspace = true }
 futures = "0.3"
 rand = "0.8"
 xiuxian-wendao = { path = "../xiuxian-wendao" }
 xiuxian-qianhuan = { path = "../xiuxian-qianhuan" }
+omni-ast = { path = "../omni-ast" }
 xiuxian-llm = { path = "../xiuxian-llm", optional = true }
 pyo3 = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -37,3 +41,8 @@ workspace = true
 [lib]
 name = "xiuxian_qianji"
 path = "src/lib.rs"
+
+[[bin]]
+name = "qianji"
+path = "src/bin/qianji.rs"
+required-features = ["llm"]

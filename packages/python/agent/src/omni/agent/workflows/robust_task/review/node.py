@@ -1,8 +1,9 @@
-from typing import Dict, Any
+from typing import Any
+
 from ..state import RobustTaskState
 
 
-async def review_node(state: RobustTaskState) -> Dict[str, Any]:
+async def review_node(state: RobustTaskState) -> dict[str, Any]:
     """
     Review Node - A placeholder for human interaction.
     In a CLI flow, the actual interaction happens in the runner (run.py).

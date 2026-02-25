@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -287,8 +288,8 @@ def test_route(
             )
         try:
             from omni.agent.services.reindex import (
-                reindex_skills_only,
                 _write_embedding_signature,
+                reindex_skills_only,
             )
 
             reindex_result = reindex_skills_only(clear=True)
@@ -396,8 +397,8 @@ def test_route(
                     )
                 try:
                     from omni.agent.services.reindex import (
-                        reindex_skills_only,
                         _write_embedding_signature,
+                        reindex_skills_only,
                     )
 
                     reindex_result = reindex_skills_only(clear=True)
@@ -567,8 +568,8 @@ def test_route(
 def route_stats() -> None:
     """Show router statistics."""
     try:
-        from omni.core.router.hybrid_search import HybridSearch
         from omni.core.router.config import load_router_search_config
+        from omni.core.router.hybrid_search import HybridSearch
     except ImportError as e:
         console.print(f"[red]Error: {e}[/]")
         raise typer.Exit(1)
@@ -695,4 +696,4 @@ def register_route_command(parent_app: typer.Typer) -> None:
     parent_app.add_typer(route_app, name="route")
 
 
-__all__ = ["route_app", "register_route_command"]
+__all__ = ["register_route_command", "route_app"]

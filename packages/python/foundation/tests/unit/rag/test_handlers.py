@@ -7,8 +7,6 @@ Verifies:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
-from typing import Any
 
 
 class TestSkillCommandHandlerIntegration:
@@ -279,7 +277,7 @@ class TestSkillCommandHandlerDirect:
 
     def test_handler_execute_sync_error(self):
         """Test handler with suppressed error."""
-        from omni.foundation.api.handlers import SkillCommandHandler, ErrorStrategy
+        from omni.foundation.api.handlers import ErrorStrategy, SkillCommandHandler
 
         handler = SkillCommandHandler(
             name="test",
@@ -357,7 +355,7 @@ class TestCreateHandlerFactory:
 @pytest.fixture
 def sample_handler():
     """Create a sample SkillCommandHandler for testing."""
-    from omni.foundation.api.handlers import SkillCommandHandler, ErrorStrategy
+    from omni.foundation.api.handlers import ErrorStrategy, SkillCommandHandler
 
     return SkillCommandHandler(
         name="sample",
@@ -384,13 +382,13 @@ def sample_decorated_command():
 
 
 __all__ = [
-    "TestSkillCommandHandlerIntegration",
-    "TestExecutionResultFromHandler",
+    "TestCreateHandlerFactory",
     "TestErrorStrategy",
+    "TestExecutionResultFromHandler",
     "TestLoggerConfig",
     "TestResultConfig",
     "TestSkillCommandHandlerDirect",
-    "TestCreateHandlerFactory",
-    "sample_handler",
+    "TestSkillCommandHandlerIntegration",
     "sample_decorated_command",
+    "sample_handler",
 ]

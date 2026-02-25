@@ -19,7 +19,7 @@ Usage:
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -49,13 +49,11 @@ class ToolResponse(BaseModel):
     """
 
     status: ResponseStatus = Field(..., description="Response status")
-    data: Optional[Any] = Field(
-        default=None, description="Response payload for successful operations"
-    )
-    error_message: Optional[str] = Field(
+    data: Any | None = Field(default=None, description="Response payload for successful operations")
+    error_message: str | None = Field(
         default=None, description="Error message for failed operations"
     )
-    error_code: Optional[str] = Field(default=None, description="Machine-readable error code")
+    error_code: str | None = Field(default=None, description="Machine-readable error code")
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional context information"
     )
@@ -73,7 +71,7 @@ class ToolResponse(BaseModel):
         return [{"type": "text", "text": self.model_dump_json()}]
 
     @classmethod
-    def success(cls, data: Any = None, metadata: Optional[dict] = None) -> "ToolResponse":
+    def success(cls, data: Any = None, metadata: dict | None = None) -> "ToolResponse":
         """Create a success response.
 
         Args:
@@ -93,8 +91,8 @@ class ToolResponse(BaseModel):
     def error(
         cls,
         message: str,
-        code: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        code: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> "ToolResponse":
         """Create an error response.
 
@@ -117,7 +115,7 @@ class ToolResponse(BaseModel):
     def blocked(
         cls,
         reason: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> "ToolResponse":
         """Create a blocked response (e.g., security check failed).
 
@@ -139,8 +137,8 @@ class ToolResponse(BaseModel):
     def partial(
         cls,
         data: Any = None,
-        message: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        message: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> "ToolResponse":
         """Create a partial success response.
 

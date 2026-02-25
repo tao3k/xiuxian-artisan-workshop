@@ -21,6 +21,8 @@ Usage:
     content = load_prompt("assets/prompts/custom.md", category="knowledge")
 """
 
+# Prompt injection utilities
+from ..prompts import PROMPT_TAGS, inject_prompt, load_prompt, merge_prompts
 from .base import ContextProvider, ContextResult
 from .orchestrator import (
     ContextOrchestrator,
@@ -33,9 +35,6 @@ from .providers import (
     EpisodicMemoryProvider,
     SystemPersonaProvider,
 )
-
-# Prompt injection utilities
-from ..prompts import inject_prompt, load_prompt, merge_prompts, PROMPT_TAGS
 
 __all__ = [
     "ActiveSkillProvider",

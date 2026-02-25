@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -31,9 +30,7 @@ console = Console()
 
 @skill_app.command("analyze")
 def skill_analyze(
-    category: Optional[str] = typer.Option(
-        None, "-c", "--category", help="Filter by skill category"
-    ),
+    category: str | None = typer.Option(None, "-c", "--category", help="Filter by skill category"),
     missing_docs: bool = typer.Option(
         False, "-m", "--missing-docs", help="Show tools without documentation"
     ),

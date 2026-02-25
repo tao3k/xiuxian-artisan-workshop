@@ -22,11 +22,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from omni.foundation.config.logging import configure_logging, get_logger
-from omni.foundation.config.settings import get_setting
 from omni.foundation.config.skills import SKILLS_DIR
 
 from .lifecycle import LifecycleManager, LifecycleState
-from .reactor import get_reactor, EventTopic
+from .reactor import EventTopic, get_reactor
 
 if TYPE_CHECKING:
     from omni.core.router.sniffer import IntentSniffer
@@ -597,7 +596,6 @@ class Kernel:
         The Reactor consumes events from the Rust Event Bus and dispatches
         to registered Python handlers. This enables reactive architecture:
         - Cortex auto-indexing on file changes
-        - Async checkpoint saving
         - Sniffer context updates
         """
         if self._reactor is None:

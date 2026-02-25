@@ -61,7 +61,7 @@ def load_script(
                     if parent_path not in normalized_parent_paths:
                         normalized_parent_paths.append(parent_path)
 
-                setattr(parent_mod, "__path__", normalized_parent_paths)
+                parent_mod.__path__ = normalized_parent_paths
                 parent_spec = getattr(parent_mod, "__spec__", None)
                 if parent_spec is not None:
                     parent_spec.submodule_search_locations = normalized_parent_paths
@@ -131,16 +131,12 @@ def load_script(
                     if not callable(exported):
                         continue
                     if not getattr(exported, "_is_skill_command", False):
-                        setattr(exported, "_is_skill_command", True)
+                        exported._is_skill_command = True
                     if not hasattr(exported, "_skill_config"):
-                        setattr(
-                            exported,
-                            "_skill_config",
-                            {
-                                "name": export_name,
-                                "description": str(getattr(exported, "__doc__", "") or "").strip(),
-                            },
-                        )
+                        exported._skill_config = {
+                            "name": export_name,
+                            "description": str(getattr(exported, "__doc__", "") or "").strip(),
+                        }
                     full_name = f"{skill_name}.{export_name}"
                     commands[full_name] = exported
                     last_full_name = full_name

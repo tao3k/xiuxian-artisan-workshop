@@ -8,6 +8,7 @@
     clippy::uninlined_format_args,
     clippy::float_cmp,
     clippy::field_reassign_with_default,
+    clippy::cast_lossless,
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -21,6 +22,8 @@
     clippy::needless_raw_string_hashes,
     clippy::manual_async_fn,
     clippy::manual_let_else,
+    clippy::manual_assert,
+    clippy::manual_string_new,
     clippy::too_many_lines,
     clippy::too_many_arguments,
     clippy::unnecessary_literal_bound,
@@ -29,6 +32,7 @@
     clippy::single_match_else,
     clippy::similar_names,
     clippy::format_collect,
+    clippy::async_yields_async,
     clippy::assigning_clones
 )]
 
@@ -51,6 +55,7 @@ struct EmbedTestState {
     http_delay: Duration,
     http_fail: bool,
     http_fail_first: bool,
+    openai_fail: bool,
     http_calls: Arc<AtomicUsize>,
     mcp_calls: Arc<AtomicUsize>,
     litellm_calls: Arc<AtomicUsize>,
@@ -132,6 +137,14 @@ async fn handle_litellm_embeddings(
     Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     state.litellm_calls.fetch_add(1, Ordering::Relaxed);
+    if state.openai_fail {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "openai-compatible embedding unavailable"
+            })),
+        );
+    }
     let texts = payload
         .get("input")
         .and_then(|value| value.as_array())
@@ -172,6 +185,16 @@ async fn spawn_embedding_mock_server(
     http_fail: bool,
     http_fail_first: bool,
 ) -> Result<Option<SpawnedEmbeddingServer>> {
+    spawn_embedding_mock_server_with_openai_failure(http_delay, http_fail, http_fail_first, false)
+        .await
+}
+
+async fn spawn_embedding_mock_server_with_openai_failure(
+    http_delay: Duration,
+    http_fail: bool,
+    http_fail_first: bool,
+    openai_fail: bool,
+) -> Result<Option<SpawnedEmbeddingServer>> {
     let http_calls = Arc::new(AtomicUsize::new(0));
     let mcp_calls = Arc::new(AtomicUsize::new(0));
     let litellm_calls = Arc::new(AtomicUsize::new(0));
@@ -179,6 +202,7 @@ async fn spawn_embedding_mock_server(
         http_delay,
         http_fail,
         http_fail_first,
+        openai_fail,
         http_calls: Arc::clone(&http_calls),
         mcp_calls: Arc::clone(&mcp_calls),
         litellm_calls: Arc::clone(&litellm_calls),
@@ -241,7 +265,7 @@ async fn embed_batch_prefers_http_primary_even_when_mcp_is_faster() -> Result<()
 }
 
 #[tokio::test]
-async fn embed_batch_falls_back_to_mcp_when_http_fails() -> Result<()> {
+async fn embed_batch_returns_none_when_http_fails_even_if_mcp_url_is_set() -> Result<()> {
     let Some((base_url, http_calls, mcp_calls, _litellm_calls)) =
         spawn_embedding_mock_server(Duration::from_millis(5), true, false).await?
     else {
@@ -254,17 +278,18 @@ async fn embed_batch_falls_back_to_mcp_when_http_fails() -> Result<()> {
         Some("http"),
     );
     let texts = vec!["hello".to_string()];
-    let vectors = client
-        .embed_batch_with_model(&texts, None)
-        .await
-        .expect("expected embeddings from MCP fallback path");
-    assert_eq!(vectors, vec![vec![2.0, 2.0]]);
+    let vectors = client.embed_batch_with_model(&texts, None).await;
+    assert!(vectors.is_none());
     assert_eq!(
         http_calls.load(Ordering::Relaxed),
         2,
-        "persistent server error should trigger one retry before MCP fallback"
+        "persistent server error should trigger one retry on HTTP path"
     );
-    assert_eq!(mcp_calls.load(Ordering::Relaxed), 1);
+    assert_eq!(
+        mcp_calls.load(Ordering::Relaxed),
+        0,
+        "rust-only mode disables MCP fallback even when MCP URL is configured"
+    );
     Ok(())
 }
 
@@ -317,7 +342,7 @@ async fn embed_batch_falls_back_to_http_when_mcp_unconfigured() -> Result<()> {
 }
 
 #[tokio::test]
-async fn embed_batch_litellm_ollama_uses_http_fast_path_before_litellm() -> Result<()> {
+async fn embed_batch_litellm_ollama_prefers_openai_http_direct_path() -> Result<()> {
     let Some((base_url, http_calls, mcp_calls, litellm_calls)) =
         spawn_embedding_mock_server(Duration::from_millis(5), false, false).await?
     else {
@@ -329,14 +354,14 @@ async fn embed_batch_litellm_ollama_uses_http_fast_path_before_litellm() -> Resu
     let vectors = client
         .embed_batch_with_model(&texts, Some("ollama/qwen3-embedding:0.6b"))
         .await
-        .expect("expected embeddings from /embed/batch fast path");
-    assert_eq!(vectors, http_vectors_for_texts(&texts));
-    assert_eq!(http_calls.load(Ordering::Relaxed), 1);
+        .expect("expected embeddings from OpenAI-compatible direct path");
+    assert_eq!(vectors, openai_vectors_for_texts(&texts));
+    assert_eq!(http_calls.load(Ordering::Relaxed), 0);
     assert_eq!(mcp_calls.load(Ordering::Relaxed), 0);
     assert_eq!(
         litellm_calls.load(Ordering::Relaxed),
-        0,
-        "ollama /embed/batch fast path should avoid /v1/embeddings probe",
+        1,
+        "ollama direct path should call /v1/embeddings once",
     );
     Ok(())
 }
@@ -359,6 +384,160 @@ async fn embed_batch_openai_backend_uses_v1_embeddings_endpoint() -> Result<()> 
     assert_eq!(http_calls.load(Ordering::Relaxed), 0);
     assert_eq!(mcp_calls.load(Ordering::Relaxed), 0);
     assert_eq!(litellm_calls.load(Ordering::Relaxed), 1);
+    Ok(())
+}
+
+#[cfg(feature = "agent-provider-litellm")]
+#[tokio::test]
+async fn embed_batch_litellm_mistral_falls_back_to_http_without_mcp_when_provider_fails()
+-> Result<()> {
+    let Some((base_url, http_calls, mcp_calls, litellm_calls)) =
+        spawn_embedding_mock_server_with_openai_failure(
+            Duration::from_millis(5),
+            false,
+            false,
+            true,
+        )
+        .await?
+    else {
+        return Ok(());
+    };
+
+    let client = EmbeddingClient::new_with_mcp_url_and_backend(
+        &base_url,
+        5,
+        Some(format!("{base_url}/messages/")),
+        Some("litellm_rs"),
+    );
+    let texts = vec!["hello".to_string()];
+    let vectors = client
+        .embed_batch_with_model(&texts, Some("mistral/mistral-embed"))
+        .await
+        .expect("expected embeddings from /embed/batch fallback");
+
+    assert_eq!(vectors, http_vectors_for_texts(&texts));
+    assert_eq!(
+        http_calls.load(Ordering::Relaxed),
+        1,
+        "expected one /embed/batch fallback request"
+    );
+    assert_eq!(mcp_calls.load(Ordering::Relaxed), 0);
+    assert!(
+        litellm_calls.load(Ordering::Relaxed) <= 1,
+        "provider path should be attempted at most once before http fallback"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "agent-provider-litellm")]
+#[tokio::test]
+async fn embed_batch_litellm_mistral_returns_none_when_provider_and_http_fail() -> Result<()> {
+    let Some((base_url, http_calls, mcp_calls, litellm_calls)) =
+        spawn_embedding_mock_server_with_openai_failure(
+            Duration::from_millis(5),
+            true,
+            false,
+            true,
+        )
+        .await?
+    else {
+        return Ok(());
+    };
+
+    let client = EmbeddingClient::new_with_mcp_url_and_backend(
+        &base_url,
+        5,
+        Some(format!("{base_url}/messages/")),
+        Some("litellm_rs"),
+    );
+    let texts = vec!["hello".to_string()];
+    let vectors = client
+        .embed_batch_with_model(&texts, Some("mistral/mistral-embed"))
+        .await;
+
+    assert!(vectors.is_none());
+    assert!(
+        http_calls.load(Ordering::Relaxed) >= 1,
+        "expected /embed/batch fallback attempts when provider path fails"
+    );
+    assert!(
+        litellm_calls.load(Ordering::Relaxed) <= 1,
+        "provider path should be attempted at most once before fallback chain completes"
+    );
+    assert_eq!(
+        mcp_calls.load(Ordering::Relaxed),
+        0,
+        "rust-only mode disables MCP fallback for mistral provider failures"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "agent-provider-litellm")]
+#[tokio::test]
+async fn embed_batch_litellm_ollama_direct_path_ignores_embed_batch_errors() -> Result<()> {
+    let Some((base_url, http_calls, mcp_calls, litellm_calls)) =
+        spawn_embedding_mock_server(Duration::from_millis(5), true, false).await?
+    else {
+        return Ok(());
+    };
+    let client =
+        EmbeddingClient::new_with_mcp_url_and_backend(&base_url, 5, None, Some("litellm_rs"));
+    let texts = vec!["hello".to_string()];
+    let vectors = client
+        .embed_batch_with_model(&texts, Some("ollama/qwen3-embedding:0.6b"))
+        .await
+        .expect("expected embeddings from OpenAI-compatible fallback path");
+
+    assert_eq!(vectors, openai_vectors_for_texts(&texts));
+    assert_eq!(
+        http_calls.load(Ordering::Relaxed),
+        0,
+        "ollama direct path should skip /embed/batch when OpenAI-compatible endpoint is available"
+    );
+    assert_eq!(mcp_calls.load(Ordering::Relaxed), 0);
+    assert_eq!(litellm_calls.load(Ordering::Relaxed), 1);
+    Ok(())
+}
+
+#[cfg(feature = "agent-provider-litellm")]
+#[tokio::test]
+async fn embed_batch_litellm_ollama_returns_none_when_all_primary_paths_fail() -> Result<()> {
+    let Some((base_url, http_calls, mcp_calls, litellm_calls)) =
+        spawn_embedding_mock_server_with_openai_failure(
+            Duration::from_millis(5),
+            true,
+            false,
+            true,
+        )
+        .await?
+    else {
+        return Ok(());
+    };
+    let client = EmbeddingClient::new_with_mcp_url_and_backend(
+        &base_url,
+        5,
+        Some(format!("{base_url}/messages/")),
+        Some("litellm_rs"),
+    );
+    let texts = vec!["hello".to_string()];
+    let vectors = client
+        .embed_batch_with_model(&texts, Some("ollama/qwen3-embedding:0.6b"))
+        .await;
+
+    assert!(vectors.is_none());
+    assert!(
+        http_calls.load(Ordering::Relaxed) >= 1,
+        "expected /embed/batch fallback attempts before marking embedding unavailable"
+    );
+    assert!(
+        litellm_calls.load(Ordering::Relaxed) >= 1,
+        "expected OpenAI-compatible path to be attempted before failure"
+    );
+    assert_eq!(
+        mcp_calls.load(Ordering::Relaxed),
+        0,
+        "rust-only mode disables MCP fallback when all primary embedding paths fail"
+    );
     Ok(())
 }
 

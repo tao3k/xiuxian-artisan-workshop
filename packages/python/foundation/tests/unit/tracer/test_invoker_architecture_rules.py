@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 TRACER_DIR = Path(__file__).resolve().parents[3] / "src" / "omni" / "tracer"
 pytestmark = pytest.mark.architecture
 

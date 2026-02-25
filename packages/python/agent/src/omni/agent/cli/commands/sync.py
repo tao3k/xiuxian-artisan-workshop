@@ -14,10 +14,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from omni.foundation.utils.asyncio import run_async_blocking
-
 from omni.agent.services.sync import (
-    _resolve_references_config_path,
     sync_all,
     sync_knowledge,
     sync_memory,
@@ -25,6 +22,7 @@ from omni.agent.services.sync import (
     sync_skills,
     sync_symbols,
 )
+from omni.foundation.utils.asyncio import run_async_blocking
 
 sync_app = typer.Typer(
     name="sync",
@@ -172,4 +170,4 @@ def register_sync_command(parent_app: typer.Typer) -> None:
     parent_app.add_typer(sync_app, name="sync")
 
 
-__all__ = ["sync_app", "register_sync_command"]
+__all__ = ["register_sync_command", "sync_app"]

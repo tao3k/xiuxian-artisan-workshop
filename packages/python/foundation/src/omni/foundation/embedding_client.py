@@ -8,12 +8,12 @@ Used by lightweight MCP processes that don't load the embedding model.
 from __future__ import annotations
 
 import json
-from typing import Any
 import urllib.error
 import urllib.request
+from typing import Any
 
-import structlog
 import aiohttp
+import structlog
 
 from omni.foundation.config.settings import get_setting
 
@@ -180,6 +180,6 @@ async def close_embedding_client() -> None:
 
 __all__ = [
     "EmbeddingClient",
-    "get_embedding_client",
     "close_embedding_client",
+    "get_embedding_client",
 ]

@@ -1,4 +1,6 @@
-use crate::agent::{SessionContextSnapshotInfo, SessionContextWindowInfo};
+use crate::agent::{
+    DownstreamAdmissionRuntimeSnapshot, SessionContextSnapshotInfo, SessionContextWindowInfo,
+};
 
 use super::mode::format_context_mode;
 
@@ -8,6 +10,7 @@ pub(in super::super::super) fn format_session_context_snapshot(
     partition_mode: &str,
     active: SessionContextWindowInfo,
     snapshot: Option<SessionContextSnapshotInfo>,
+    admission: DownstreamAdmissionRuntimeSnapshot,
 ) -> String {
     let mut lines = vec![
         "============================================================".to_string(),
@@ -54,6 +57,32 @@ pub(in super::super::super) fn format_session_context_snapshot(
             lines.push("  status=none".to_string());
         }
     }
+    lines.push("------------------------------------------------------------".to_string());
+    lines.push("Admission:".to_string());
+    lines.push(format!("  enabled={}", admission.enabled));
+    lines.push(format!(
+        "  llm_reject_threshold_pct={}",
+        admission.llm_reject_threshold_pct
+    ));
+    lines.push(format!(
+        "  embedding_reject_threshold_pct={}",
+        admission.embedding_reject_threshold_pct
+    ));
+    lines.push(format!("  total={}", admission.metrics.total));
+    lines.push(format!("  admitted={}", admission.metrics.admitted));
+    lines.push(format!("  rejected={}", admission.metrics.rejected));
+    lines.push(format!(
+        "  reject_rate_pct={}",
+        admission.metrics.reject_rate_pct
+    ));
+    lines.push(format!(
+        "  rejected_llm_saturated={}",
+        admission.metrics.rejected_llm_saturated
+    ));
+    lines.push(format!(
+        "  rejected_embedding_saturated={}",
+        admission.metrics.rejected_embedding_saturated
+    ));
     lines.push("============================================================".to_string());
     lines.join("\n")
 }

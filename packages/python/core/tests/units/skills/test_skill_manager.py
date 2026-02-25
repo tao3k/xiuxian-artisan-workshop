@@ -6,10 +6,10 @@ would call embedding_service._load_local embedding_model(), causing unnecessary
 model loading even when MCP server is available.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
 import tempfile
-from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestSkillManagerEmbeddingLazyLoad:
@@ -63,21 +63,23 @@ class TestSkillManagerEmbeddingLazyLoad:
                 mock_embed.dimension = 9999  # Should NOT be used for store dimension
                 mock_get_embed.return_value = mock_embed
 
-                with patch(
-                    "omni.foundation.services.index_dimension.get_effective_embedding_dimension",
-                    return_value=1024,
+                with (
+                    patch(
+                        "omni.foundation.services.index_dimension.get_effective_embedding_dimension",
+                        return_value=1024,
+                    ),
+                    patch("omni.core.services.skill_manager.PyVectorStore") as mock_store,
                 ):
-                    with patch("omni.core.services.skill_manager.PyVectorStore") as mock_store:
-                        with patch("omni.core.services.skill_manager.SkillIndexer"):
-                            with patch("omni.core.services.skill_manager.HolographicRegistry"):
-                                manager = SkillManager(
-                                    project_root=tmpdir,
-                                    enable_watcher=False,
-                                )
+                    with patch("omni.core.services.skill_manager.SkillIndexer"):
+                        with patch("omni.core.services.skill_manager.HolographicRegistry"):
+                            manager = SkillManager(
+                                project_root=tmpdir,
+                                enable_watcher=False,
+                            )
 
-                                mock_store.assert_called_once()
-                                call_args = mock_store.call_args
-                                assert call_args[0][1] == 1024
+                            mock_store.assert_called_once()
+                            call_args = mock_store.call_args
+                            assert call_args[0][1] == 1024
 
     def test_skill_manager_embedding_singleton_not_modified(self):
         """SkillManager should not modify embedding service state."""

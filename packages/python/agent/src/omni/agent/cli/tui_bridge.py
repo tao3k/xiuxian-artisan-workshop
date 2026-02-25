@@ -26,8 +26,7 @@ import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 from omni.foundation.runtime.gitops import get_project_root
 
@@ -104,13 +103,13 @@ class TUIManager:
     4. Python forwards internal events to TUI for rendering
     """
 
-    def __init__(self, config: Optional[TUIConfig] = None):
+    def __init__(self, config: TUIConfig | None = None):
         self.config = config or TUIConfig()
-        self._process: Optional[subprocess.Popen] = None
-        self._server_socket: Optional[socket.socket] = None
-        self._conn: Optional[socket.socket] = None
+        self._process: subprocess.Popen | None = None
+        self._server_socket: socket.socket | None = None
+        self._conn: socket.socket | None = None
         self._active = False
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     @property
     def is_active(self) -> bool:
@@ -225,7 +224,7 @@ class TUIManager:
                 self._conn = conn[0]
                 logger.info(f"Rust TUI connected to {self.config.socket_path}")
                 return
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Check if Rust process died
                 if self._process and self._process.poll() is not None:
                     raise RuntimeError("Rust TUI process died before connecting")
@@ -417,9 +416,9 @@ def create_tui_bridge() -> TUIBridgeProtocol:
 
 
 __all__ = [
-    "TUIManager",
-    "TUIConfig",
-    "TUIBridgeProtocol",
     "NullTUIBridge",
+    "TUIBridgeProtocol",
+    "TUIConfig",
+    "TUIManager",
     "create_tui_bridge",
 ]

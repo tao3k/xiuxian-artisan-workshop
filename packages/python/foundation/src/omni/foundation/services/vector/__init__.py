@@ -24,12 +24,12 @@ from .constants import (
     ERROR_TABLE_NOT_FOUND,
     MAX_SEARCH_RESULTS,
 )
+from .knowledge import add_knowledge, search_knowledge
+from .models import SearchResult
 from .search import (
     SEARCH_EMBED_TIMEOUT,
     search_embed_timeout,
 )
-from .knowledge import add_knowledge, search_knowledge
-from .models import SearchResult
 from .store import (
     VectorStoreClient,
     evict_all_vector_stores,

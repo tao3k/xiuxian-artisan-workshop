@@ -6,10 +6,10 @@ Layer-specific providers for the Omni Loop (ReAct loop).
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
-from omni.foundation.config.logging import get_logger
 from omni.core.context.base import ContextProvider, ContextResult
+from omni.foundation.config.logging import get_logger
 
 logger = get_logger("omni.agent.core.context.providers")
 
@@ -28,9 +28,9 @@ class RoutingGuidanceProvider(ContextProvider):
 
     def __init__(self, prompt_name: str = "routing/intent_protocol") -> None:
         self.prompt_name = prompt_name
-        self._content: Optional[str] = None
+        self._content: str | None = None
 
-    async def provide(self, state: dict[str, Any], budget: int) -> Optional[ContextResult]:
+    async def provide(self, state: dict[str, Any], budget: int) -> ContextResult | None:
         # Load from file via API (cached)
         if self._content is None:
             try:

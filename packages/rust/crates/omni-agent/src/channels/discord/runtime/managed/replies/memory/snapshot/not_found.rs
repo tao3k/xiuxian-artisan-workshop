@@ -1,14 +1,18 @@
 use serde_json::json;
 
-use crate::agent::{MemoryRecallMetricsSnapshot, MemoryRuntimeStatusSnapshot};
+use crate::agent::{
+    DownstreamAdmissionRuntimeSnapshot, MemoryRecallMetricsSnapshot, MemoryRuntimeStatusSnapshot,
+};
 
 use super::super::metrics::format_memory_recall_metrics_json;
 use super::super::runtime_status::{
+    format_downstream_admission_status_json, format_downstream_admission_status_lines,
     format_memory_runtime_status_json, format_memory_runtime_status_lines,
 };
 
 pub(in super::super::super::super) fn format_memory_recall_not_found(
     runtime_status: MemoryRuntimeStatusSnapshot,
+    admission_status: DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
     let mut lines = vec![
@@ -19,6 +23,8 @@ pub(in super::super::super::super) fn format_memory_recall_not_found(
         "### Persistence".to_string(),
     ];
     lines.extend(format_memory_runtime_status_lines(runtime_status));
+    lines.extend([String::new(), "### Admission".to_string()]);
+    lines.extend(format_downstream_admission_status_lines(admission_status));
     lines.extend([
         String::new(),
         "### Next Step".to_string(),
@@ -31,6 +37,7 @@ pub(in super::super::super::super) fn format_memory_recall_not_found(
 pub(in super::super::super::super) fn format_memory_recall_not_found_json(
     metrics: MemoryRecallMetricsSnapshot,
     runtime_status: MemoryRuntimeStatusSnapshot,
+    admission_status: DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
     json!({
@@ -40,6 +47,7 @@ pub(in super::super::super::super) fn format_memory_recall_not_found_json(
         "status": "not_found",
         "hint": "Run at least one normal turn first (non-command message).",
         "runtime": format_memory_runtime_status_json(runtime_status),
+        "admission": format_downstream_admission_status_json(admission_status),
         "metrics": format_memory_recall_metrics_json(metrics),
     })
     .to_string()

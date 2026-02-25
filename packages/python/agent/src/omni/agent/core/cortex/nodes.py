@@ -128,7 +128,7 @@ class TaskNode:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TaskNode":
+    def from_dict(cls, data: dict[str, Any]) -> TaskNode:
         """Deserialize from dictionary."""
         data = data.copy()
         data["created_at"] = datetime.fromisoformat(data["created_at"])
@@ -387,9 +387,9 @@ class TaskGraph:
 
 
 __all__ = [
-    "TaskNode",
-    "TaskGroup",
     "TaskGraph",
-    "TaskStatus",
+    "TaskGroup",
+    "TaskNode",
     "TaskPriority",
+    "TaskStatus",
 ]

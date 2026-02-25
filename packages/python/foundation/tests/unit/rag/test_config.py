@@ -2,8 +2,6 @@
 Tests for omni.rag.config module.
 """
 
-import pytest
-
 
 class TestDocumentParsingConfig:
     """Test DocumentParsingConfig dataclass."""
@@ -127,10 +125,10 @@ class TestRAGConfig:
     def test_default_creation(self):
         """Test default RAGConfig creation."""
         from omni.rag.config import (
-            RAGConfig,
             DocumentParsingConfig,
-            MultimodalConfig,
             KnowledgeGraphConfig,
+            MultimodalConfig,
+            RAGConfig,
             RustSearchConfig,
         )
 

@@ -10,15 +10,16 @@ This script combines:
 
 from __future__ import annotations
 
-import argparse
 import importlib
 import os
-import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import argparse
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
@@ -38,12 +39,32 @@ normalize_telegram_session_partition_mode = (
 session_partition_mode_from_runtime_log = _resolver_module.session_partition_mode_from_runtime_log
 telegram_session_partition_mode = _resolver_module.telegram_session_partition_mode
 
+_regressions_module = load_sibling_module(
+    module_name="memory_suite_regressions",
+    file_name="memory_suite_regressions.py",
+    caller_file=__file__,
+    error_context="memory suite regressions helpers",
+)
+_blackbox_module = load_sibling_module(
+    module_name="memory_suite_blackbox",
+    file_name="memory_suite_blackbox.py",
+    caller_file=__file__,
+    error_context="memory suite black-box helpers",
+)
+_cli_module = load_sibling_module(
+    module_name="memory_suite_cli",
+    file_name="memory_suite_cli.py",
+    caller_file=__file__,
+    error_context="memory suite CLI helpers",
+)
+
 DEFAULT_MAX_WAIT = int(os.environ.get("OMNI_BLACKBOX_MAX_WAIT_SECS", "25"))
 DEFAULT_MAX_IDLE_SECS = int(os.environ.get("OMNI_BLACKBOX_MAX_IDLE_SECS", "25"))
 DEFAULT_VALKEY_URL = os.environ.get("VALKEY_URL", "redis://127.0.0.1:6379/0")
 FORBIDDEN_LOG_PATTERN = "tools/call: Mcp error"
 DEFAULT_EVOLUTION_SCENARIO_ID = "memory_self_correction_high_complexity_dag"
-TARGET_SESSION_SCOPE_PLACEHOLDER = "__target_session_scope__"
+TARGET_SESSION_SCOPE_PLACEHOLDER = _blackbox_module.TARGET_SESSION_SCOPE_PLACEHOLDER
+BlackboxCase = _blackbox_module.BlackboxCase
 
 
 def default_valkey_prefix(tag: str) -> str:
@@ -76,116 +97,20 @@ def resolve_runtime_partition_mode() -> str | None:
     return telegram_session_partition_mode()
 
 
-@dataclass(frozen=True)
-class BlackboxCase:
-    prompt: str
-    expected_event: str
-    extra_args: tuple[str, ...] = ()
-
-
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run memory-focused omni-agent Telegram black-box + regression suite."
-    )
-    parser.add_argument(
-        "--suite",
-        choices=("quick", "full"),
-        default="quick",
-        help="Suite mode: quick (black-box only) or full (black-box + cargo regressions).",
-    )
-    parser.add_argument(
-        "--max-wait",
-        type=int,
-        default=DEFAULT_MAX_WAIT,
-        help=f"Per black-box probe max wait in seconds (default: {DEFAULT_MAX_WAIT}).",
-    )
-    parser.add_argument(
-        "--max-idle-secs",
-        type=int,
-        default=DEFAULT_MAX_IDLE_SECS,
-        help=f"Per black-box probe max idle seconds (default: {DEFAULT_MAX_IDLE_SECS}).",
-    )
-    parser.add_argument(
-        "--username",
-        default=os.environ.get("OMNI_TEST_USERNAME", ""),
-        help="Synthetic Telegram username for allowlist checks.",
-    )
-    parser.add_argument(
-        "--require-live-turn",
-        action="store_true",
-        help=(
-            "Also probe a normal non-command turn and require memory recall observability "
-            "events in logs."
-        ),
-    )
-    parser.add_argument(
-        "--skip-blackbox",
-        action="store_true",
-        help="Skip webhook black-box checks (useful when local webhook runtime is not running).",
-    )
-    parser.add_argument(
-        "--skip-rust",
-        action="store_true",
-        help="Skip Rust regression checks.",
-    )
-    parser.add_argument(
-        "--skip-evolution",
-        action="store_true",
-        help=(
-            "Skip memory self-evolution DAG black-box scenario in full suite. "
-            "By default, full suite includes this scenario."
-        ),
-    )
-    parser.add_argument(
-        "--evolution-dataset",
-        default=str(
+    return _cli_module.parse_args(
+        default_max_wait=DEFAULT_MAX_WAIT,
+        default_max_idle_secs=DEFAULT_MAX_IDLE_SECS,
+        default_valkey_url=DEFAULT_VALKEY_URL,
+        default_evolution_dataset=str(
             Path(__file__).resolve().parent / "fixtures" / "memory_evolution_complex_scenarios.json"
         ),
-        help="Path to memory self-evolution complex scenario dataset JSON.",
-    )
-    parser.add_argument(
-        "--evolution-scenario",
-        default=DEFAULT_EVOLUTION_SCENARIO_ID,
-        help=(
-            "Scenario id to run from the evolution dataset "
-            f"(default: {DEFAULT_EVOLUTION_SCENARIO_ID})."
+        default_evolution_scenario_id=DEFAULT_EVOLUTION_SCENARIO_ID,
+        default_evolution_output_json=str(default_report_path("omni-agent-memory-evolution.json")),
+        default_evolution_output_markdown=str(
+            default_report_path("omni-agent-memory-evolution.md")
         ),
     )
-    parser.add_argument(
-        "--evolution-max-parallel",
-        type=int,
-        default=1,
-        help="Max parallel probes per wave for evolution scenario (default: 1).",
-    )
-    parser.add_argument(
-        "--evolution-output-json",
-        default=str(default_report_path("omni-agent-memory-evolution.json")),
-        help="Output JSON report path for evolution scenario.",
-    )
-    parser.add_argument(
-        "--evolution-output-markdown",
-        default=str(default_report_path("omni-agent-memory-evolution.md")),
-        help="Output Markdown report path for evolution scenario.",
-    )
-    parser.add_argument(
-        "--with-valkey",
-        action="store_true",
-        help="Run optional Valkey cross-instance memory snapshot continuity check.",
-    )
-    parser.add_argument(
-        "--valkey-url",
-        default=DEFAULT_VALKEY_URL,
-        help=f"Valkey URL for optional --with-valkey checks (default: {DEFAULT_VALKEY_URL}).",
-    )
-    parser.add_argument(
-        "--valkey-prefix",
-        default="",
-        help=(
-            "Optional explicit Valkey key prefix for optional --with-valkey isolation. "
-            "Default: an auto-generated per-run prefix."
-        ),
-    )
-    return parser.parse_args()
 
 
 def run_command(
@@ -201,40 +126,10 @@ def run_command(
 
 
 def blackbox_cases(require_live_turn: bool) -> tuple[BlackboxCase, ...]:
-    base = (
-        BlackboxCase(
-            prompt="/session memory json",
-            expected_event="telegram.command.session_memory_json.replied",
-            extra_args=(
-                "--expect-reply-json-field",
-                "json_kind=session_memory",
-                "--expect-reply-json-field",
-                f"json_session_scope={TARGET_SESSION_SCOPE_PLACEHOLDER}",
-            ),
-        ),
-        BlackboxCase(
-            prompt="/session feedback up json",
-            expected_event="telegram.command.session_feedback_json.replied",
-            extra_args=("--expect-reply-json-field", "json_kind=session_feedback"),
-        ),
-        BlackboxCase(
-            prompt="/session feedback down json",
-            expected_event="telegram.command.session_feedback_json.replied",
-            extra_args=("--expect-reply-json-field", "json_kind=session_feedback"),
-        ),
-    )
-    if not require_live_turn:
-        return base
-    return (
-        *base,
-        BlackboxCase(
-            prompt="Please reply in one short sentence for memory probe.",
-            expected_event="agent.memory.recall.planned",
-            extra_args=(
-                "--expect-log-regex",
-                r"agent\.memory\.recall\.(planned|injected|skipped)",
-            ),
-        ),
+    return _blackbox_module.blackbox_cases(
+        require_live_turn,
+        case_cls=BlackboxCase,
+        target_session_scope_placeholder=TARGET_SESSION_SCOPE_PLACEHOLDER,
     )
 
 
@@ -246,48 +141,17 @@ def run_blackbox_suite(
     username: str,
     require_live_turn: bool,
 ) -> None:
-    blackbox_script = script_dir / "agent_channel_blackbox.py"
-    if not blackbox_script.exists():
-        raise FileNotFoundError(f"black-box script not found: {blackbox_script}")
-    runtime_partition_mode = resolve_runtime_partition_mode()
-    if runtime_partition_mode:
-        print(
-            f"Resolved runtime session partition mode for black-box probes: {runtime_partition_mode}",
-            flush=True,
-        )
-    allow_chat_ids = [
-        token.strip()
-        for token in os.environ.get("OMNI_BLACKBOX_ALLOWED_CHAT_IDS", "").split(",")
-        if token.strip()
-    ]
-    if not allow_chat_ids:
-        single_chat = os.environ.get("OMNI_TEST_CHAT_ID", "").strip()
-        if single_chat:
-            allow_chat_ids = [single_chat]
-
-    for case in blackbox_cases(require_live_turn):
-        cmd = [
-            sys.executable,
-            str(blackbox_script),
-            "--prompt",
-            case.prompt,
-            "--expect-event",
-            case.expected_event,
-            "--forbid-log-regex",
-            FORBIDDEN_LOG_PATTERN,
-            "--max-wait",
-            str(max_wait),
-            "--max-idle-secs",
-            str(max_idle_secs),
-        ]
-        for allowed_chat_id in allow_chat_ids:
-            cmd.extend(["--allow-chat-id", allowed_chat_id])
-        if username.strip():
-            cmd.extend(["--username", username.strip()])
-        if runtime_partition_mode:
-            cmd.extend(["--session-partition", runtime_partition_mode])
-        cmd.extend(case.extra_args)
-        run_command(cmd, title=f"Black-box probe: {case.prompt}")
+    _blackbox_module.run_blackbox_suite(
+        script_dir,
+        max_wait=max_wait,
+        max_idle_secs=max_idle_secs,
+        username=username,
+        require_live_turn=require_live_turn,
+        forbidden_log_pattern=FORBIDDEN_LOG_PATTERN,
+        run_command_fn=run_command,
+        resolve_runtime_partition_mode_fn=resolve_runtime_partition_mode,
+        blackbox_cases_fn=blackbox_cases,
+    )
 
 
 def run_memory_evolution_scenario(
@@ -302,144 +166,37 @@ def run_memory_evolution_scenario(
     output_json: Path,
     output_markdown: Path,
 ) -> None:
-    scenario_runner = script_dir / "test_omni_agent_complex_scenarios.py"
-    if not scenario_runner.exists():
-        raise FileNotFoundError(f"complex scenario runner not found: {scenario_runner}")
-    if not dataset_path.exists():
-        raise FileNotFoundError(f"evolution dataset not found: {dataset_path}")
-    if max_parallel <= 0:
-        raise ValueError("--evolution-max-parallel must be a positive integer.")
-
-    cmd = [
-        sys.executable,
-        str(scenario_runner),
-        "--dataset",
-        str(dataset_path),
-        "--scenario",
-        scenario_id,
-        "--max-wait",
-        str(max_wait),
-        "--max-idle-secs",
-        str(max_idle_secs),
-        "--max-parallel",
-        str(max_parallel),
-        "--output-json",
-        str(output_json),
-        "--output-markdown",
-        str(output_markdown),
-    ]
-    if username.strip():
-        cmd.extend(["--username", username.strip()])
-
-    run_command(
-        cmd,
-        title=(
-            "Black-box evolution: memory self-correction + feedback adaptation + "
-            "cross-session isolation DAG"
-        ),
+    _blackbox_module.run_memory_evolution_scenario(
+        script_dir,
+        max_wait=max_wait,
+        max_idle_secs=max_idle_secs,
+        username=username,
+        dataset_path=dataset_path,
+        scenario_id=scenario_id,
+        max_parallel=max_parallel,
+        output_json=output_json,
+        output_markdown=output_markdown,
+        run_command_fn=run_command,
     )
 
 
 def run_rust_memory_regressions() -> None:
-    run_command(
-        [
-            "cargo",
-            "test",
-            "-p",
-            "omni-agent",
-            "--test",
-            "agent_memory_persistence_backend",
-            "memory_turn_store_skips_episode_when_embedding_endpoint_is_unavailable",
-            "-q",
-        ],
-        title="Regression: embedding endpoint down fallback (3302 unavailable)",
-    )
-    run_command(
-        [
-            "cargo",
-            "test",
-            "-p",
-            "omni-agent",
-            "--lib",
-            "runtime_handle_inbound_session_memory_reports_latest_snapshot_json",
-            "-q",
-        ],
-        title="Regression: /session memory json payload fields",
-    )
-    run_command(
-        [
-            "cargo",
-            "test",
-            "-p",
-            "omni-agent",
-            "--lib",
-            "runtime_handle_inbound_session_feedback_json",
-            "-q",
-        ],
-        title="Regression: /session feedback json payload fields",
-    )
-    run_command(
-        [
-            "cargo",
-            "test",
-            "-p",
-            "omni-agent",
-            "--lib",
-            "agent::embedding_dimension::tests",
-            "-q",
-        ],
-        title="Regression: embedding dimension auto-repair behavior",
-    )
-    run_command(
-        [
-            "cargo",
-            "test",
-            "-p",
-            "omni-agent",
-            "--lib",
-            "inspect_memory_recall_snapshot_keeps_embedding_repaired_source",
-            "-q",
-        ],
-        title="Regression: session memory snapshot keeps embedding_repaired source",
-    )
+    _regressions_module.run_rust_memory_regressions(run_command_fn=run_command)
 
 
 def ensure_valkey_cli() -> None:
-    if shutil.which("valkey-cli") is None:
-        raise RuntimeError("valkey-cli not found in PATH")
+    _regressions_module.ensure_valkey_cli()
 
 
 def check_valkey_connectivity(valkey_url: str) -> None:
-    print(f"Checking Valkey connectivity at {valkey_url}...", flush=True)
-    subprocess.run(
-        ["valkey-cli", "-u", valkey_url, "ping"],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    _regressions_module.check_valkey_connectivity(valkey_url)
 
 
 def run_valkey_cross_instance_regression(valkey_url: str, valkey_prefix: str) -> None:
-    ensure_valkey_cli()
-    check_valkey_connectivity(valkey_url)
-    env = os.environ.copy()
-    env["VALKEY_URL"] = valkey_url
-    env["OMNI_AGENT_SESSION_VALKEY_PREFIX"] = valkey_prefix
-    env["OMNI_AGENT_MEMORY_VALKEY_KEY_PREFIX"] = f"{valkey_prefix}:memory"
-    print(f"Valkey isolation prefix: {valkey_prefix}", flush=True)
-    run_command(
-        [
-            "cargo",
-            "test",
-            "-p",
-            "omni-agent",
-            "memory_recall_snapshot_is_shared_across_agent_instances_with_valkey",
-            "--",
-            "--ignored",
-            "--nocapture",
-        ],
-        title="Regression: cross-instance /session memory snapshot continuity with Valkey",
-        env=env,
+    _regressions_module.run_valkey_cross_instance_regression(
+        valkey_url,
+        valkey_prefix,
+        run_command_fn=run_command,
     )
 
 

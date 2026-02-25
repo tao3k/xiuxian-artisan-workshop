@@ -126,7 +126,7 @@ class MCPServerProtocol[ContextT](Protocol):
 __all__ = [
     "MCPRequestContext",
     "MCPRequestHandler",
+    "MCPServerProtocol",
     "MCPSession",
     "MCPTransport",
-    "MCPServerProtocol",
 ]

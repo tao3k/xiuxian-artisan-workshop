@@ -5,13 +5,10 @@ Provides high-level TUI operations through the Rust omni-tui crate.
 
 from __future__ import annotations
 
-import asyncio
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Any, Optional
 
 try:
-    from omni_core_rs import PyTuiApp, PyFoldablePanel
+    from omni_core_rs import PyFoldablePanel, PyTuiApp
 
     _RUST_TUI_AVAILABLE = True
 except ImportError:
@@ -25,7 +22,7 @@ class TuiBridge:
 
     def __init__(self, title: str = "Omni Dev Fusion"):
         """Initialize TUI bridge."""
-        self._app: Optional[PyTuiApp] = None
+        self._app: PyTuiApp | None = None
         self._title = title
         self._is_active = False
 
@@ -181,11 +178,11 @@ def check_tui_available() -> bool:
 
 
 __all__ = [
-    "TuiBridge",
-    "TuiPanel",
-    "TuiCellRenderer",
     "CellOutput",
-    "tui_mode",
-    "create_cell_renderer",
+    "TuiBridge",
+    "TuiCellRenderer",
+    "TuiPanel",
     "check_tui_available",
+    "create_cell_renderer",
+    "tui_mode",
 ]

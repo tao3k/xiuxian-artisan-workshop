@@ -1,6 +1,7 @@
-from typing import Dict, Any, List
-from ..state import RobustTaskState
+from typing import Any
+
 from ..nodes import call_llm
+from ..state import RobustTaskState
 from ..utils import parse_xml_tag
 
 REFLECTION_PROMPT = """
@@ -28,7 +29,7 @@ Specific adjustment for the next attempt (e.g., "Use a different tool", "Change 
 """
 
 
-async def reflection_node(state: RobustTaskState) -> Dict[str, Any]:
+async def reflection_node(state: RobustTaskState) -> dict[str, Any]:
     # print("--- Reflection Node ---")
 
     validation = state.get("validation_result", {})

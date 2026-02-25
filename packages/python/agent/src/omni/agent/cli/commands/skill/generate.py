@@ -54,17 +54,16 @@ from omni.foundation.config.settings import get_setting
 from omni.foundation.utils.asyncio import run_async_blocking
 from omni.foundation.utils.templating import TemplateEngine
 
-from .base import SKILLS_DIR, err_console, skill_app
-
 # Import from modular submodules
 from ._generate_modular import (
+    fix_skill_code,
     format_rag_context,
     generate_commands_prompt,
     generate_readme_prompt,
     retrieve_similar_skills,
     verify_skill_code,
-    fix_skill_code,
 )
+from .base import SKILLS_DIR, err_console, skill_app
 
 logger = get_logger("omni.cli.generate")
 

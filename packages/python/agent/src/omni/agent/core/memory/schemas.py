@@ -89,7 +89,7 @@ class ExperienceRecallResult(BaseModel):
 
 __all__ = [
     "ExecutionStep",
-    "HippocampusTrace",
     "ExperienceMetadata",
     "ExperienceRecallResult",
+    "HippocampusTrace",
 ]

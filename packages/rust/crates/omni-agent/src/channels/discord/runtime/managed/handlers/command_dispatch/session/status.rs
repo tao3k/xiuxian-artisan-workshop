@@ -31,6 +31,7 @@ pub(in super::super) async fn handle_session_status(
     } else {
         EVENT_DISCORD_COMMAND_SESSION_STATUS_REPLIED
     };
+    let admission_status = agent.downstream_admission_runtime_snapshot();
     let response = match (
         agent.inspect_context_window(session_id).await,
         agent.peek_context_window_backup(session_id).await,
@@ -46,6 +47,7 @@ pub(in super::super) async fn handle_session_status(
                     &partition_mode,
                     active,
                     snapshot,
+                    admission_status,
                 )
             } else {
                 format_session_context_snapshot(
@@ -54,6 +56,7 @@ pub(in super::super) async fn handle_session_status(
                     &partition_mode,
                     active,
                     snapshot,
+                    admission_status,
                 )
             }
         }

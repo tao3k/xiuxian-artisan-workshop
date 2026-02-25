@@ -2,7 +2,7 @@ inputs:
   llm-agents:
     url: github:numtide/llm-agents.nix
   nixpkgs:
-    url: github:cachix/devenv-nixpkgs/rolling
+    url: github:cachix/devenv-nixpkgs
   nixpkgs-latest:
     url: github:NixOS/nixpkgs/nixpkgs-unstable
   omnibus:

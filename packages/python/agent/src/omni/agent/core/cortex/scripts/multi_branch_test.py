@@ -5,14 +5,12 @@ Multi-branch transaction test using real Git repository at /tmp/gitdir.
 
 import asyncio
 import sys
-import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from omni.agent.core.cortex.transaction import (
     TransactionShield,
-    TransactionStatus,
 )
 
 
@@ -124,7 +122,7 @@ async def test_concurrent_modifications():
 
     subprocess.run(["git", "add", "concurrent_test.py"], cwd=repo_path, check=True)
     subprocess.run(["git", "commit", "-m", "A modifies file"], cwd=repo_path, check=True)
-    print(f"   Task A committed")
+    print("   Task A committed")
 
     # Go back to main and create task B
     subprocess.run(["git", "checkout", "main"], cwd=repo_path, check=True)
@@ -139,7 +137,7 @@ async def test_concurrent_modifications():
 
     subprocess.run(["git", "add", "concurrent_test.py"], cwd=repo_path, check=True)
     subprocess.run(["git", "commit", "-m", "B modifies file"], cwd=repo_path, check=True)
-    print(f"   Task B committed")
+    print("   Task B committed")
 
     # Now try to merge both into main
     print("\n🔀 Attempting to merge both branches...")
@@ -171,18 +169,18 @@ async def test_concurrent_modifications():
         print(f"   Conflict details: {result.stderr[:100]}...")
 
     # Cleanup
-    print(f"\n🧹 Cleaning up...")
+    print("\n🧹 Cleaning up...")
     await shield.cleanup_all()
 
     # Verify final state
     result = subprocess.run(
         ["git", "log", "--oneline", "-5"], cwd=repo_path, capture_output=True, text=True
     )
-    print(f"\n📜 Final commit history:")
+    print("\n📜 Final commit history:")
     for line in result.stdout.strip().split("\n"):
         print(f"   {line}")
 
-    print(f"\n✅ Test completed - concurrent modifications isolated")
+    print("\n✅ Test completed - concurrent modifications isolated")
 
     return True
 

@@ -267,9 +267,9 @@ class RelationType:
 
 __all__ = [
     "Entity",
-    "Relation",
     "EntityMention",
-    "ExtractedChunk",
     "EntityType",
+    "ExtractedChunk",
+    "Relation",
     "RelationType",
 ]

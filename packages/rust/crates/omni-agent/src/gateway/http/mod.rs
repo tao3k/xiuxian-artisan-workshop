@@ -4,6 +4,7 @@
 //! Each request is limited by a timeout to avoid stuck connections.
 
 mod handlers;
+mod llm_proxy;
 mod runtime;
 mod types;
 
@@ -21,7 +22,7 @@ use crate::agent::Agent;
 use self::handlers::{
     handle_embed, handle_embed_batch, handle_health, handle_message, handle_openai_embeddings,
 };
-use self::runtime::build_embedding_runtime;
+use self::runtime::{build_embedding_runtime, build_embedding_runtime_for_gateway};
 pub(crate) use self::types::GatewayEmbeddingRuntime;
 pub use self::types::{
     GatewayHealthResponse, GatewayMcpHealthResponse, GatewayState, MessageRequest, MessageResponse,
@@ -46,10 +47,31 @@ where
         .route("/v1/embeddings", post(handle_openai_embeddings))
 }
 
+pub(crate) fn proxy_routes<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    Router::new()
+        .route("/v1/chat/completions", post(llm_proxy::handle_chat_completions))
+}
+
 /// Build the gateway router (POST /message).
 pub fn router(agent: Agent, turn_timeout_secs: u64, max_concurrent_turns: Option<usize>) -> Router {
+    router_with_embedding_runtime(
+        agent,
+        turn_timeout_secs,
+        max_concurrent_turns,
+        new_embedding_runtime(),
+    )
+}
+
+pub fn router_with_embedding_runtime(
+    agent: Agent,
+    turn_timeout_secs: u64,
+    max_concurrent_turns: Option<usize>,
+    embedding_runtime: Arc<GatewayEmbeddingRuntime>,
+) -> Router {
     let concurrency_semaphore = max_concurrent_turns.map(|n| Arc::new(Semaphore::new(n)));
-    let embedding_runtime = new_embedding_runtime();
     let state = GatewayState {
         agent: Arc::new(agent),
         turn_timeout_secs,
@@ -62,6 +84,7 @@ pub fn router(agent: Agent, turn_timeout_secs: u64, max_concurrent_turns: Option
         .route("/health", get(handle_health))
         .route("/message", post(handle_message))
         .merge(embedding_routes::<GatewayState>())
+        .merge(proxy_routes::<GatewayState>())
         .layer(Extension(embedding_runtime))
         .with_state(state)
 }
@@ -80,7 +103,9 @@ pub async fn run_http(
     max_concurrent_turns: Option<usize>,
 ) -> Result<()> {
     let timeout = turn_timeout_secs.unwrap_or(TURN_TIMEOUT_SECS);
-    let app = router(agent, timeout, max_concurrent_turns);
+    let embedding_runtime = Arc::new(build_embedding_runtime_for_gateway().await);
+    let app =
+        router_with_embedding_runtime(agent, timeout, max_concurrent_turns, embedding_runtime);
     let listener = TcpListener::bind(bind_addr).await?;
     let max_str = max_concurrent_turns.map_or_else(|| "unlimited".to_string(), |n| n.to_string());
 

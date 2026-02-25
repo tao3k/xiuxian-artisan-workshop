@@ -1,4 +1,4 @@
-mod json_summary;
+pub(crate) mod json_summary;
 mod preview;
 mod render;
 mod send;

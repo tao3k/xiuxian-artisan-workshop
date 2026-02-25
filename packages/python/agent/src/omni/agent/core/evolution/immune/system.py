@@ -17,10 +17,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from omni.foundation.config.logging import get_logger
 from omni.foundation.bridge.rust_immune import is_rust_available, scan_code_security
 
-from .simulator import SkillSimulator, SimulationResult
+from .simulator import SimulationResult, SkillSimulator
 
 logger = logging.getLogger("omni.immune.system")
 
@@ -165,7 +164,7 @@ class ImmuneSystem:
         # ================================================================
         # Level 1: Static Analysis (Rust: omni-ast)
         # ================================================================
-        logger.info(f"  [1/3] Running static analysis...")
+        logger.info("  [1/3] Running static analysis...")
         try:
             source = skill_path.read_text("utf-8")
             is_safe, violations = scan_code_security(source)
@@ -177,7 +176,7 @@ class ImmuneSystem:
                 logger.warning(f"  ❌ Static analysis FAILED - {len(violations)} violation(s)")
                 return report
 
-            logger.info(f"  ✅ Static analysis PASSED")
+            logger.info("  ✅ Static analysis PASSED")
 
         except Exception as e:
             report.rejection_reason = f"Static analysis error: {e}"
@@ -188,7 +187,7 @@ class ImmuneSystem:
         # Level 2: Dynamic Simulation (Rust: omni-security)
         # ================================================================
         if self.require_simulation:
-            logger.info(f"  [2/3] Running dynamic simulation...")
+            logger.info("  [2/3] Running dynamic simulation...")
             try:
                 result = await self.simulator.verify_skill(skill_path)
                 report.simulation_passed = result.passed
@@ -210,12 +209,12 @@ class ImmuneSystem:
                 logger.error(f"  ❌ Simulation ERROR: {e}")
                 return report
         else:
-            logger.info(f"  [2/3] Skipping simulation (disabled)")
+            logger.info("  [2/3] Skipping simulation (disabled)")
 
         # ================================================================
         # Level 3: Permission Check (Rust: omni-security)
         # ================================================================
-        logger.info(f"  [3/3] Checking permissions...")
+        logger.info("  [3/3] Checking permissions...")
         report.permission_check_passed = True  # Default allow if Rust available
         # Permission check is handled at runtime by the tool execution system
 

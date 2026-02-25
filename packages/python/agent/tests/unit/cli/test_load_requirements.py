@@ -4,12 +4,9 @@ test_load_requirements.py - Declarative load requirements registry tests.
 
 from __future__ import annotations
 
-import pytest
-
 from omni.agent.cli.load_requirements import (
-    LoadRequirements,
-    get_requirements,
     get_registry,
+    get_requirements,
     register_requirements,
 )
 

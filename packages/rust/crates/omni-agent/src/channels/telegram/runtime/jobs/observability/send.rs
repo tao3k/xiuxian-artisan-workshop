@@ -58,6 +58,27 @@ pub(in crate::channels::telegram::runtime::jobs) async fn send_with_observabilit
                             .runtime_startup_load_status
                             .as_deref()
                             .unwrap_or(""),
+                        json_admission_enabled =
+                            optional_bool_token(json_summary.admission_enabled),
+                        json_admission_llm_reject_threshold_pct =
+                            optional_u64_token(json_summary.admission_llm_reject_threshold_pct),
+                        json_admission_embedding_reject_threshold_pct = optional_u64_token(
+                            json_summary.admission_embedding_reject_threshold_pct
+                        ),
+                        json_admission_total =
+                            optional_u64_token(json_summary.admission_metrics_total),
+                        json_admission_admitted =
+                            optional_u64_token(json_summary.admission_metrics_admitted),
+                        json_admission_rejected =
+                            optional_u64_token(json_summary.admission_metrics_rejected),
+                        json_admission_rejected_llm_saturated = optional_u64_token(
+                            json_summary.admission_metrics_rejected_llm_saturated
+                        ),
+                        json_admission_rejected_embedding_saturated = optional_u64_token(
+                            json_summary.admission_metrics_rejected_embedding_saturated
+                        ),
+                        json_admission_reject_rate_pct =
+                            optional_u64_token(json_summary.admission_metrics_reject_rate_pct),
                         json_result_recalled_injected =
                             optional_u64_token(json_summary.result_recalled_injected),
                         json_query_tokens = optional_u64_token(json_summary.query_tokens),

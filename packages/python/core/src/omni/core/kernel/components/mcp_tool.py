@@ -14,11 +14,8 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any
-
 from omni.core.errors import CoreErrorCode, OmniError
 from omni.core.responses import ToolResponse
-
 from omni.foundation.config.logging import get_logger
 
 logger = get_logger(__name__)

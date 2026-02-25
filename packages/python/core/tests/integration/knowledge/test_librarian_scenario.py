@@ -4,7 +4,6 @@ test_librarian_scenario.py - Integration Tests for Librarian
 Tests for the unified Librarian with text and AST chunking modes.
 """
 
-from pathlib import Path
 import subprocess
 
 import pytest
@@ -196,7 +195,7 @@ class TestLibrarian:
 
         # Verify the impl block with Greeter is indexed
         found_greeter = any("Greeter" in res.get("content", "") for res in rust_results)
-        assert found_greeter, f"Expected 'Greeter' in Rust results"
+        assert found_greeter, "Expected 'Greeter' in Rust results"
 
     @pytest.mark.asyncio
     async def test_get_context_formats_correctly(

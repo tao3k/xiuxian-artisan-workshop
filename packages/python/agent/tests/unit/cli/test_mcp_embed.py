@@ -187,6 +187,81 @@ class TestMakeMcpEmbedFunc:
         assert result == [[0.3] * 8]
         assert "/message" not in called_paths
 
+    @pytest.mark.asyncio
+    async def test_tool_fallback_path_disables_duplicate_direct_embed_probe(self):
+        called_kwargs: list[dict] = []
+
+        async def _fake_embed_via_mcp(*_args, **kwargs):
+            called_kwargs.append(dict(kwargs))
+            return None
+
+        with (
+            patch.object(
+                mcp_embed_module, "embed_via_mcp_http", new=AsyncMock(return_value=None)
+            ) as mock_http_path,
+            patch.object(mcp_embed_module, "embed_via_mcp", side_effect=_fake_embed_via_mcp),
+        ):
+            from omni.agent.cli.mcp_embed import make_mcp_embed_func
+
+            embed_func = make_mcp_embed_func(3002)
+            mock_svc = MagicMock()
+            mock_svc.embed_batch.return_value = [[0.5] * 8]
+            with patch(
+                "omni.foundation.services.embedding.get_embedding_service", return_value=mock_svc
+            ):
+                result = await embed_func(["hello"])
+
+        assert result == [[0.5] * 8]
+        mock_http_path.assert_awaited_once()
+        assert called_kwargs
+        assert all(kwargs.get("try_http_fast_path") is False for kwargs in called_kwargs)
+
+    @pytest.mark.asyncio
+    async def test_terminal_mcp_unavailable_raises_without_local_fallback(self):
+        from omni.foundation.services.embedding import EmbeddingUnavailableError
+
+        with (
+            patch.object(
+                mcp_embed_module,
+                "embed_via_mcp_http",
+                new=AsyncMock(side_effect=mcp_embed_module.McpEmbedUnavailable("timeout")),
+            ),
+            patch.object(mcp_embed_module, "embed_via_mcp", new=AsyncMock(return_value=None)),
+        ):
+            from omni.agent.cli.mcp_embed import make_mcp_embed_func
+
+            embed_func = make_mcp_embed_func(3002)
+            with patch(
+                "omni.foundation.services.embedding.get_embedding_service"
+            ) as mock_get_service:
+                with pytest.raises(EmbeddingUnavailableError):
+                    await embed_func(["hello"])
+                mock_get_service.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_terminal_unavailable_sets_cooldown_for_next_call(self):
+        from omni.foundation.services.embedding import EmbeddingUnavailableError
+
+        with (
+            patch.dict(mcp_embed_module._MCP_EMBED_UNAVAILABLE_UNTIL, {}, clear=True),
+            patch.object(
+                mcp_embed_module,
+                "embed_via_mcp_http",
+                new=AsyncMock(side_effect=mcp_embed_module.McpEmbedUnavailable("timeout")),
+            ) as mock_http,
+            patch.object(mcp_embed_module, "embed_via_mcp", new=AsyncMock(return_value=None)),
+        ):
+            from omni.agent.cli.mcp_embed import make_mcp_embed_func
+
+            embed_func = make_mcp_embed_func(3002)
+            with pytest.raises(EmbeddingUnavailableError):
+                await embed_func(["hello"])
+            with pytest.raises(EmbeddingUnavailableError):
+                await embed_func(["hello"])
+
+        # Second call should short-circuit via cooldown without another MCP request.
+        assert mock_http.await_count == 1
+
 
 class TestProbeMcpEmbedPort:
     @pytest.mark.asyncio
@@ -255,3 +330,58 @@ class TestEmbedViaMcp:
 
         assert vectors == [[0.7] * 8]
         mock_direct.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_embed_via_mcp_can_skip_http_fast_path(self):
+        class _Response:
+            status_code = 200
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "result": {"content": [{"text": '{"success": true, "vectors": [[0.8, 0.9]]}'}]}
+                }
+
+        class _Client:
+            async def post(self, *_args, **_kwargs):
+                return _Response()
+
+        with (
+            patch.object(
+                mcp_embed_module,
+                "embed_via_mcp_http",
+                new=AsyncMock(return_value=[[0.7] * 8]),
+            ) as mock_direct,
+            patch.object(mcp_embed_module, "_get_shared_http_client", return_value=_Client()),
+        ):
+            vectors = await mcp_embed_module.embed_via_mcp(
+                ["hello"],
+                port=3002,
+                path="/messages/",
+                try_http_fast_path=False,
+            )
+
+        assert vectors == [[0.8, 0.9]]
+        mock_direct.assert_not_called()
+
+
+class TestEmbedViaMcpHttp:
+    @pytest.mark.asyncio
+    async def test_embed_via_mcp_http_raises_on_terminal_service_error(self):
+        class _Response:
+            status_code = 503
+
+            def json(self):
+                return {"code": "embedding_timeout", "error": "Embedding timed out"}
+
+        class _Client:
+            async def post(self, *_args, **_kwargs):
+                return _Response()
+
+        with (
+            patch.object(mcp_embed_module, "_get_shared_http_client", return_value=_Client()),
+            pytest.raises(mcp_embed_module.McpEmbedUnavailable),
+        ):
+            await mcp_embed_module.embed_via_mcp_http(["hello"], port=3002)

@@ -19,12 +19,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from omni.agent.core.cortex import (
+    CortexOrchestrator,
+    ExecutionConfig,
     TaskGraph,
     TaskGroup,
     TaskNode,
     TaskPriority,
-    CortexOrchestrator,
-    ExecutionConfig,
 )
 
 
@@ -34,8 +34,8 @@ async def demo_parallel_refactor():
     print("Prefrontal Cortex Experiment: Parallel Refactoring")
     print("=" * 60)
 
-    import tempfile
     import shutil
+    import tempfile
 
     # Use a temp directory for the demo
     temp_dir = Path(tempfile.mkdtemp(prefix="cortex_demo_"))

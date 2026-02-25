@@ -1,3 +1,5 @@
+use arrow::array::Array as _;
+
 #[allow(clippy::doc_markdown)]
 impl VectorStore {
     /// Load the tool registry from a table.

@@ -31,23 +31,3 @@ class OmniLoopConfig(BaseModel):
     suppress_atomic_tools: bool = True
     max_tool_schemas: int = 20
     max_consecutive_errors: int = 3
-
-
-def create_checkpointer():
-    """Factory to create the high-performance Rust-native checkpointer.
-
-    Uses Rust LanceDB backend with global connection pooling.
-    Enables LangGraph state persistence with millisecond-level access.
-
-    Returns:
-        RustLanceCheckpointSaver instance configured for agent state.
-    """
-    from omni.foundation.config.dirs import get_vector_db_path
-    from omni.langgraph.checkpoint.lance import RustLanceCheckpointSaver
-
-    db_path = str(get_vector_db_path() / "agent_state")
-    return RustLanceCheckpointSaver(
-        base_path=db_path,
-        table_name="agent_checkpoints",
-        notify_on_save=True,
-    )

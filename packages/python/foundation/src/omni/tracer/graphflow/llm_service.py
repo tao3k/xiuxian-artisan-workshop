@@ -119,7 +119,7 @@ Return analysis in this structure:
 ## Your Critique:
 """
         elif step == "reflect":
-            prompt = f"""## Critique Task
+            prompt = """## Critique Task
 
 Identify issues or gaps in the analysis. Be specific."""
         elif step == "draft":
@@ -171,7 +171,7 @@ Return XML only:
 
 
 # Lazy LLM service - only initialized when needed
-_llm_service: "RealLLMService | None" = None
+_llm_service: RealLLMService | None = None
 
 
 def get_llm_service() -> RealLLMService:

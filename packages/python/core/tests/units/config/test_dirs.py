@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 
 class TestGetMemoryDbPath:
     """Tests for get_memory_db_path function."""

@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from omni.foundation.config.logging import get_logger
 from omni.foundation.runtime.path import temporary_sys_path

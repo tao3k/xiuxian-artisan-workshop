@@ -19,10 +19,11 @@ pub struct ContextAnnotator {
 #[async_trait]
 impl QianjiMechanism for ContextAnnotator {
     async fn execute(&self, context: &serde_json::Value) -> Result<QianjiOutput, String> {
-        let raw_facts = context
-            .get("raw_facts")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let raw_facts = match context.get("raw_facts") {
+            Some(serde_json::Value::String(s)) => s.clone(),
+            Some(v) => v.to_string(),
+            None => String::new(),
+        };
 
         let persona = self
             .registry

@@ -11,7 +11,8 @@ import json
 import resource
 import sys
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from omni.foundation.config.logging import get_logger
 
@@ -62,31 +63,15 @@ async def read_agent_memory(kernel: Any) -> str:
         if not kernel or not kernel.is_ready:
             return json.dumps({"error": "Kernel not ready"}, indent=2)
 
-        from omni.foundation.config.database import get_checkpoint_db_path
-        from omni.langgraph.checkpoint.lance import RustLanceCheckpointSaver
-
-        db_path = get_checkpoint_db_path()
-        checkpointer = RustLanceCheckpointSaver(
-            base_path=str(db_path),
-            table_name="agent_checkpoints",
-            notify_on_save=False,
+        # Removed LangGraph dependency; agent memory is now natively managed by Rust MemRL (xiuxian-memory).
+        return json.dumps(
+            {
+                "status": "managed_by_rust_memrl",
+                "message": "Memory state is handled natively by the Rust backend via Valkey.",
+                "timestamp": time.time(),
+            },
+            indent=2,
         )
-
-        config = {"configurable": {"thread_id": "mcp_session"}}
-        tuple_data = checkpointer.get_tuple(config)
-
-        if tuple_data:
-            return json.dumps(
-                {
-                    "checkpoint": tuple_data.checkpoint,
-                    "metadata": tuple_data.metadata,
-                    "timestamp": time.time(),
-                },
-                indent=2,
-                default=str,
-            )
-
-        return json.dumps({"status": "empty", "timestamp": time.time()}, indent=2)
 
     except Exception as e:
         return json.dumps({"error": str(e)}, indent=2)

@@ -15,9 +15,6 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
-
-from omni.foundation.api.schema_locator import resolve_schema_file_path
-from omni.foundation.runtime.gitops import get_project_root
 from omni.test_kit.fixtures.vector import (
     ROUTE_TEST_SCHEMA_V1,
     make_db_search_hybrid_result_list,
@@ -28,6 +25,9 @@ from omni.test_kit.fixtures.vector import (
     make_tool_search_payload,
     make_vector_payload,
 )
+
+from omni.foundation.api.schema_locator import resolve_schema_file_path
+from omni.foundation.runtime.gitops import get_project_root
 from omni.foundation.services.vector_schema import (
     parse_hybrid_payload,
     parse_tool_search_payload,

@@ -148,11 +148,11 @@ def get_knowledge_graph_scope_key() -> str:
 
 
 __all__ = [
-    "get_vector_db_path",
-    "get_database_paths",
-    "get_database_path",
     "get_checkpoint_db_path",
     "get_checkpoint_table_name",
+    "get_database_path",
+    "get_database_paths",
     "get_knowledge_graph_scope_key",
     "get_memory_db_path",
+    "get_vector_db_path",
 ]

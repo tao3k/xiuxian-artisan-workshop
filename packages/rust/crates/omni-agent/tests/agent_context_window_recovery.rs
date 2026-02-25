@@ -8,6 +8,7 @@
     clippy::uninlined_format_args,
     clippy::float_cmp,
     clippy::field_reassign_with_default,
+    clippy::cast_lossless,
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -21,6 +22,8 @@
     clippy::needless_raw_string_hashes,
     clippy::manual_async_fn,
     clippy::manual_let_else,
+    clippy::manual_assert,
+    clippy::manual_string_new,
     clippy::too_many_lines,
     clippy::too_many_arguments,
     clippy::unnecessary_literal_bound,
@@ -29,10 +32,13 @@
     clippy::single_match_else,
     clippy::similar_names,
     clippy::format_collect,
+    clippy::async_yields_async,
     clippy::assigning_clones
 )]
 
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::Result;
@@ -40,7 +46,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Json, Router};
-use omni_agent::{Agent, AgentConfig};
+use omni_agent::{Agent, AgentConfig, set_config_home_override};
 
 #[derive(Clone)]
 struct LlmRecoveryState {
@@ -153,7 +159,26 @@ async fn spawn_non_context_error_server()
     )))
 }
 
+fn ensure_http_llm_backend_for_tests() {
+    static CONFIG_HOME: OnceLock<PathBuf> = OnceLock::new();
+    let path = CONFIG_HOME.get_or_init(|| {
+        let root = std::env::temp_dir()
+            .join("omni-agent-tests")
+            .join("agent_context_window_recovery");
+        let settings_dir = root.join("omni-dev-fusion");
+        std::fs::create_dir_all(&settings_dir).expect("create isolated config home for tests");
+        std::fs::write(
+            settings_dir.join("settings.yaml"),
+            "agent:\n  llm_backend: http\n",
+        )
+        .expect("write isolated runtime settings for tests");
+        root
+    });
+    set_config_home_override(path.clone());
+}
+
 fn base_agent_config(inference_url: String) -> AgentConfig {
+    ensure_http_llm_backend_for_tests();
     AgentConfig {
         inference_url,
         model: "test-model".to_string(),

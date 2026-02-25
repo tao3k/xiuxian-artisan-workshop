@@ -4,18 +4,15 @@ test_schema_gen.py - Unit tests for Tool Schema Generator
 Tests for schema generation and validation.
 """
 
-import pytest
-
 from omni.core.skills.schema_gen import (
-    generate_tool_schemas,
-    export_openapi,
     export_json_schema,
-    validate_tool_call,
+    export_openapi,
+    generate_tool_schemas,
     get_tool_schema,
     load_schemas,
     save_schemas,
+    validate_tool_call,
 )
-from omni.core.skills.variants import get_variant_registry
 
 
 class TestSchemaGen:

@@ -7,9 +7,9 @@ from pydantic import ValidationError
 
 from omni.agent.core.evolution.schemas import (
     CandidateSkill,
-    SkillTemplateContext,
     CrystallizationResult,
     HarvesterAnalysisResult,
+    SkillTemplateContext,
 )
 
 

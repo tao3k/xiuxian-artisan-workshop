@@ -1,17 +1,19 @@
-from typing import Any, Dict, List
-from .state import MemoryState
+from typing import Any
+
 from omni.core.kernel import get_kernel
 from omni.foundation.services.llm.client import InferenceClient
+
+from .state import MemoryState
 
 # Initialize LLM Client
 llm_client = InferenceClient()
 
 
-def record_event(type: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+def record_event(type: str, data: dict[str, Any]) -> list[dict[str, Any]]:
     return [{"type": type, "data": data}]
 
 
-async def recall_node(state: MemoryState) -> Dict[str, Any]:
+async def recall_node(state: MemoryState) -> dict[str, Any]:
     """Retrieve relevant knowledge using Hybrid Search AND Note Search."""
     kernel = get_kernel()
     if not kernel.is_ready:
@@ -55,7 +57,7 @@ async def recall_node(state: MemoryState) -> Dict[str, Any]:
     return {"retrieved_docs": all_docs, "trace": trace}
 
 
-async def synthesize_node(state: MemoryState) -> Dict[str, Any]:
+async def synthesize_node(state: MemoryState) -> dict[str, Any]:
     """Synthesize retrieved docs into a concise context block using LLM."""
     docs = state.get("retrieved_docs", [])
     query = state["query"]
@@ -102,7 +104,7 @@ async def synthesize_node(state: MemoryState) -> Dict[str, Any]:
         }
 
 
-async def store_node(state: MemoryState) -> Dict[str, Any]:
+async def store_node(state: MemoryState) -> dict[str, Any]:
     """Store insights into Long-term Memory."""
     kernel = get_kernel()
     if not kernel.is_ready:

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// Represents the execution status of a single mechanism node in the Qianji Box.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum NodeStatus {
     /// Initial state before any execution attempt.
     Idle,
@@ -20,6 +21,7 @@ pub enum NodeStatus {
 
 /// Control instructions emitted by nodes to manipulate the workflow execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FlowInstruction {
     /// Continue to next topological layer normally.
     Continue,
@@ -27,7 +29,9 @@ pub enum FlowInstruction {
     SelectBranch(String),
     /// Reset specific nodes to 'Idle' and restart their execution (Calibration Loop).
     RetryNodes(Vec<String>),
-    /// Terminate the entire workflow immediately.
+    /// Suspend workflow execution, save checkpoint, and yield control back to the caller.
+    Suspend(String),
+    /// Terminate the entire workflow immediately with a fatal error.
     Abort(String),
 }
 

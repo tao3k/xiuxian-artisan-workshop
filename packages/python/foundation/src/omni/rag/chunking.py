@@ -654,10 +654,10 @@ async def chunk_text(
 __all__ = [
     "Chunk",
     "ChunkingStrategy",
+    "ParagraphChunker",
     "SemanticChunker",
     "SentenceChunker",
-    "ParagraphChunker",
     "SlidingWindowChunker",
-    "create_chunker",
     "chunk_text",
+    "create_chunker",
 ]

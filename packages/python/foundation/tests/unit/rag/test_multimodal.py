@@ -4,24 +4,23 @@ Tests image processing, table extraction, and formula parsing.
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 from omni.rag.multimodal import (
-    ImageProcessor,
-    ImageResult,
-    TableExtractor,
-    TableResult,
-    FormulaParser,
-    FormulaResult,
-    MultimodalProcessor,
+    CONTENT_TYPE_FORMULA,
     CONTENT_TYPE_IMAGE,
     CONTENT_TYPE_TABLE,
-    CONTENT_TYPE_FORMULA,
-    get_image_processor,
-    get_table_extractor,
-    get_formula_parser,
-    get_multimodal_processor,
+    FormulaParser,
+    FormulaResult,
+    ImageProcessor,
+    ImageResult,
+    MultimodalProcessor,
+    TableExtractor,
+    TableResult,
     extract_formulas,
+    get_formula_parser,
+    get_image_processor,
+    get_multimodal_processor,
+    get_table_extractor,
 )
 
 

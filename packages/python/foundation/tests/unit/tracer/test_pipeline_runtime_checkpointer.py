@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from omni.tracer import DispatchMode, ExecutionTracer
 from omni.tracer.pipeline_runtime import (
     _resolve_state_schema,
     create_langgraph_from_pipeline,
@@ -9,7 +10,6 @@ from omni.tracer.pipeline_runtime import (
     create_langgraph_from_yaml,
 )
 from omni.tracer.pipeline_schema import PipelineConfig
-from omni.tracer import ExecutionTracer, DispatchMode
 
 
 def test_create_langgraph_passes_checkpointer_to_compiler(monkeypatch) -> None:

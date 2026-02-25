@@ -19,7 +19,7 @@ class HybridRetrievalBackend:
                 "Hybrid backend requires vector backend with search_hybrid(query, config)."
             )
 
-        native = getattr(self.vector, "search_hybrid")
+        native = self.vector.search_hybrid
         fused = await native(query, config)
         return normalize_ranked_results(fused, score_threshold=config.score_threshold)
 

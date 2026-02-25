@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any
 from omni.foundation.config.logging import get_logger
 
 if TYPE_CHECKING:
-    from .engine import ExecutionTracer
     from .interfaces import ExecutionStep, ExecutionTrace
 
 logger = get_logger("omni.tracer.callbacks")

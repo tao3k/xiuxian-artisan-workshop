@@ -106,4 +106,4 @@ def ensure_skills_import_path(skills_dir: Path | None = None) -> Path:
     return target
 
 
-__all__ = ["SkillCommandTester", "skill_command_tester", "ensure_skills_import_path"]
+__all__ = ["SkillCommandTester", "ensure_skills_import_path", "skill_command_tester"]

@@ -1,0 +1,51 @@
+name = "Smart_Commit_Array"
+
+[[nodes]]
+id = "StageFiles"
+task_type = "command"
+weight = 1.0
+params = { cmd = "cd '{{project_root}}' && git add -A && git diff --cached --name-only", output_key = "staged_files", stop_on_empty_stdout = true, empty_reason = "No files to commit" }
+
+[[nodes]]
+id = "SecurityScan"
+task_type = "security_scan"
+weight = 1.0
+params = { files_key = "staged_files", output_key = "security_issues", abort_on_violation = false, cwd_key = "project_root" }
+
+[[nodes]]
+id = "LefthookPreCommit"
+task_type = "command"
+weight = 1.0
+params = { cmd = "cd '{{project_root}}' && if command -v lefthook >/dev/null 2>&1; then lefthook run pre-commit; else echo 'Lefthook not installed, skipping'; fi", output_key = "lefthook_output", allow_fail = false }
+
+[[nodes]]
+id = "UserApproval"
+task_type = "suspend"
+weight = 1.0
+params = { reason = "waiting_for_approval", prompt = "Please review the staged files and security issues (if any). Provide a commit message to proceed.", resume_key = "final_message" }
+
+[[nodes]]
+id = "ExecuteCommit"
+task_type = "command"
+weight = 1.0
+params = { cmd = "cd '{{project_root}}' && git commit -m \"{{final_message}}\"", output_key = "commit_output", allow_fail = false }
+
+[[edges]]
+from = "StageFiles"
+to = "SecurityScan"
+weight = 1.0
+
+[[edges]]
+from = "SecurityScan"
+to = "LefthookPreCommit"
+weight = 1.0
+
+[[edges]]
+from = "LefthookPreCommit"
+to = "UserApproval"
+weight = 1.0
+
+[[edges]]
+from = "UserApproval"
+to = "ExecuteCommit"
+weight = 1.0

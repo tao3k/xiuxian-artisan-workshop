@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from omni.foundation.api.schema_provider import get_schema
 from omni.foundation.api.agent_schema import (
     MESSAGE_KEY,
     NAME_KEY,
@@ -14,6 +13,7 @@ from omni.foundation.api.agent_schema import (
     build_server_info,
     validate,
 )
+from omni.foundation.api.schema_provider import get_schema
 
 
 def test_build_server_info_defaults():

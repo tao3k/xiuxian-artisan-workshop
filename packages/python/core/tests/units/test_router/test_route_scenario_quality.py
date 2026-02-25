@@ -20,7 +20,6 @@ Flow: run tests → fix skill routing values or algorithm → re-run until green
 from __future__ import annotations
 
 import pytest
-
 from omni.test_kit.asserts import assert_tool_family_match
 
 from .conftest import sync_router_from_skills_async

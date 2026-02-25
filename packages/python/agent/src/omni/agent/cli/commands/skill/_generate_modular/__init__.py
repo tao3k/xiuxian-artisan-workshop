@@ -16,8 +16,8 @@ Usage:
 
 from __future__ import annotations
 
-from .rag import format_rag_context, retrieve_similar_skills
 from .prompts import generate_commands_prompt, generate_readme_prompt
+from .rag import format_rag_context, retrieve_similar_skills
 from .verify import fix_skill_code, generate_fix_prompt, verify_skill_code
 
 __all__ = [

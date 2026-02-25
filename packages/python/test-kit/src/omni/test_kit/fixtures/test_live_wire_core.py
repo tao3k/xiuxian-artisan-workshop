@@ -6,10 +6,10 @@ Tests verify:
 3. SkillContext.register_skill() clears stale commands (v2.1.17.7 fix)
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Any
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 class TestLifespanMCPRegistry:
@@ -17,7 +17,7 @@ class TestLifespanMCPRegistry:
 
     def test_set_mcp_server_stores_reference(self):
         """Test that set_mcp_server stores the server reference."""
-        from omni.agent.mcp_server.lifespan import _mcp_server, set_mcp_server
+        from omni.agent.mcp_server.lifespan import set_mcp_server
 
         mock_server = MagicMock()
         set_mcp_server(mock_server)
@@ -41,7 +41,6 @@ class TestLifespanMCPRegistry:
     async def test_notify_tools_changed_calls_send_tool_list_changed(self):
         """Test _notify_tools_changed calls send_tool_list_changed on server."""
         from omni.agent.mcp_server.lifespan import (
-            _mcp_server,
             _notify_tools_changed,
             set_mcp_server,
         )
@@ -60,7 +59,6 @@ class TestLifespanMCPRegistry:
     async def test_notify_tools_changed_no_server_logs_warning(self):
         """Test warning logged when no MCP server is registered."""
         from omni.agent.mcp_server.lifespan import (
-            _mcp_server,
             _notify_tools_changed,
             set_mcp_server,
         )

@@ -1,22 +1,15 @@
 mod consolidation;
 mod turn_store;
 
-use anyhow::Result;
-use omni_memory::{
-    Episode, EpisodeStore, MemoryGateEvent, MemoryGatePolicy, MemoryGateVerdict,
-    MemoryUtilityLedger,
-};
+use omni_memory::{EpisodeStore, MemoryGatePolicy};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use crate::observability::SessionEvent;
-use crate::session::{ChatMessage, SessionSummarySegment};
 
 use super::Agent;
-use super::consolidation::{build_consolidated_summary_text, now_unix_ms, summarise_drained_turns};
 use super::memory::{sanitize_decay_factor, should_apply_decay};
-use super::memory_recall_feedback::classify_assistant_outcome;
 use super::memory_state::MemoryStateBackend;
 
 fn encode_string_list_for_stream(values: &[String]) -> String {

@@ -17,21 +17,12 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import uuid
-from datetime import datetime
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from omni.tracer.ui import (
     TracedExecution,
     print_header,
-    print_step_start,
-    print_step_end,
-    print_thinking,
-    print_memory,
-    print_param,
-    print_trace_summary,
-    print_execution_path,
-    print_error,
 )
 
 
@@ -102,7 +93,7 @@ async def run_traced_skill(
             }
 
         except Exception as e:
-            tracer.record_thinking(step_id, f"Error: {str(e)}")
+            tracer.record_thinking(step_id, f"Error: {e!s}")
             tracer.end_step(step_id, output_data={"error": str(e)}, status="error")
 
             return {
@@ -147,9 +138,10 @@ class SkillRunner:
             Command result with trace info
         """
         # Import from skill context
+        from pathlib import Path
+
         from omni.core.skills.runtime import get_skill_context
         from omni.foundation.config.dirs import get_skills_dir
-        from pathlib import Path
 
         skills_path = Path(self.skills_dir) if self.skills_dir else get_skills_dir()
         ctx = get_skill_context(skills_path)

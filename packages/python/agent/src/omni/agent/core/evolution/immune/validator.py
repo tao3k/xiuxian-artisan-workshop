@@ -43,7 +43,7 @@ class SecurityViolation:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SecurityViolation":
+    def from_dict(cls, data: dict[str, Any]) -> SecurityViolation:
         return cls(
             rule_id=str(data.get("rule_id", "UNKNOWN")),
             description=str(data.get("description", "")),
@@ -150,7 +150,7 @@ def quick_check(content: str) -> bool:
 __all__ = [
     "SecurityViolation",
     "StaticValidator",
-    "scan_file",
-    "scan_content",
     "quick_check",
+    "scan_content",
+    "scan_file",
 ]

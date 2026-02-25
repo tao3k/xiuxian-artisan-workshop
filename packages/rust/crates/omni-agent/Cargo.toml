@@ -31,11 +31,15 @@ hex = { workspace = true }
 serenity = { version = "0.12.5", default-features = false, features = ["client", "gateway", "model", "rustls_backend"] }
 litellm-rs = { version = "0.3.1", default-features = false, features = ["redis"], optional = true }
 
+toml = { workspace = true }
+dirs = "5.0"
+
 omni-memory = { path = "../omni-memory", default-features = false, features = ["valkey"] }
 xiuxian-qianhuan = { path = "../xiuxian-qianhuan" }
 xiuxian-llm = { path = "../xiuxian-llm" }
 omni-window = { path = "../omni-window" }
 omni-tokenizer = { path = "../omni-tokenizer" }
+xiuxian-zhixing = { path = "../xiuxian-zhixing" }
 rmcp = { workspace = true }
 axum = { workspace = true, features = ["multipart"] }
 clap = { workspace = true }

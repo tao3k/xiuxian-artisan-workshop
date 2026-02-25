@@ -69,8 +69,16 @@ impl GraphExecutionPlan {
     ///
     /// # Errors
     /// Returns an error string when any graph-plan contract invariant is violated.
-    #[allow(clippy::too_many_lines)]
     pub fn validate_shortcut_contract(&self) -> std::result::Result<(), String> {
+        self.validate_plan_metadata()?;
+        let ordered = self.collect_ordered_steps()?;
+        self.validate_step_kinds(&ordered)?;
+        self.validate_prepare_step(ordered[0])?;
+        self.validate_invoke_step(ordered[1])?;
+        self.validate_fallback_step(ordered[2])
+    }
+
+    fn validate_plan_metadata(&self) -> std::result::Result<(), String> {
         if self.plan_id.trim().is_empty() {
             return Err("graph plan has empty plan_id".to_string());
         }
@@ -90,7 +98,10 @@ impl GraphExecutionPlan {
                 self.steps.len()
             ));
         }
+        Ok(())
+    }
 
+    fn collect_ordered_steps(&self) -> std::result::Result<[&GraphPlanStep; 3], String> {
         let mut ordered: Vec<&GraphPlanStep> = self.steps.iter().collect();
         ordered.sort_by_key(|step| step.index);
         for (idx, step) in ordered.iter().enumerate() {
@@ -121,6 +132,16 @@ impl GraphExecutionPlan {
             }
         }
 
+        let [prepare, invoke, fallback] = ordered
+            .try_into()
+            .map_err(|_| format!("graph plan `{}` must contain exactly 3 steps", self.plan_id))?;
+        Ok([prepare, invoke, fallback])
+    }
+
+    fn validate_step_kinds(
+        &self,
+        ordered: &[&GraphPlanStep; 3],
+    ) -> std::result::Result<(), String> {
         let expected_kinds = [
             GraphPlanStepKind::PrepareInjectionContext,
             GraphPlanStepKind::InvokeGraphTool,
@@ -138,23 +159,27 @@ impl GraphExecutionPlan {
                 ));
             }
         }
+        Ok(())
+    }
 
-        let prepare = ordered[0];
-        if prepare.tool_name.is_some() {
+    fn validate_prepare_step(&self, step: &GraphPlanStep) -> std::result::Result<(), String> {
+        if step.tool_name.is_some() {
             return Err(format!(
                 "graph plan `{}` prepare step must not set tool_name",
                 self.plan_id
             ));
         }
-        if prepare.fallback_action.is_some() {
+        if step.fallback_action.is_some() {
             return Err(format!(
                 "graph plan `{}` prepare step must not set fallback_action",
                 self.plan_id
             ));
         }
+        Ok(())
+    }
 
-        let invoke = ordered[1];
-        let invoke_tool = invoke
+    fn validate_invoke_step(&self, step: &GraphPlanStep) -> std::result::Result<(), String> {
+        let invoke_tool = step
             .tool_name
             .as_deref()
             .unwrap_or(self.tool_name.as_str())
@@ -165,21 +190,23 @@ impl GraphExecutionPlan {
                 self.plan_id
             ));
         }
-        if invoke.fallback_action.is_some() {
+        if step.fallback_action.is_some() {
             return Err(format!(
                 "graph plan `{}` invoke step must not set fallback_action",
                 self.plan_id
             ));
         }
+        Ok(())
+    }
 
-        let fallback = ordered[2];
-        if fallback.tool_name.is_some() {
+    fn validate_fallback_step(&self, step: &GraphPlanStep) -> std::result::Result<(), String> {
+        if step.tool_name.is_some() {
             return Err(format!(
                 "graph plan `{}` fallback step must not set tool_name",
                 self.plan_id
             ));
         }
-        let fallback_action = fallback.fallback_action.as_deref().map(str::trim);
+        let fallback_action = step.fallback_action.as_deref().map(str::trim);
         let Some(fallback_action) = fallback_action else {
             return Err(format!(
                 "graph plan `{}` fallback step missing fallback_action",
@@ -198,7 +225,6 @@ impl GraphExecutionPlan {
                 self.plan_id, fallback_action
             ));
         }
-
         Ok(())
     }
 }

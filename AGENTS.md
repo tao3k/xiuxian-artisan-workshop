@@ -83,6 +83,14 @@
   - `uv run pytest packages/python/agent/tests/unit/cli/test_route_command.py -q`
   - `cargo test -p omni-vector --test test_rust_cortex`
 
+## Rust Clippy Validation Policy
+
+- **Mandatory for touched Rust crates**: run `cargo clippy -p <crate> -- -W clippy::too_many_lines` for every Rust crate changed in a task.
+- **No suppression-first fixes**: do not solve warnings by adding broad `#[allow(...)]` at file/module scope. Prefer structural fixes (split modules, extract helpers, improve signatures/docs).
+- **`missing_errors_doc` hard rule**: for public `Result` APIs, add explicit `# Errors` docs instead of suppressing `clippy::missing_errors_doc`.
+- **Exception handling**: when an allow is truly unavoidable, keep it as narrow as possible (smallest scope), add a short reason, and include a removal condition.
+- **Evidence required**: include exact clippy commands and outcomes in the corresponding progress/knowledge record (for example files under `assets/knowledge/omni-rust-engineering-quality-plan/`).
+
 ## Commit & Pull Request Guidelines
 
 - Commit messages are enforced by `conform`/`cog check`; use Conventional Commits.

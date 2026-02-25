@@ -10,11 +10,12 @@ Provides pytest fixtures for:
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
-from omni.rag.config import RAGConfig, KnowledgeGraphConfig, DocumentParsingConfig
+import pytest
+
+from omni.rag.config import RAGConfig
 
 
 @pytest.fixture
@@ -163,7 +164,7 @@ class MockPyKnowledgeGraph:
         self,
         start_name: str,
         max_hops: int = 2,
-    ) -> list["MockPyEntity"]:
+    ) -> list[MockPyEntity]:
         """Mock multi-hop search matching Rust PyO3 signature.
 
         Args:
@@ -321,22 +322,22 @@ def rag_test_helper() -> RagTestHelper:
 
 
 __all__ = [
+    "MockPyEntity",
+    "MockPyKnowledgeGraph",
+    "RagTestHelper",
+    "mock_knowledge_graph_store",
+    "mock_llm_empty_response",
+    "mock_llm_for_extraction",
+    "mock_llm_invalid_json",
     "rag_config_fixture",
+    "rag_graph_extractor",
     "rag_knowledge_graph_disabled",
     "rag_knowledge_graph_enabled",
-    "mock_llm_for_extraction",
-    "mock_llm_empty_response",
-    "mock_llm_invalid_json",
-    "mock_knowledge_graph_store",
-    "MockPyKnowledgeGraph",
-    "MockPyEntity",
-    "rag_graph_extractor",
-    "rag_sentence_chunker",
     "rag_paragraph_chunker",
-    "rag_sliding_window_chunker",
     "rag_semantic_chunker",
+    "rag_sentence_chunker",
+    "rag_sliding_window_chunker",
+    "rag_test_helper",
     "sample_text_for_chunking",
     "sample_text_for_entity_extraction",
-    "rag_test_helper",
-    "RagTestHelper",
 ]

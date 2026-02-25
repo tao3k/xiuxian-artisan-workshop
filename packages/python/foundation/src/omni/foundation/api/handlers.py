@@ -28,7 +28,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, TypeVar
+from typing import Any
 
 from ..config.logging import get_logger
 
@@ -111,7 +111,7 @@ class ExecutionResult:
         return result
 
     @classmethod
-    def ok(cls, data: Any = None, timing_ms: float = 0.0) -> "ExecutionResult":
+    def ok(cls, data: Any = None, timing_ms: float = 0.0) -> ExecutionResult:
         """Create a successful result."""
         return cls(success=True, data=data, timing_ms=timing_ms)
 
@@ -121,7 +121,7 @@ class ExecutionResult:
         error: str,
         error_type: str | None = None,
         timing_ms: float = 0.0,
-    ) -> "ExecutionResult":
+    ) -> ExecutionResult:
         """Create a failed result."""
         return cls(
             success=False,
@@ -391,7 +391,7 @@ class GraphNodeHandler:
                 timing_ms = (time.perf_counter() - start_time) * 1000
 
                 if self.trace_timing:
-                    self._log("debug", f"Node completed", timing_ms=round(timing_ms, 2))
+                    self._log("debug", "Node completed", timing_ms=round(timing_ms, 2))
 
                 return result
 
@@ -400,7 +400,7 @@ class GraphNodeHandler:
                 error_type = type(e).__name__
                 self._log(
                     "error",
-                    f"Node failed: {error_type}: {str(e)}",
+                    f"Node failed: {error_type}: {e!s}",
                     timing_ms=round(timing_ms, 2),
                 )
                 # Re-raise for LangGraph error handling
@@ -416,7 +416,7 @@ class GraphNodeHandler:
                 timing_ms = (time.perf_counter() - start_time) * 1000
 
                 if self.trace_timing:
-                    self._log("debug", f"Async node completed", timing_ms=round(timing_ms, 2))
+                    self._log("debug", "Async node completed", timing_ms=round(timing_ms, 2))
 
                 return result
 
@@ -425,7 +425,7 @@ class GraphNodeHandler:
                 error_type = type(e).__name__
                 self._log(
                     "error",
-                    f"Async node failed: {error_type}: {str(e)}",
+                    f"Async node failed: {error_type}: {e!s}",
                     timing_ms=round(timing_ms, 2),
                 )
                 raise
@@ -452,15 +452,15 @@ def graph_node(name: str, *, log_level: str = "info") -> GraphNodeHandler:
 
 
 __all__ = [
-    "SkillCommandHandler",
-    "GraphNodeHandler",
-    "ExecutionResult",
+    "DEBUG_HANDLER",
+    "DEFAULT_HANDLER",
+    "SILENT_HANDLER",
     "ErrorStrategy",
+    "ExecutionResult",
+    "GraphNodeHandler",
     "LogLevel",
     "LoggerConfig",
     "ResultConfig",
+    "SkillCommandHandler",
     "create_handler",
-    "DEFAULT_HANDLER",
-    "DEBUG_HANDLER",
-    "SILENT_HANDLER",
 ]

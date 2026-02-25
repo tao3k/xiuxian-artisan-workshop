@@ -14,8 +14,9 @@ class TestArrowAnalyticsTable:
     def test_get_analytics_table_returns_pyarrow_table(self):
         """Test that get_analytics_table returns a PyArrow Table."""
         try:
-            from omni.core.skills.discovery import SkillDiscoveryService
             import pyarrow as pa
+
+            from omni.core.skills.discovery import SkillDiscoveryService
 
             service = SkillDiscoveryService()
             table = service.get_analytics_dataframe()
@@ -190,8 +191,9 @@ class TestRustVectorStoreIntegration:
     def test_rust_vector_store_get_analytics_table_sync_returns_table(self):
         """Test that get_analytics_table_sync returns a valid PyArrow Table."""
         try:
-            from omni.foundation.bridge.rust_vector import get_vector_store
             import pyarrow as pa
+
+            from omni.foundation.bridge.rust_vector import get_vector_store
 
             store = get_vector_store()
             table = store.get_analytics_table_sync()

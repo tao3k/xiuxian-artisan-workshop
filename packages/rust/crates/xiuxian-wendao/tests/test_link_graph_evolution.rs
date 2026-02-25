@@ -38,7 +38,7 @@ fn test_hebbian_activation_boost() {
     seeds.insert("A".to_string(), 0.5);
     seeds.insert("B".to_string(), 0.5);
 
-    kernel.run(&seeds, 0.15, 10);
+    kernel.run(&seeds, 0.15, 10, None);
 
     let top = kernel.top_k(2);
 

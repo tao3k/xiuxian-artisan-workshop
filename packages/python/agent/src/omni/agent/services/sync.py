@@ -139,7 +139,7 @@ async def sync_symbols(clear: bool = False, verbose: bool | None = None) -> dict
 async def sync_knowledge(clear: bool = False, verbose: bool = False) -> dict[str, Any]:
     """Sync knowledge base (Librarian docs)."""
     from omni.core.knowledge.librarian import Librarian
-    from omni.foundation.runtime.path_filter import should_skip_path, SKIP_DIRS
+    from omni.foundation.runtime.path_filter import SKIP_DIRS, should_skip_path
     from omni.foundation.services.embedding import get_embedding_service
 
     try:

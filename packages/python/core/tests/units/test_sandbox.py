@@ -1,19 +1,20 @@
 """Tests for NCL-driven sandbox executor Python bindings."""
 
-import pytest
 import sys
+
+import pytest
 
 # Import from the Rust bindings
 try:
     from omni_core_rs import (
+        ExecutionResult,
+        MountConfig,
+        NsJailExecutor,
+        SandboxConfig,
+        SeatbeltExecutor,
         sandbox_detect_platform,
         sandbox_is_nsjail_available,
         sandbox_is_seatbelt_available,
-        ExecutionResult,
-        SandboxConfig,
-        MountConfig,
-        NsJailExecutor,
-        SeatbeltExecutor,
     )
 
     HAS_SANDBOX_BINDINGS = True
@@ -37,7 +38,6 @@ class TestPlatformDetection:
 
     def test_detect_platform_matches_os(self):
         """Platform should match current OS."""
-        import sys
 
         platform = sandbox_detect_platform()
         if sys.platform == "linux":

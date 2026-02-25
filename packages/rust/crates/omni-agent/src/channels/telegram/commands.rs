@@ -6,7 +6,7 @@ mod background;
 mod help;
 #[path = "commands/job.rs"]
 mod job;
-#[path = "commands/session.rs"]
+#[path = "commands/session/mod.rs"]
 mod session;
 
 pub(crate) use crate::channels::managed_runtime::parsing as shared;

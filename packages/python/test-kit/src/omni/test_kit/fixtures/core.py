@@ -4,8 +4,8 @@ import sys
 import types
 from pathlib import Path
 from unittest.mock import MagicMock
-import pytest
 
+import pytest
 from omni.test_kit.logging import TestTracer, setup_test_logging
 
 

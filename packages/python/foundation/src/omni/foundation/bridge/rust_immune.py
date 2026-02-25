@@ -12,7 +12,6 @@ Exports:
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from omni.foundation.config.logging import get_logger
@@ -154,7 +153,7 @@ class RustImmuneBridge:
                 "success": False,
                 "exit_code": -1,
                 "stdout": "",
-                "stderr": f"Sandbox Error: {str(e)}",
+                "stderr": f"Sandbox Error: {e!s}",
                 "duration_ms": 0,
             }
 
@@ -208,9 +207,9 @@ def is_rust_available() -> bool:
 
 __all__ = [
     "RustImmuneBridge",
-    "scan_code_security",
-    "is_code_safe",
-    "run_sandbox",
     "check_permission",
+    "is_code_safe",
     "is_rust_available",
+    "run_sandbox",
+    "scan_code_security",
 ]

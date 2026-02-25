@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from omni.test_kit.fixtures.arrow import (
     TABLE_HEALTH_IPC_COLUMNS,
     assert_table_health_ipc_table,

@@ -70,9 +70,12 @@ impl Agent {
                         .filter(|value| !value.is_empty())
                 })
                 .unwrap_or_else(|| "http://127.0.0.1:3002".to_string());
+            let embed_timeout_secs = memory_cfg
+                .embedding_timeout_ms
+                .map_or(15, timeout_ms_to_timeout_secs);
             EmbeddingClient::new_with_backend_and_tuning(
                 &base_url,
-                15,
+                embed_timeout_secs,
                 memory_cfg.embedding_backend.as_deref(),
                 memory_cfg.embedding_batch_max_size,
                 memory_cfg.embedding_batch_max_concurrency,
@@ -84,15 +87,27 @@ impl Agent {
                 session.redis_runtime_snapshot(),
             )
         });
+        let memory_embed_timeout_default_ms = config
+            .memory
+            .as_ref()
+            .and_then(|memory_cfg| memory_cfg.embedding_timeout_ms)
+            .unwrap_or_else(|| duration_to_u64_millis(super::DEFAULT_MEMORY_EMBED_TIMEOUT));
         let memory_embed_timeout = duration_from_env_ms(
             "OMNI_AGENT_MEMORY_EMBED_TIMEOUT_MS",
-            duration_to_u64_millis(super::DEFAULT_MEMORY_EMBED_TIMEOUT),
+            memory_embed_timeout_default_ms,
             super::MIN_MEMORY_EMBED_TIMEOUT_MS,
             super::MAX_MEMORY_EMBED_TIMEOUT_MS,
         );
+        let memory_embed_timeout_cooldown_default_ms = config
+            .memory
+            .as_ref()
+            .and_then(|memory_cfg| memory_cfg.embedding_timeout_cooldown_ms)
+            .unwrap_or_else(|| {
+                duration_to_u64_millis(super::DEFAULT_MEMORY_EMBED_TIMEOUT_COOLDOWN)
+            });
         let memory_embed_timeout_cooldown = duration_from_env_ms(
             "OMNI_AGENT_MEMORY_EMBED_TIMEOUT_COOLDOWN_MS",
-            duration_to_u64_millis(super::DEFAULT_MEMORY_EMBED_TIMEOUT_COOLDOWN),
+            memory_embed_timeout_cooldown_default_ms,
             0,
             super::MAX_MEMORY_EMBED_COOLDOWN_MS,
         );
@@ -116,8 +131,11 @@ impl Agent {
             memory_embed_timeout,
             memory_embed_timeout_cooldown,
             memory_embed_timeout_cooldown_until_ms: AtomicU64::new(0),
+            downstream_admission_policy: super::admission::DownstreamAdmissionPolicy::from_env(),
+            downstream_admission_metrics: super::admission::DownstreamAdmissionMetrics::default(),
             llm,
             mcp: mcp_client,
+            heyi: None,
             memory_stream_consumer_task,
         })
     }
@@ -206,4 +224,9 @@ fn duration_from_env_ms(name: &str, default_ms: u64, min_ms: u64, max_ms: u64) -
     let capped = parsed.min(max_ms);
     let sanitized = if capped < min_ms { min_ms } else { capped };
     Duration::from_millis(sanitized)
+}
+
+fn timeout_ms_to_timeout_secs(timeout_ms: u64) -> u64 {
+    let secs = timeout_ms.saturating_add(999) / 1_000;
+    secs.max(1)
 }

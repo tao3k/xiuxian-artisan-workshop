@@ -8,7 +8,6 @@ See: https://github.com/tao3k/omni-dev-fusion/issues/xxx
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 
 def create_mock_search(mock_matches):

@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from omni.rag import (
-    LanceRetrievalBackend,
     HybridRetrievalBackend,
+    LanceRetrievalBackend,
     create_retrieval_backend,
 )
 

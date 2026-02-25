@@ -27,19 +27,16 @@ let
     pkgs.ripgrep
   ];
 
-  rustBaseEnv =
-    pythonScriptEnv
-    ++ [
-      pkgs.ripgrep
-      config.languages.rust.toolchainPackage
-      pkgs.clang
-      pkgs.openssl
-      pkgs.pkg-config
-      pkgs.protobuf
-      pkgs.python3
-      pkgs.zlib
-    ]
-    ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.libiconv ];
+  rustBaseEnv = pythonScriptEnv ++ [
+    pkgs.ripgrep
+    config.languages.rust.toolchainPackage
+    pkgs.clang
+    pkgs.openssl
+    pkgs.pkg-config
+    pkgs.protobuf
+    pkgs.python3
+    pkgs.zlib
+  ];
 
   rustQualityEnv = rustBaseEnv ++ [
     pkgs.cargo-audit
@@ -137,6 +134,10 @@ in
 
     "ci:rust-omni-agent-dependency-assertions" = mkRustTask ''
       just rust-omni-agent-dependency-assertions
+    '';
+
+    "ci:rust-omni-agent-backend-role-contracts" = mkRustTask ''
+      just rust-omni-agent-backend-role-contracts
     '';
 
     "ci:rust-fusion-snapshots" = mkRustTask ''

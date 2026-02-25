@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from omni.foundation.api.schema_locator import resolve_schema_file_path
 
 

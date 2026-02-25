@@ -10,17 +10,13 @@ from __future__ import annotations
 import json
 import time
 from collections import Counter
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from rich.box import ROUNDED
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
-from rich.box import ROUNDED
-
-if TYPE_CHECKING:
-    pass
-
 
 # Thread config for LangGraph checkpointer (stable for single-session runs)
 DEFAULT_THREAD_ID = "1"

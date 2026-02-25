@@ -4,8 +4,6 @@ Unit tests for robust_task.runner: run_robust_task and _node_display.
 
 import inspect
 
-import pytest
-
 from omni.agent.workflows.robust_task.runner import (
     _node_display,
     run_robust_task,

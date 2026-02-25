@@ -17,8 +17,8 @@ Usage:
 from __future__ import annotations
 
 import tracemalloc
+from collections.abc import AsyncIterator, Generator
 from contextlib import asynccontextmanager, contextmanager
-from typing import AsyncIterator, Generator
 
 from omni.foundation.config.logging import get_logger
 from omni.foundation.config.settings import get_setting
@@ -70,7 +70,7 @@ def _log_tracemalloc_top(count: int = 15) -> None:
 
 
 @contextmanager
-def memory_monitor_scope(tool_name: str) -> Generator[None, None, None]:
+def memory_monitor_scope(tool_name: str) -> Generator[None]:
     """Context manager for sync code: log RSS before/after, tracemalloc on large growth."""
     if not _is_enabled():
         yield

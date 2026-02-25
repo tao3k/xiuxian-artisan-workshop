@@ -6,7 +6,6 @@ Tests the full workflow with mock crate sources to avoid external dependencies.
 import json
 import os
 import tempfile
-import pytest
 
 
 class TestDependencyIndexerScenarios:
@@ -62,7 +61,7 @@ pub fn create_error(msg: &str) -> Error {
 }
 """)
 
-        from omni_core_rs import PyDependencyConfig, PyDependencyIndexer
+        from omni_core_rs import PyDependencyConfig
 
         # Test that config is loaded correctly
         config = PyDependencyConfig.load(config_path)
@@ -329,12 +328,12 @@ class TestDependencyIndexerAPISurface:
     def test_all_classes_exported(self):
         """Verify all PyO3 classes are exported."""
         from omni_core_rs import (
-            PyDependencyIndexer,
             PyDependencyConfig,
+            PyDependencyIndexer,
             PyDependencyIndexResult,
             PyDependencyStats,
-            PyExternalSymbol,
             PyExternalDependency,
+            PyExternalSymbol,
             PySymbolIndex,
         )
 

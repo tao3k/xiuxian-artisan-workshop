@@ -54,7 +54,7 @@ class KnowledgeGraphAnalyzer:
         self._entities: list[dict[str, Any]] = []
         self._relations: list[dict[str, Any]] = []
 
-    def load_from_json(self, json_path: str) -> "KnowledgeGraphAnalyzer":
+    def load_from_json(self, json_path: str) -> KnowledgeGraphAnalyzer:
         """Load graph data from JSON file.
 
         Args:
@@ -81,7 +81,7 @@ class KnowledgeGraphAnalyzer:
 
         return self
 
-    def load_from_rust_graph(self, rust_graph: Any) -> "KnowledgeGraphAnalyzer":
+    def load_from_rust_graph(self, rust_graph: Any) -> KnowledgeGraphAnalyzer:
         """Load graph data from Rust PyKnowledgeGraph.
 
         Args:
@@ -356,7 +356,7 @@ except ImportError:
     POLARS_AVAILABLE = False
 
 
-def create_entities_dataframe(entities: list[dict[str, Any]]) -> "pl.DataFrame":
+def create_entities_dataframe(entities: list[dict[str, Any]]) -> pl.DataFrame:
     """Create Polars DataFrame from entities.
 
     Args:
@@ -375,7 +375,7 @@ def create_entities_dataframe(entities: list[dict[str, Any]]) -> "pl.DataFrame":
     return entities  # type: ignore
 
 
-def create_relations_dataframe(relations: list[dict[str, Any]]) -> "pl.DataFrame":
+def create_relations_dataframe(relations: list[dict[str, Any]]) -> pl.DataFrame:
     """Create Polars DataFrame from relations.
 
     Args:
@@ -394,7 +394,7 @@ def create_relations_dataframe(relations: list[dict[str, Any]]) -> "pl.DataFrame
     return relations  # type: ignore
 
 
-def analyze_entity_types(df: "pl.DataFrame") -> "pl.DataFrame":
+def analyze_entity_types(df: pl.DataFrame) -> pl.DataFrame:
     """Analyze entity type distribution.
 
     Args:
@@ -417,7 +417,7 @@ def analyze_entity_types(df: "pl.DataFrame") -> "pl.DataFrame":
     )
 
 
-def analyze_connections(df: "pl.DataFrame") -> "pl.DataFrame":
+def analyze_connections(df: pl.DataFrame) -> pl.DataFrame:
     """Analyze entity connections.
 
     Args:
@@ -482,12 +482,12 @@ def load_and_analyze(
 
 
 __all__ = [
-    "KnowledgeGraphAnalyzer",
+    "POLARS_AVAILABLE",
     "GraphAnalysisResult",
-    "load_and_analyze",
+    "KnowledgeGraphAnalyzer",
+    "analyze_connections",
+    "analyze_entity_types",
     "create_entities_dataframe",
     "create_relations_dataframe",
-    "analyze_entity_types",
-    "analyze_connections",
-    "POLARS_AVAILABLE",
+    "load_and_analyze",
 ]

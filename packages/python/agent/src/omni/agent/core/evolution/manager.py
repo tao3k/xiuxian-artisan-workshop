@@ -611,8 +611,8 @@ class EvolutionManager:
 
 
 __all__ = [
-    "EvolutionManager",
-    "EvolutionConfig",
-    "EvolutionState",
     "CrystallizationCandidate",
+    "EvolutionConfig",
+    "EvolutionManager",
+    "EvolutionState",
 ]

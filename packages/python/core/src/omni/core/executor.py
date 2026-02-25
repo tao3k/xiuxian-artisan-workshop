@@ -28,11 +28,11 @@ Usage:
 """
 
 import asyncio
-from typing import Any, Callable, Optional, Type, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from omni.core.errors import CoreErrorCode, OmniError
-from omni.core.responses import ResponseStatus, ToolResponse
-
+from omni.core.responses import ToolResponse
 
 T = TypeVar("T")
 
@@ -52,7 +52,7 @@ class CommandExecutor:
 
     def __init__(
         self,
-        default_metadata: Optional[dict[str, Any]] = None,
+        default_metadata: dict[str, Any] | None = None,
     ):
         """Initialize the executor.
 
@@ -65,8 +65,8 @@ class CommandExecutor:
         self,
         func: Callable[..., T],
         *args,
-        error_map: Optional[dict[Type[Exception], CoreErrorCode]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        error_map: dict[type[Exception], CoreErrorCode] | None = None,
+        metadata: dict[str, Any] | None = None,
         **kwargs,
     ) -> ToolResponse:
         """Execute a function and wrap result in ToolResponse.
@@ -119,8 +119,8 @@ class CommandExecutor:
     def _get_error_code(
         self,
         exception: Exception,
-        error_map: dict[Type[Exception], CoreErrorCode],
-    ) -> Optional[CoreErrorCode]:
+        error_map: dict[type[Exception], CoreErrorCode],
+    ) -> CoreErrorCode | None:
         """Get error code for an exception.
 
         Args:
@@ -156,8 +156,8 @@ class AsyncCommandExecutor(CommandExecutor):
         func: Callable[..., T],
         timeout_seconds: float,
         *args,
-        error_map: Optional[dict[Type[Exception], CoreErrorCode]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        error_map: dict[type[Exception], CoreErrorCode] | None = None,
+        metadata: dict[str, Any] | None = None,
         **kwargs,
     ) -> ToolResponse:
         """Execute with timeout protection.
@@ -183,7 +183,7 @@ class AsyncCommandExecutor(CommandExecutor):
             )
             return ToolResponse.success(data=result, metadata=merged_metadata)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return ToolResponse.error(
                 message=f"Operation timed out after {timeout_seconds} seconds",
                 code=CoreErrorCode.TOOL_TIMEOUT.value,
@@ -212,7 +212,7 @@ class AsyncCommandExecutor(CommandExecutor):
 
 def wrap_result(
     result: Any,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> ToolResponse:
     """Wrap a raw result in ToolResponse.
 
@@ -230,8 +230,8 @@ def wrap_result(
 
 def wrap_error(
     message: str,
-    code: Optional[CoreErrorCode] = None,
-    metadata: Optional[dict[str, Any]] = None,
+    code: CoreErrorCode | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> ToolResponse:
     """Create an error response.
 
@@ -250,7 +250,7 @@ def wrap_error(
 
 def wrap_blocked(
     reason: str,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> ToolResponse:
     """Create a blocked response.
 

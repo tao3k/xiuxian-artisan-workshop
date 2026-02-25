@@ -55,11 +55,6 @@ use pyo3::prelude::*;
 // ============================================================================
 
 #[cfg(feature = "assembler")]
-pub mod checkpoint;
-#[cfg(not(feature = "assembler"))]
-pub mod checkpoint;
-
-#[cfg(feature = "assembler")]
 mod context;
 #[cfg(not(feature = "assembler"))]
 mod context;
@@ -90,8 +85,6 @@ mod watcher; // Empty module when feature disabled
 // Re-exports from submodules
 // ============================================================================
 
-pub use checkpoint::PyCheckpointStore;
-pub use checkpoint::PyTimelineEvent;
 pub use context::{PyAssemblyResult, PyContextAssembler, PyContextPruner}; // Add PyContextPruner here
 pub use editor::{
     PyBatchRefactorStats, batch_structural_replace, structural_apply, structural_preview,
@@ -285,14 +278,6 @@ fn omni_core_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(pyo3::wrap_pyfunction!(evict_vector_store_cache_py, m)?)?;
     m.add_class::<PyVectorStore>()?;
     m.add_class::<PyToolRecord>()?;
-
-    // Checkpoint Store (LanceDB-based state persistence)
-    m.add_function(pyo3::wrap_pyfunction!(
-        checkpoint::create_checkpoint_store,
-        m
-    )?)?;
-    m.add_class::<PyCheckpointStore>()?;
-    m.add_class::<PyTimelineEvent>()?;
 
     // Context Assembler (Parallel I/O + Templating + Token Counting)
     m.add_class::<PyContextAssembler>()?;

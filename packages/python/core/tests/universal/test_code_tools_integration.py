@@ -1,6 +1,5 @@
 import pytest
-import asyncio
-from pathlib import Path
+
 from omni.core.kernel.engine import get_kernel
 
 

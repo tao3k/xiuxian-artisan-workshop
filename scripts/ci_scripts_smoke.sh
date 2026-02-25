@@ -8,6 +8,7 @@ bash -n \
   scripts/rust/omni_agent_profiles_check.sh \
   scripts/rust/omni_agent_dependency_assertions.sh \
   scripts/rust/omni_agent_mcp_facade_smoke.sh \
+  scripts/rust/omni_agent_backend_role_contracts.sh \
   scripts/rust/xiuxian_llm_mcp_check.sh \
   scripts/rust/wendao_retrieval_audits.sh \
   scripts/rust/telegram_session_isolation_rust.sh \
@@ -19,6 +20,8 @@ bash -n \
 just --dry-run rust-omni-agent-profiles >/dev/null
 just --dry-run rust-omni-agent-dependency-assertions >/dev/null
 just --dry-run rust-omni-agent-mcp-facade-smoke >/dev/null
+just --dry-run rust-omni-agent-backend-role-contracts >/dev/null
+just --dry-run rust-omni-agent-embedding-role-perf-smoke >/dev/null
 just --dry-run rust-xiuxian-llm-mcp >/dev/null
 just --dry-run rust-retrieval-audits >/dev/null
 just --dry-run gate-wendao-ppr >/dev/null
@@ -27,3 +30,4 @@ just --dry-run wendao-ppr-rollout-status >/dev/null
 just --dry-run telegram-session-isolation-rust >/dev/null
 just --dry-run valkey-live >/dev/null
 just --dry-run memory-gate-nightly >/dev/null
+just --dry-run agent-channel-discord-ingress-stress >/dev/null

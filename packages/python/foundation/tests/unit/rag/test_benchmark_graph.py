@@ -4,8 +4,9 @@ Benchmark tests for omni.rag.graph module.
 These tests measure the performance of knowledge graph operations.
 """
 
-import pytest
 import time
+
+import pytest
 
 
 class TestExtractedChunkPerformance:
@@ -13,7 +14,7 @@ class TestExtractedChunkPerformance:
 
     def test_chunk_creation_performance(self):
         """Test ExtractedChunk creation performance."""
-        from omni.rag.entities import ExtractedChunk, Entity
+        from omni.rag.entities import Entity, ExtractedChunk
 
         start = time.perf_counter()
         for i in range(1000):
@@ -41,7 +42,7 @@ class TestExtractedChunkPerformance:
 
     def test_chunk_serialization_performance(self):
         """Test ExtractedChunk serialization performance."""
-        from omni.rag.entities import ExtractedChunk, Entity
+        from omni.rag.entities import Entity, ExtractedChunk
 
         chunks = [
             ExtractedChunk(

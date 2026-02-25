@@ -38,6 +38,6 @@ def compile_workflow(
 
 
 __all__ = [
-    "create_in_memory_checkpointer",
     "compile_workflow",
+    "create_in_memory_checkpointer",
 ]

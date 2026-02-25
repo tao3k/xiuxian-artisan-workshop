@@ -29,6 +29,7 @@ members = [
     "packages/rust/crates/omni-agent",
     "packages/rust/crates/xiuxian-qianji",
     "packages/rust/crates/xiuxian-memory",
+    "packages/rust/crates/xiuxian-zhixing",
 ]
 
 # Workspace package metadata (inherited by all crates)
@@ -87,6 +88,8 @@ lance-arrow = "2.0"
 arrow = "57"
 arrow-ipc = "57"
 
+# Redis cache and session backend
+redis = { version = "1.0.3", default-features = false }
 
 # Logging
 log = "0.4"

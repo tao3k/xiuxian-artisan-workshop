@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{InjectionError, InjectionWindowConfig, QaEntry, xml};
+use crate::{InjectionError, config::InjectionWindowConfig, entry::QaEntry, xml};
 
 /// Bounded session-level system prompt injection window.
 #[derive(Debug, Clone, PartialEq, Eq)]

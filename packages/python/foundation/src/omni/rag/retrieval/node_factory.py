@@ -53,6 +53,6 @@ def create_hybrid_node(
 
 
 __all__ = [
-    "create_retriever_node",
     "create_hybrid_node",
+    "create_retriever_node",
 ]

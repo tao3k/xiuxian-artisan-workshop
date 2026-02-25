@@ -1,28 +1,13 @@
 #!/usr/bin/env python3
-"""
-A/B benchmark runner for omni-agent memory behavior in live Telegram webhook runtime.
-
-Goals:
-  - compare baseline vs adaptive memory-feedback flows on the same scenarios
-  - collect observability-derived memory metrics (plan/decision/latency/context)
-  - emit machine-readable JSON and human-readable Markdown report
-
-This script depends on a running local webhook runtime and the black-box probe:
-  scripts/channel/agent_channel_blackbox.py
-"""
+"""A/B memory benchmark runner for local Telegram webhook runtime."""
 
 from __future__ import annotations
 
-import argparse
 import importlib
-import json
 import os
-import statistics
-import subprocess
+import subprocess  # noqa: F401  # Exposed for monkeypatch seams in black-box tests.
 import sys
-import time
-from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -30,48 +15,28 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-load_sibling_module = importlib.import_module("module_loader").load_sibling_module
+load_module_bindings = importlib.import_module(
+    "memory_benchmark_module_bindings"
+).load_module_bindings
 
-_resolver_module = load_sibling_module(
-    module_name="config_resolver",
-    file_name="config_resolver.py",
-    caller_file=__file__,
-    error_context="resolver module",
-)
-normalize_telegram_session_partition_mode = (
-    _resolver_module.normalize_telegram_session_partition_mode
-)
-session_ids_from_runtime_log = _resolver_module.session_ids_from_runtime_log
-session_partition_mode_from_runtime_log = _resolver_module.session_partition_mode_from_runtime_log
-telegram_session_partition_mode = _resolver_module.telegram_session_partition_mode
-
-_log_io_module = load_sibling_module(
-    module_name="log_io",
-    file_name="log_io.py",
-    caller_file=__file__,
-    error_context="shared log I/O helpers",
-)
-_SharedLogCursor = _log_io_module.LogCursor
-_shared_init_log_cursor = _log_io_module.init_log_cursor
-_shared_read_new_log_lines_with_cursor = _log_io_module.read_new_log_lines_with_cursor
-
-_signals_module = load_sibling_module(
-    module_name="memory_benchmark_signals",
-    file_name="memory_benchmark_signals.py",
-    caller_file=__file__,
-    error_context="memory benchmark signal parser",
-)
-has_event = _signals_module.has_event
-strip_ansi = _signals_module.strip_ansi
-token_as_float = _signals_module.token_as_float
-token_as_int = _signals_module.token_as_int
-trim_text = _signals_module.trim_text
+_MODULES = load_module_bindings(__file__)
+_ENTRY_BINDINGS = _MODULES.entry_bindings_module
+_CONFIG = _MODULES.config_module
+_MODELS = _MODULES.models_module
+_RUNTIME_BINDINGS = _MODULES.runtime_bindings_module
+_EXECUTION = _MODULES.execution_module
+_SIGNALS = _MODULES.signals_module
+_ANALYSIS = _MODULES.analysis_module
+_REPORT = _MODULES.report_module
+_OUTPUT = _MODULES.output_module
+_SharedLogCursor = _MODULES.shared_log_cursor_cls
+_shared_init_log_cursor = _MODULES.shared_init_log_cursor
+_shared_read_new_log_lines_with_cursor = _MODULES.shared_read_new_log_lines_with_cursor
 
 DEFAULT_MAX_WAIT = int(os.environ.get("OMNI_BLACKBOX_MAX_WAIT_SECS", "40"))
 DEFAULT_MAX_IDLE_SECS = int(os.environ.get("OMNI_BLACKBOX_MAX_IDLE_SECS", "30"))
 DEFAULT_LOG_FILE = os.environ.get("OMNI_CHANNEL_LOG_FILE", ".run/logs/omni-agent-webhook.log")
 FORBIDDEN_LOG_PATTERN = "tools/call: Mcp error"
-
 RESET_EVENT = "telegram.command.session_reset.replied"
 FEEDBACK_EVENT = "telegram.command.session_feedback_json.replied"
 CONTROL_ADMIN_REQUIRED_EVENT = "telegram.command.control_admin_required.replied"
@@ -84,1083 +49,173 @@ EMBEDDING_COOLDOWN_FALLBACK_EVENT = "agent.memory.embedding.cooldown_fallback_ha
 EMBEDDING_UNAVAILABLE_FALLBACK_EVENT = "agent.memory.embedding.unavailable_fallback_hash"
 BOT_MARKER = "→ Bot:"
 
+QuerySpec = _MODELS.QuerySpec
+ScenarioSpec = _MODELS.ScenarioSpec
+TurnResult = _MODELS.TurnResult
+ModeSummary = _MODELS.ModeSummary
+BenchmarkConfig = _MODELS.BenchmarkConfig
 
-def infer_session_ids_from_runtime_log(log_file: Path) -> tuple[int | None, int | None, int | None]:
-    return session_ids_from_runtime_log(log_file)
+parse_args = partial(
+    _CONFIG.parse_args,
+    script_dir=Path(__file__).resolve().parent,
+    default_log_file=DEFAULT_LOG_FILE,
+    default_max_wait=DEFAULT_MAX_WAIT,
+    default_max_idle_secs=DEFAULT_MAX_IDLE_SECS,
+)
+default_report_path = _CONFIG.default_report_path
+infer_session_ids_from_runtime_log = _MODULES.session_ids_from_runtime_log
 
-
-def resolve_runtime_partition_mode(log_file: Path) -> str | None:
-    override = os.environ.get("OMNI_BLACKBOX_SESSION_PARTITION_MODE", "").strip()
-    normalized_override = normalize_telegram_session_partition_mode(override)
-    if normalized_override:
-        return normalized_override
-
-    mode_from_log = session_partition_mode_from_runtime_log(log_file)
-    if mode_from_log:
-        return mode_from_log
-
-    return telegram_session_partition_mode()
-
-
-@dataclass(frozen=True)
-class QuerySpec:
-    prompt: str
-    expected_keywords: tuple[str, ...]
-    required_ratio: float
-
-
-@dataclass(frozen=True)
-class ScenarioSpec:
-    scenario_id: str
-    description: str
-    setup_prompts: tuple[str, ...]
-    queries: tuple[QuerySpec, ...]
-    reset_before: bool = True
-    reset_after: bool = False
-
-
-@dataclass
-class TurnResult:
-    mode: str
-    iteration: int
-    scenario_id: str
-    query_index: int
-    prompt: str
-    expected_keywords: tuple[str, ...]
-    required_ratio: float
-    keyword_hit_ratio: float | None
-    keyword_success: bool | None
-    decision: str | None
-    query_tokens: int | None
-    recalled_selected: int | None
-    recalled_injected: int | None
-    context_chars_injected: int | None
-    pipeline_duration_ms: int | None
-    best_score: float | None
-    weakest_score: float | None
-    k1: int | None
-    k2: int | None
-    lambda_value: float | None
-    min_score: float | None
-    budget_pressure: float | None
-    window_pressure: float | None
-    recall_feedback_bias: float | None
-    feedback_direction: str | None
-    feedback_bias_before: float | None
-    feedback_bias_after: float | None
-    embedding_timeout_fallback_seen: bool = False
-    embedding_cooldown_fallback_seen: bool = False
-    embedding_unavailable_fallback_seen: bool = False
-    mcp_error_detected: bool = False
-    bot_excerpt: str | None = None
-
-
-@dataclass
-class ModeSummary:
-    mode: str
-    iterations: int
-    scenarios: int
-    query_turns: int
-    scored_turns: int
-    success_count: int
-    success_rate: float
-    avg_keyword_hit_ratio: float
-    injected_count: int
-    skipped_count: int
-    injected_rate: float
-    avg_pipeline_duration_ms: float
-    avg_query_tokens: float
-    avg_recalled_selected: float
-    avg_recalled_injected: float
-    avg_context_chars_injected: float
-    avg_best_score: float
-    avg_weakest_score: float
-    avg_k1: float
-    avg_k2: float
-    avg_lambda: float
-    avg_min_score: float
-    avg_budget_pressure: float
-    avg_window_pressure: float
-    avg_recall_feedback_bias: float
-    feedback_updates: int
-    feedback_up_count: int
-    feedback_down_count: int
-    avg_feedback_delta: float
-    mcp_error_turns: int
-    embedding_timeout_fallback_turns: int
-    embedding_cooldown_fallback_turns: int
-    embedding_unavailable_fallback_turns: int
-    embedding_fallback_turns_total: int
-
-
-@dataclass
-class BenchmarkConfig:
-    dataset_path: Path
-    log_file: Path
-    blackbox_script: Path
-    chat_id: int
-    user_id: int
-    thread_id: int | None
-    runtime_partition_mode: str | None
-    username: str
-    max_wait: int
-    max_idle_secs: int
-    modes: tuple[str, ...]
-    iterations: int
-    skip_reset: bool
-    output_json: Path
-    output_markdown: Path
-    fail_on_mcp_error: bool
-    feedback_policy: str
-    feedback_down_threshold: float
-
-
-def parse_args() -> argparse.Namespace:
-    script_dir = Path(__file__).resolve().parent
-    parser = argparse.ArgumentParser(
-        description=(
-            "Run live A/B memory benchmark against local omni-agent webhook runtime "
-            "(baseline vs adaptive feedback mode)."
-        )
-    )
-    parser.add_argument(
-        "--dataset",
-        default=str(script_dir / "fixtures" / "memory_benchmark_scenarios.json"),
-        help="Scenario dataset JSON path.",
-    )
-    parser.add_argument(
-        "--log-file",
-        default=DEFAULT_LOG_FILE,
-        help=f"Runtime log file path (default: {DEFAULT_LOG_FILE}).",
-    )
-    parser.add_argument(
-        "--blackbox-script",
-        default=str(script_dir / "agent_channel_blackbox.py"),
-        help="Path to black-box probe script.",
-    )
-    parser.add_argument(
-        "--username",
-        default=os.environ.get("OMNI_TEST_USERNAME", ""),
-        help="Synthetic Telegram username for allowlist checks.",
-    )
-    parser.add_argument(
-        "--chat-id",
-        type=int,
-        default=None,
-        help="Pinned synthetic Telegram chat id. Default: infer once from runtime log.",
-    )
-    parser.add_argument(
-        "--user-id",
-        type=int,
-        default=None,
-        help="Pinned synthetic Telegram user id. Default: infer once from runtime log.",
-    )
-    parser.add_argument(
-        "--thread-id",
-        type=int,
-        default=None,
-        help="Pinned synthetic Telegram thread id (optional).",
-    )
-    parser.add_argument(
-        "--max-wait",
-        type=int,
-        default=DEFAULT_MAX_WAIT,
-        help=f"Per probe max wait in seconds (default: {DEFAULT_MAX_WAIT}).",
-    )
-    parser.add_argument(
-        "--max-idle-secs",
-        type=int,
-        default=DEFAULT_MAX_IDLE_SECS,
-        help=f"Per probe max idle seconds (default: {DEFAULT_MAX_IDLE_SECS}).",
-    )
-    parser.add_argument(
-        "--mode",
-        action="append",
-        choices=("baseline", "adaptive"),
-        help="Benchmark mode (repeatable). Default: baseline+adaptive.",
-    )
-    parser.add_argument(
-        "--iterations",
-        type=int,
-        default=1,
-        help="Dataset replay count per mode (default: 1).",
-    )
-    parser.add_argument(
-        "--skip-reset",
-        action="store_true",
-        help="Do not issue /reset between scenarios.",
-    )
-    parser.add_argument(
-        "--output-json",
-        default=str(default_report_path("omni-agent-memory-benchmark.json")),
-        help="Output JSON report path.",
-    )
-    parser.add_argument(
-        "--output-markdown",
-        default=str(default_report_path("omni-agent-memory-benchmark.md")),
-        help="Output Markdown report path.",
-    )
-    parser.add_argument(
-        "--fail-on-mcp-error",
-        action="store_true",
-        help=(
-            "Fail immediately when logs include `tools/call: Mcp error`. "
-            "Default behavior records this as interference."
-        ),
-    )
-    parser.add_argument(
-        "--feedback-policy",
-        choices=("strict", "deadband"),
-        default="deadband",
-        help=(
-            "Adaptive feedback policy. "
-            "`strict`: success=up, failure=down. "
-            "`deadband`: success=up, strong failure only=down, else neutral."
-        ),
-    )
-    parser.add_argument(
-        "--feedback-down-threshold",
-        type=float,
-        default=0.34,
-        help=(
-            "When feedback-policy=deadband, send `down` only when keyword hit ratio "
-            "is less than or equal to this threshold (default: 0.34)."
-        ),
-    )
-    return parser.parse_args()
-
-
-def default_report_path(filename: str) -> Path:
-    runtime_root = Path(os.environ.get("PRJ_RUNTIME_DIR", ".run"))
-    if not runtime_root.is_absolute():
-        project_root = Path(os.environ.get("PRJ_ROOT", Path.cwd()))
-        runtime_root = project_root / runtime_root
-    return runtime_root / "reports" / filename
-
-
-def build_config(args: argparse.Namespace) -> BenchmarkConfig:
-    modes = tuple(args.mode) if args.mode else ("baseline", "adaptive")
-    if args.max_wait <= 0:
-        raise ValueError("--max-wait must be a positive integer.")
-    if args.max_idle_secs <= 0:
-        raise ValueError("--max-idle-secs must be a positive integer.")
-    if args.iterations <= 0:
-        raise ValueError("--iterations must be a positive integer.")
-    if not (0.0 <= args.feedback_down_threshold <= 1.0):
-        raise ValueError("--feedback-down-threshold must be between 0.0 and 1.0.")
-
-    env_chat = os.environ.get("OMNI_TEST_CHAT_ID", "").strip()
-    env_user = os.environ.get("OMNI_TEST_USER_ID", "").strip()
-    env_thread = os.environ.get("OMNI_TEST_THREAD_ID", "").strip()
-    chat_id = args.chat_id if args.chat_id is not None else (int(env_chat) if env_chat else None)
-    user_id = args.user_id if args.user_id is not None else (int(env_user) if env_user else None)
-    thread_id = (
-        args.thread_id if args.thread_id is not None else (int(env_thread) if env_thread else None)
-    )
-
-    config = BenchmarkConfig(
-        dataset_path=Path(args.dataset).expanduser().resolve(),
-        log_file=Path(args.log_file).expanduser().resolve(),
-        blackbox_script=Path(args.blackbox_script).expanduser().resolve(),
-        chat_id=0,
-        user_id=0,
-        thread_id=thread_id,
-        runtime_partition_mode=None,
-        username=args.username.strip(),
-        max_wait=args.max_wait,
-        max_idle_secs=args.max_idle_secs,
-        modes=modes,
-        iterations=args.iterations,
-        skip_reset=bool(args.skip_reset),
-        output_json=Path(args.output_json).expanduser().resolve(),
-        output_markdown=Path(args.output_markdown).expanduser().resolve(),
-        fail_on_mcp_error=bool(args.fail_on_mcp_error),
-        feedback_policy=args.feedback_policy,
-        feedback_down_threshold=float(args.feedback_down_threshold),
-    )
-
-    if not config.dataset_path.exists():
-        raise ValueError(f"dataset not found: {config.dataset_path}")
-    if not config.blackbox_script.exists():
-        raise ValueError(f"black-box script not found: {config.blackbox_script}")
-
-    if chat_id is None or user_id is None:
-        inferred_chat, inferred_user, inferred_thread = infer_session_ids_from_runtime_log(
-            config.log_file
-        )
-        if chat_id is None:
-            chat_id = inferred_chat
-        if user_id is None:
-            user_id = inferred_user
-        if config.thread_id is None:
-            config.thread_id = inferred_thread
-    if chat_id is None or user_id is None:
-        raise ValueError(
-            "chat/user id are required. Set --chat-id/--user-id (or OMNI_TEST_CHAT_ID/OMNI_TEST_USER_ID), "
-            "or ensure runtime log has a recent session marker for inference."
-        )
-    config.chat_id = int(chat_id)
-    config.user_id = int(user_id)
-    config.runtime_partition_mode = resolve_runtime_partition_mode(config.log_file)
-
-    config.log_file.parent.mkdir(parents=True, exist_ok=True)
-    config.output_json.parent.mkdir(parents=True, exist_ok=True)
-    config.output_markdown.parent.mkdir(parents=True, exist_ok=True)
-    return config
-
-
-def load_scenarios(path: Path) -> tuple[ScenarioSpec, ...]:
-    raw = json.loads(path.read_text(encoding="utf-8"))
-    scenarios_raw = raw.get("scenarios")
-    if not isinstance(scenarios_raw, list) or not scenarios_raw:
-        raise ValueError("dataset must provide a non-empty 'scenarios' array")
-
-    scenarios: list[ScenarioSpec] = []
-    seen_ids: set[str] = set()
-    for index, scenario_obj in enumerate(scenarios_raw):
-        if not isinstance(scenario_obj, dict):
-            raise ValueError(f"scenario at index {index} must be an object")
-        scenario_id = str(scenario_obj.get("id", "")).strip()
-        if not scenario_id:
-            raise ValueError(f"scenario at index {index} has empty id")
-        if scenario_id in seen_ids:
-            raise ValueError(f"duplicate scenario id: {scenario_id}")
-        seen_ids.add(scenario_id)
-
-        description = str(scenario_obj.get("description", "")).strip() or scenario_id
-
-        setup_prompts_raw = scenario_obj.get("setup_prompts", [])
-        if not isinstance(setup_prompts_raw, list):
-            raise ValueError(f"scenario '{scenario_id}' setup_prompts must be an array")
-        setup_prompts = tuple(str(item).strip() for item in setup_prompts_raw if str(item).strip())
-
-        queries_raw = scenario_obj.get("queries", [])
-        if not isinstance(queries_raw, list) or not queries_raw:
-            raise ValueError(f"scenario '{scenario_id}' must define non-empty queries")
-        queries: list[QuerySpec] = []
-        for query_index, query_obj in enumerate(queries_raw):
-            if not isinstance(query_obj, dict):
-                raise ValueError(f"scenario '{scenario_id}' query[{query_index}] must be an object")
-            prompt = str(query_obj.get("prompt", "")).strip()
-            if not prompt:
-                raise ValueError(f"scenario '{scenario_id}' query[{query_index}] has empty prompt")
-            keywords_raw = query_obj.get("expected_keywords", [])
-            if not isinstance(keywords_raw, list):
-                raise ValueError(
-                    f"scenario '{scenario_id}' query[{query_index}] expected_keywords must be an array"
-                )
-            keywords = tuple(str(word).strip() for word in keywords_raw if str(word).strip())
-            required_ratio = float(query_obj.get("required_ratio", 1.0))
-            if required_ratio <= 0.0 or required_ratio > 1.0:
-                raise ValueError(
-                    f"scenario '{scenario_id}' query[{query_index}] required_ratio must be in (0, 1]"
-                )
-            queries.append(
-                QuerySpec(
-                    prompt=prompt,
-                    expected_keywords=keywords,
-                    required_ratio=required_ratio,
-                )
-            )
-
-        scenarios.append(
-            ScenarioSpec(
-                scenario_id=scenario_id,
-                description=description,
-                setup_prompts=setup_prompts,
-                queries=tuple(queries),
-                reset_before=bool(scenario_obj.get("reset_before", True)),
-                reset_after=bool(scenario_obj.get("reset_after", False)),
-            )
-        )
-
-    return tuple(scenarios)
+resolve_runtime_partition_mode = partial(
+    _ENTRY_BINDINGS.resolve_runtime_partition_mode,
+    config_module=_CONFIG,
+    normalize_telegram_session_partition_mode_fn=_MODULES.normalize_telegram_session_partition_mode,
+    session_partition_mode_from_runtime_log_fn=_MODULES.session_partition_mode_from_runtime_log,
+    telegram_session_partition_mode_fn=_MODULES.telegram_session_partition_mode,
+)
+build_config = partial(
+    _CONFIG.build_config,
+    config_cls=BenchmarkConfig,
+    infer_session_ids_fn=infer_session_ids_from_runtime_log,
+    resolve_runtime_partition_mode_fn=resolve_runtime_partition_mode,
+)
+load_scenarios = partial(
+    _CONFIG.load_scenarios,
+    query_spec_cls=QuerySpec,
+    scenario_spec_cls=ScenarioSpec,
+)
 
 
 def count_lines(path: Path) -> int:
-    return _shared_init_log_cursor(path, kind="offset").value
+    return _ENTRY_BINDINGS.count_lines(path, init_log_cursor_fn=_shared_init_log_cursor)
 
 
 def read_new_lines(path: Path, cursor: int) -> tuple[int, list[str]]:
-    next_cursor, lines = _shared_read_new_log_lines_with_cursor(
+    return _ENTRY_BINDINGS.read_new_lines(
         path,
-        _SharedLogCursor(kind="offset", value=cursor),
+        cursor,
+        read_new_log_lines_with_cursor_fn=_shared_read_new_log_lines_with_cursor,
+        log_cursor_cls=_SharedLogCursor,
     )
-    return next_cursor.value, lines
 
 
-def run_probe(
+run_probe = partial(
+    _ENTRY_BINDINGS.run_probe,
+    runtime_bindings_module=_RUNTIME_BINDINGS,
+    execution_module=_EXECUTION,
+    count_lines_fn=count_lines,
+    read_new_lines_fn=read_new_lines,
+    strip_ansi_fn=_SIGNALS.strip_ansi,
+    has_event_fn=_SIGNALS.has_event,
+    control_admin_required_event=CONTROL_ADMIN_REQUIRED_EVENT,
+    forbidden_log_pattern=FORBIDDEN_LOG_PATTERN,
+)
+parse_turn_signals = partial(
+    _ENTRY_BINDINGS.parse_turn_signals,
+    runtime_bindings_module=_RUNTIME_BINDINGS,
+    execution_module=_EXECUTION,
+    parse_turn_signals_fn=_SIGNALS.parse_turn_signals,
+    forbidden_log_pattern=FORBIDDEN_LOG_PATTERN,
+    bot_marker=BOT_MARKER,
+    recall_plan_event=RECALL_PLAN_EVENT,
+    recall_injected_event=RECALL_INJECTED_EVENT,
+    recall_skipped_event=RECALL_SKIPPED_EVENT,
+    recall_feedback_event=RECALL_FEEDBACK_EVENT,
+    embedding_timeout_fallback_event=EMBEDDING_TIMEOUT_FALLBACK_EVENT,
+    embedding_cooldown_fallback_event=EMBEDDING_COOLDOWN_FALLBACK_EVENT,
+    embedding_unavailable_fallback_event=EMBEDDING_UNAVAILABLE_FALLBACK_EVENT,
+)
+
+
+def _parse_turn_signals_dynamic(lines: list[str]) -> dict[str, Any]:
+    return parse_turn_signals(lines)
+
+
+build_turn_result = partial(
+    _ENTRY_BINDINGS.build_turn_result,
+    runtime_bindings_module=_RUNTIME_BINDINGS,
+    execution_module=_EXECUTION,
+    parse_turn_signals_fn=_parse_turn_signals_dynamic,
+    keyword_hit_ratio_fn=_ANALYSIS.keyword_hit_ratio,
+    token_as_int_fn=_SIGNALS.token_as_int,
+    token_as_float_fn=_SIGNALS.token_as_float,
+    trim_text_fn=_SIGNALS.trim_text,
+    turn_result_cls=TurnResult,
+)
+summarize_mode = partial(
+    _ENTRY_BINDINGS.summarize_mode,
+    runtime_bindings_module=_RUNTIME_BINDINGS,
+    execution_module=_EXECUTION,
+    summarize_mode_data_fn=_ANALYSIS.summarize_mode_data,
+    mode_summary_cls=ModeSummary,
+)
+
+
+def _run_probe_dynamic(
     config: BenchmarkConfig,
     *,
     prompt: str,
     expect_event: str,
     allow_no_bot: bool = False,
 ) -> list[str]:
-    start_cursor = count_lines(config.log_file)
-    cmd = [
-        sys.executable,
-        str(config.blackbox_script),
-        "--prompt",
-        prompt,
-        "--expect-event",
-        expect_event,
-        "--chat-id",
-        str(config.chat_id),
-        "--user-id",
-        str(config.user_id),
-        "--allow-chat-id",
-        str(config.chat_id),
-        "--max-wait",
-        str(config.max_wait),
-        "--max-idle-secs",
-        str(config.max_idle_secs),
-        "--log-file",
-        str(config.log_file),
-        "--no-follow",
-    ]
-    if config.thread_id is not None:
-        cmd.extend(["--thread-id", str(config.thread_id)])
-    if config.runtime_partition_mode:
-        cmd.extend(["--session-partition", config.runtime_partition_mode])
-    if config.fail_on_mcp_error:
-        cmd.extend(["--forbid-log-regex", FORBIDDEN_LOG_PATTERN])
-    else:
-        cmd.append("--no-fail-fast-error-log")
-    if config.username:
-        cmd.extend(["--username", config.username])
-    if allow_no_bot:
-        cmd.append("--allow-no-bot")
-
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as error:
-        _, lines = read_new_lines(config.log_file, start_cursor)
-        normalized_lines = [strip_ansi(line) for line in lines]
-        if prompt.startswith("/") and has_event(normalized_lines, CONTROL_ADMIN_REQUIRED_EVENT):
-            raise RuntimeError(
-                "control command denied (admin_required): "
-                "set --user-id to an admin-capable Telegram user for benchmark control flows."
-            ) from error
-        raise
-    _, lines = read_new_lines(config.log_file, start_cursor)
-    return [strip_ansi(line) for line in lines]
-
-
-def parse_turn_signals(lines: list[str]) -> dict[str, Any]:
-    return _signals_module.parse_turn_signals(
-        lines,
-        forbidden_log_pattern=FORBIDDEN_LOG_PATTERN,
-        bot_marker=BOT_MARKER,
-        recall_plan_event=RECALL_PLAN_EVENT,
-        recall_injected_event=RECALL_INJECTED_EVENT,
-        recall_skipped_event=RECALL_SKIPPED_EVENT,
-        recall_feedback_event=RECALL_FEEDBACK_EVENT,
-        embedding_timeout_fallback_event=EMBEDDING_TIMEOUT_FALLBACK_EVENT,
-        embedding_cooldown_fallback_event=EMBEDDING_COOLDOWN_FALLBACK_EVENT,
-        embedding_unavailable_fallback_event=EMBEDDING_UNAVAILABLE_FALLBACK_EVENT,
-    )
-
-
-def keyword_hit_ratio(bot_line: str | None, expected_keywords: tuple[str, ...]) -> float | None:
-    if not expected_keywords:
-        return None
-    if not bot_line:
-        return 0.0
-    lowered = bot_line.lower()
-    hits = sum(1 for keyword in expected_keywords if keyword.lower() in lowered)
-    return hits / len(expected_keywords)
-
-
-def maybe_mean(values: list[float]) -> float:
-    if not values:
-        return 0.0
-    return float(statistics.fmean(values))
-
-
-def maybe_mean_int(values: list[int]) -> float:
-    if not values:
-        return 0.0
-    return float(statistics.fmean(values))
-
-
-def as_float(value: int | float | None) -> float | None:
-    if value is None:
-        return None
-    return float(value)
-
-
-def build_turn_result(
-    *,
-    mode: str,
-    iteration: int,
-    scenario_id: str,
-    query_index: int,
-    query: QuerySpec,
-    lines: list[str],
-    feedback_direction: str | None = None,
-    feedback_lines: list[str] | None = None,
-) -> TurnResult:
-    signals = parse_turn_signals(lines)
-    plan = signals.get("plan") or {}
-    decision = signals.get("decision") or {}
-
-    bot_line = signals.get("bot_line")
-    hit_ratio = keyword_hit_ratio(bot_line, query.expected_keywords)
-    success = None
-    if hit_ratio is not None:
-        success = hit_ratio >= query.required_ratio
-
-    feedback_before: float | None = None
-    feedback_after: float | None = None
-    if feedback_lines:
-        feedback_signals = parse_turn_signals(feedback_lines)
-        feedback_tokens = feedback_signals.get("feedback") or {}
-        feedback_before = token_as_float(feedback_tokens, "recall_feedback_bias_before")
-        feedback_after = token_as_float(feedback_tokens, "recall_feedback_bias_after")
-
-    return TurnResult(
-        mode=mode,
-        iteration=iteration,
-        scenario_id=scenario_id,
-        query_index=query_index,
-        prompt=query.prompt,
-        expected_keywords=query.expected_keywords,
-        required_ratio=query.required_ratio,
-        keyword_hit_ratio=hit_ratio,
-        keyword_success=success,
-        decision=(decision.get("event") or "").split(".")[-1] or None,
-        query_tokens=token_as_int(decision, "query_tokens"),
-        recalled_selected=token_as_int(decision, "recalled_selected"),
-        recalled_injected=token_as_int(decision, "recalled_injected"),
-        context_chars_injected=token_as_int(decision, "context_chars_injected"),
-        pipeline_duration_ms=token_as_int(decision, "pipeline_duration_ms"),
-        best_score=token_as_float(decision, "best_score"),
-        weakest_score=token_as_float(decision, "weakest_score"),
-        k1=token_as_int(plan, "k1"),
-        k2=token_as_int(plan, "k2"),
-        lambda_value=token_as_float(plan, "lambda"),
-        min_score=token_as_float(plan, "min_score"),
-        budget_pressure=token_as_float(plan, "budget_pressure"),
-        window_pressure=token_as_float(plan, "window_pressure"),
-        recall_feedback_bias=token_as_float(plan, "recall_feedback_bias"),
-        feedback_direction=feedback_direction,
-        feedback_bias_before=feedback_before,
-        feedback_bias_after=feedback_after,
-        embedding_timeout_fallback_seen=bool(signals.get("embedding_timeout_fallback")),
-        embedding_cooldown_fallback_seen=bool(signals.get("embedding_cooldown_fallback")),
-        embedding_unavailable_fallback_seen=bool(signals.get("embedding_unavailable_fallback")),
-        mcp_error_detected=bool(signals.get("mcp_error")),
-        bot_excerpt=trim_text(bot_line),
-    )
-
-
-def summarize_mode(
-    *,
-    mode: str,
-    iterations: int,
-    scenario_count: int,
-    turns: list[TurnResult],
-) -> ModeSummary:
-    scored_turns = [turn for turn in turns if turn.keyword_hit_ratio is not None]
-    successful_turns = [turn for turn in scored_turns if turn.keyword_success]
-
-    query_tokens = [value for value in (turn.query_tokens for turn in turns) if value is not None]
-    recalled_selected = [
-        value for value in (turn.recalled_selected for turn in turns) if value is not None
-    ]
-    recalled_injected = [
-        value for value in (turn.recalled_injected for turn in turns) if value is not None
-    ]
-    context_chars = [
-        value for value in (turn.context_chars_injected for turn in turns) if value is not None
-    ]
-    pipeline_duration = [
-        value for value in (turn.pipeline_duration_ms for turn in turns) if value is not None
-    ]
-    best_scores = [value for value in (turn.best_score for turn in turns) if value is not None]
-    weakest_scores = [
-        value for value in (turn.weakest_score for turn in turns) if value is not None
-    ]
-
-    k1_values = [value for value in (turn.k1 for turn in turns) if value is not None]
-    k2_values = [value for value in (turn.k2 for turn in turns) if value is not None]
-    lambda_values = [value for value in (turn.lambda_value for turn in turns) if value is not None]
-    min_score_values = [value for value in (turn.min_score for turn in turns) if value is not None]
-    budget_pressure_values = [
-        value for value in (turn.budget_pressure for turn in turns) if value is not None
-    ]
-    window_pressure_values = [
-        value for value in (turn.window_pressure for turn in turns) if value is not None
-    ]
-    recall_bias_values = [
-        value for value in (turn.recall_feedback_bias for turn in turns) if value is not None
-    ]
-
-    feedback_updates = [
-        turn
-        for turn in turns
-        if turn.feedback_bias_before is not None and turn.feedback_bias_after is not None
-    ]
-    feedback_deltas = [
-        turn.feedback_bias_after - turn.feedback_bias_before for turn in feedback_updates
-    ]
-    feedback_up_count = sum(1 for turn in turns if turn.feedback_direction == "up")
-    feedback_down_count = sum(1 for turn in turns if turn.feedback_direction == "down")
-    mcp_error_turns = sum(1 for turn in turns if turn.mcp_error_detected)
-    embedding_timeout_fallback_turns = sum(
-        1 for turn in turns if turn.embedding_timeout_fallback_seen
-    )
-    embedding_cooldown_fallback_turns = sum(
-        1 for turn in turns if turn.embedding_cooldown_fallback_seen
-    )
-    embedding_unavailable_fallback_turns = sum(
-        1 for turn in turns if turn.embedding_unavailable_fallback_seen
-    )
-    embedding_fallback_turns_total = sum(
-        1
-        for turn in turns
-        if turn.embedding_timeout_fallback_seen
-        or turn.embedding_cooldown_fallback_seen
-        or turn.embedding_unavailable_fallback_seen
-    )
-
-    injected_count = sum(1 for turn in turns if turn.decision == "injected")
-    skipped_count = sum(1 for turn in turns if turn.decision == "skipped")
-    completed_count = injected_count + skipped_count
-
-    return ModeSummary(
-        mode=mode,
-        iterations=iterations,
-        scenarios=scenario_count,
-        query_turns=len(turns),
-        scored_turns=len(scored_turns),
-        success_count=len(successful_turns),
-        success_rate=(len(successful_turns) / len(scored_turns)) if scored_turns else 0.0,
-        avg_keyword_hit_ratio=maybe_mean(
-            [turn.keyword_hit_ratio for turn in scored_turns if turn.keyword_hit_ratio is not None]
-        ),
-        injected_count=injected_count,
-        skipped_count=skipped_count,
-        injected_rate=(injected_count / completed_count) if completed_count else 0.0,
-        avg_pipeline_duration_ms=maybe_mean_int(pipeline_duration),
-        avg_query_tokens=maybe_mean_int(query_tokens),
-        avg_recalled_selected=maybe_mean_int(recalled_selected),
-        avg_recalled_injected=maybe_mean_int(recalled_injected),
-        avg_context_chars_injected=maybe_mean_int(context_chars),
-        avg_best_score=maybe_mean(best_scores),
-        avg_weakest_score=maybe_mean(weakest_scores),
-        avg_k1=maybe_mean_int(k1_values),
-        avg_k2=maybe_mean_int(k2_values),
-        avg_lambda=maybe_mean(lambda_values),
-        avg_min_score=maybe_mean(min_score_values),
-        avg_budget_pressure=maybe_mean(budget_pressure_values),
-        avg_window_pressure=maybe_mean(window_pressure_values),
-        avg_recall_feedback_bias=maybe_mean(recall_bias_values),
-        feedback_updates=len(feedback_updates),
-        feedback_up_count=feedback_up_count,
-        feedback_down_count=feedback_down_count,
-        avg_feedback_delta=maybe_mean(feedback_deltas),
-        mcp_error_turns=mcp_error_turns,
-        embedding_timeout_fallback_turns=embedding_timeout_fallback_turns,
-        embedding_cooldown_fallback_turns=embedding_cooldown_fallback_turns,
-        embedding_unavailable_fallback_turns=embedding_unavailable_fallback_turns,
-        embedding_fallback_turns_total=embedding_fallback_turns_total,
-    )
-
-
-def compare_mode_summaries(
-    baseline: ModeSummary,
-    adaptive: ModeSummary,
-) -> dict[str, float]:
-    return {
-        "success_rate_delta": adaptive.success_rate - baseline.success_rate,
-        "avg_keyword_hit_ratio_delta": adaptive.avg_keyword_hit_ratio
-        - baseline.avg_keyword_hit_ratio,
-        "injected_rate_delta": adaptive.injected_rate - baseline.injected_rate,
-        "avg_pipeline_duration_ms_delta": adaptive.avg_pipeline_duration_ms
-        - baseline.avg_pipeline_duration_ms,
-        "avg_recalled_selected_delta": adaptive.avg_recalled_selected
-        - baseline.avg_recalled_selected,
-        "avg_recalled_injected_delta": adaptive.avg_recalled_injected
-        - baseline.avg_recalled_injected,
-        "avg_best_score_delta": adaptive.avg_best_score - baseline.avg_best_score,
-        "avg_recall_feedback_bias_delta": adaptive.avg_recall_feedback_bias
-        - baseline.avg_recall_feedback_bias,
-        "mcp_error_turns_delta": float(adaptive.mcp_error_turns - baseline.mcp_error_turns),
-        "embedding_timeout_fallback_turns_delta": float(
-            adaptive.embedding_timeout_fallback_turns - baseline.embedding_timeout_fallback_turns
-        ),
-        "embedding_cooldown_fallback_turns_delta": float(
-            adaptive.embedding_cooldown_fallback_turns - baseline.embedding_cooldown_fallback_turns
-        ),
-        "embedding_unavailable_fallback_turns_delta": float(
-            adaptive.embedding_unavailable_fallback_turns
-            - baseline.embedding_unavailable_fallback_turns
-        ),
-        "embedding_fallback_turns_total_delta": float(
-            adaptive.embedding_fallback_turns_total - baseline.embedding_fallback_turns_total
-        ),
-    }
-
-
-def select_feedback_direction(
-    *,
-    keyword_hit_ratio: float | None,
-    keyword_success: bool | None,
-    policy: str,
-    down_threshold: float,
-) -> str | None:
-    if keyword_success is None:
-        return None
-    if policy == "strict":
-        return "up" if keyword_success else "down"
-    if keyword_success:
-        return "up"
-    if keyword_hit_ratio is not None and keyword_hit_ratio <= down_threshold:
-        return "down"
-    return None
-
-
-def run_reset(config: BenchmarkConfig) -> None:
-    run_probe(
+    return run_probe(
         config,
-        prompt="/reset",
-        expect_event=RESET_EVENT,
-        allow_no_bot=True,
+        prompt=prompt,
+        expect_event=expect_event,
+        allow_no_bot=allow_no_bot,
     )
 
 
-def run_feedback(config: BenchmarkConfig, direction: str) -> list[str]:
-    prompt = "/session feedback up json" if direction == "up" else "/session feedback down json"
-    return run_probe(config, prompt=prompt, expect_event=FEEDBACK_EVENT)
+run_reset = partial(
+    _ENTRY_BINDINGS.run_reset,
+    runtime_bindings_module=_RUNTIME_BINDINGS,
+    execution_module=_EXECUTION,
+    run_probe_fn=_run_probe_dynamic,
+    reset_event=RESET_EVENT,
+)
+run_feedback = partial(
+    _ENTRY_BINDINGS.run_feedback,
+    runtime_bindings_module=_RUNTIME_BINDINGS,
+    execution_module=_EXECUTION,
+    run_probe_fn=_run_probe_dynamic,
+    feedback_event=FEEDBACK_EVENT,
+)
+run_non_command_turn = partial(
+    _ENTRY_BINDINGS.run_non_command_turn,
+    runtime_bindings_module=_RUNTIME_BINDINGS,
+    execution_module=_EXECUTION,
+    run_probe_fn=_run_probe_dynamic,
+    recall_plan_event=RECALL_PLAN_EVENT,
+)
+run_mode = partial(
+    _ENTRY_BINDINGS.run_mode,
+    runtime_bindings_module=_RUNTIME_BINDINGS,
+    execution_module=_EXECUTION,
+    run_reset_fn=run_reset,
+    run_non_command_turn_fn=run_non_command_turn,
+    build_turn_result_fn=build_turn_result,
+    select_feedback_direction_fn=_ANALYSIS.select_feedback_direction,
+    run_feedback_fn=run_feedback,
+)
 
-
-def run_non_command_turn(config: BenchmarkConfig, prompt: str) -> list[str]:
-    return run_probe(config, prompt=prompt, expect_event=RECALL_PLAN_EVENT)
-
-
-def run_mode(
-    config: BenchmarkConfig,
-    scenarios: tuple[ScenarioSpec, ...],
-    mode: str,
-) -> list[TurnResult]:
-    print(f"\n=== Running mode: {mode} ===", flush=True)
-    all_turns: list[TurnResult] = []
-
-    for iteration in range(1, config.iterations + 1):
-        print(f"\n[Iteration {iteration}/{config.iterations}]", flush=True)
-        for scenario in scenarios:
-            print(f"  - Scenario: {scenario.scenario_id}", flush=True)
-            if scenario.reset_before and not config.skip_reset:
-                run_reset(config)
-
-            for prompt in scenario.setup_prompts:
-                run_non_command_turn(config, prompt)
-
-            for index, query in enumerate(scenario.queries, start=1):
-                turn_lines = run_non_command_turn(config, query.prompt)
-                feedback_direction: str | None = None
-                feedback_lines: list[str] | None = None
-
-                provisional = build_turn_result(
-                    mode=mode,
-                    iteration=iteration,
-                    scenario_id=scenario.scenario_id,
-                    query_index=index,
-                    query=query,
-                    lines=turn_lines,
-                )
-
-                if mode == "adaptive" and provisional.keyword_success is not None:
-                    feedback_direction = select_feedback_direction(
-                        keyword_hit_ratio=provisional.keyword_hit_ratio,
-                        keyword_success=provisional.keyword_success,
-                        policy=config.feedback_policy,
-                        down_threshold=config.feedback_down_threshold,
-                    )
-                    if feedback_direction is not None:
-                        feedback_lines = run_feedback(config, feedback_direction)
-
-                turn_result = build_turn_result(
-                    mode=mode,
-                    iteration=iteration,
-                    scenario_id=scenario.scenario_id,
-                    query_index=index,
-                    query=query,
-                    lines=turn_lines,
-                    feedback_direction=feedback_direction,
-                    feedback_lines=feedback_lines,
-                )
-                all_turns.append(turn_result)
-
-            if scenario.reset_after and not config.skip_reset:
-                run_reset(config)
-
-    return all_turns
-
-
-def format_float(value: float) -> str:
-    return f"{value:.4f}"
-
-
-def build_markdown_report(
-    *,
-    config: BenchmarkConfig,
-    scenarios: tuple[ScenarioSpec, ...],
-    started_at: str,
-    finished_at: str,
-    mode_summaries: dict[str, ModeSummary],
-    comparison: dict[str, float] | None,
-) -> str:
-    lines: list[str] = []
-    lines.append("# Omni-Agent Memory A/B Benchmark")
-    lines.append("")
-    lines.append("## Run Metadata")
-    lines.append("")
-    lines.append(f"- started_at_utc: `{started_at}`")
-    lines.append(f"- finished_at_utc: `{finished_at}`")
-    lines.append(f"- dataset: `{config.dataset_path}`")
-    lines.append(f"- log_file: `{config.log_file}`")
-    lines.append(
-        f"- session_target: `chat={config.chat_id}, user={config.user_id}, "
-        f"thread={config.thread_id if config.thread_id is not None else 'none'}`"
-    )
-    lines.append(f"- runtime_partition_mode: `{config.runtime_partition_mode or 'unknown'}`")
-    lines.append(f"- modes: `{', '.join(config.modes)}`")
-    lines.append(f"- iterations_per_mode: `{config.iterations}`")
-    lines.append(f"- scenario_count: `{len(scenarios)}`")
-    lines.append(f"- feedback_policy: `{config.feedback_policy}`")
-    lines.append(f"- feedback_down_threshold: `{config.feedback_down_threshold}`")
-    lines.append("")
-
-    lines.append("## Scenario Set")
-    lines.append("")
-    for scenario in scenarios:
-        lines.append(
-            f"- `{scenario.scenario_id}`: {scenario.description} "
-            f"(setup={len(scenario.setup_prompts)}, queries={len(scenario.queries)})"
-        )
-    lines.append("")
-
-    lines.append("## Mode Summary")
-    lines.append("")
-    lines.append(
-        "| Mode | Query Turns | Scored Turns | Success Rate | Avg Hit Ratio | Injected Rate | Avg Pipeline ms | Avg k1 | Avg k2 | Avg lambda | Avg Feedback Bias | MCP Error Turns | Embedding Fallback Turns |"
-    )
-    lines.append(
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
-    )
-    for mode in config.modes:
-        summary = mode_summaries[mode]
-        lines.append(
-            "| "
-            f"{mode} | "
-            f"{summary.query_turns} | "
-            f"{summary.scored_turns} | "
-            f"{format_float(summary.success_rate)} | "
-            f"{format_float(summary.avg_keyword_hit_ratio)} | "
-            f"{format_float(summary.injected_rate)} | "
-            f"{format_float(summary.avg_pipeline_duration_ms)} | "
-            f"{format_float(summary.avg_k1)} | "
-            f"{format_float(summary.avg_k2)} | "
-            f"{format_float(summary.avg_lambda)} | "
-            f"{format_float(summary.avg_recall_feedback_bias)} | "
-            f"{summary.mcp_error_turns} | "
-            f"{summary.embedding_fallback_turns_total} |"
-        )
-    lines.append("")
-
-    if comparison is not None:
-        lines.append("## Adaptive Delta vs Baseline")
-        lines.append("")
-        lines.append("| Metric | Delta |")
-        lines.append("| --- | ---: |")
-        for key, value in comparison.items():
-            lines.append(f"| {key} | {format_float(value)} |")
-        lines.append("")
-
-    confidence_note = "moderate"
-    baseline = mode_summaries.get("baseline")
-    adaptive = mode_summaries.get("adaptive")
-    if baseline and adaptive and min(baseline.scored_turns, adaptive.scored_turns) < 5:
-        confidence_note = "low"
-    total_mcp_error_turns = sum(summary.mcp_error_turns for summary in mode_summaries.values())
-    total_embedding_fallback_turns = sum(
-        summary.embedding_fallback_turns_total for summary in mode_summaries.values()
-    )
-
-    lines.append("## Confidence")
-    lines.append("")
-    lines.append(
-        "- This benchmark is proxy-based (keyword hit + memory observability metrics), "
-        "not a human-graded semantic evaluation."
-    )
-    lines.append(
-        f"- Confidence level for this run: `{confidence_note}` "
-        f"(scored turns may be small; increase `--iterations` for stronger signal)."
-    )
-    if total_mcp_error_turns > 0:
-        lines.append(
-            f"- MCP error interference observed on `{total_mcp_error_turns}` query turn(s)."
-        )
-    if total_embedding_fallback_turns > 0:
-        lines.append(
-            f"- Embedding fallback observed on `{total_embedding_fallback_turns}` query turn(s)."
-        )
-    lines.append("")
-
-    return "\n".join(lines)
-
-
-def serialize_turn(turn: TurnResult) -> dict[str, Any]:
-    payload = asdict(turn)
-    payload["expected_keywords"] = list(turn.expected_keywords)
-    return payload
-
-
-def to_iso_utc(unix_ts: float) -> str:
-    return datetime.fromtimestamp(unix_ts, tz=UTC).isoformat()
+serialize_turn = _OUTPUT.serialize_turn
+to_iso_utc = _ENTRY_BINDINGS.to_iso_utc
 
 
 def main() -> int:
-    args = parse_args()
-    try:
-        config = build_config(args)
-        scenarios = load_scenarios(config.dataset_path)
-    except ValueError as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return 2
-
-    started_ts = time.time()
-    started_at = to_iso_utc(started_ts)
-
-    print("Running memory benchmark...", flush=True)
-    print(f"dataset={config.dataset_path}", flush=True)
-    print(f"log_file={config.log_file}", flush=True)
-    print(
-        f"session_target=chat:{config.chat_id} user:{config.user_id} "
-        f"thread:{config.thread_id if config.thread_id is not None else 'none'}",
-        flush=True,
+    return _ENTRY_BINDINGS.run_main(
+        runner_module=_MODULES.runner_module,
+        parse_args_value=parse_args(),
+        build_config_fn=build_config,
+        load_scenarios_fn=load_scenarios,
+        run_mode_fn=run_mode,
+        summarize_mode_fn=summarize_mode,
+        compare_mode_summaries_fn=_ANALYSIS.compare_mode_summaries,
+        build_markdown_report_fn=_REPORT.build_markdown_report,
+        build_json_payload_fn=_OUTPUT.build_json_payload,
+        write_outputs_fn=_OUTPUT.write_outputs,
+        print_summary_fn=_OUTPUT.print_summary,
+        to_iso_utc_fn=to_iso_utc,
     )
-    print(
-        f"runtime_partition_mode={config.runtime_partition_mode or 'unknown'}",
-        flush=True,
-    )
-    print(f"modes={config.modes}", flush=True)
-    print(f"iterations={config.iterations}", flush=True)
-    print(f"fail_on_mcp_error={config.fail_on_mcp_error}", flush=True)
-    print(
-        f"feedback_policy={config.feedback_policy} "
-        f"feedback_down_threshold={config.feedback_down_threshold}",
-        flush=True,
-    )
-
-    mode_turns: dict[str, list[TurnResult]] = {}
-    try:
-        for mode in config.modes:
-            mode_turns[mode] = run_mode(config, scenarios, mode)
-    except RuntimeError as error:
-        print(f"Error: {error}", file=sys.stderr)
-        return 2
-    except subprocess.CalledProcessError as error:
-        print(f"Error: benchmark probe failed with exit code {error.returncode}", file=sys.stderr)
-        return error.returncode if error.returncode != 0 else 1
-
-    mode_summaries = {
-        mode: summarize_mode(
-            mode=mode,
-            iterations=config.iterations,
-            scenario_count=len(scenarios),
-            turns=turns,
-        )
-        for mode, turns in mode_turns.items()
-    }
-
-    comparison: dict[str, float] | None = None
-    if "baseline" in mode_summaries and "adaptive" in mode_summaries:
-        comparison = compare_mode_summaries(
-            mode_summaries["baseline"],
-            mode_summaries["adaptive"],
-        )
-
-    finished_ts = time.time()
-    finished_at = to_iso_utc(finished_ts)
-
-    markdown = build_markdown_report(
-        config=config,
-        scenarios=scenarios,
-        started_at=started_at,
-        finished_at=finished_at,
-        mode_summaries=mode_summaries,
-        comparison=comparison,
-    )
-
-    json_payload: dict[str, Any] = {
-        "metadata": {
-            "started_at_utc": started_at,
-            "finished_at_utc": finished_at,
-            "duration_secs": round(finished_ts - started_ts, 3),
-            "dataset": str(config.dataset_path),
-            "log_file": str(config.log_file),
-            "chat_id": config.chat_id,
-            "user_id": config.user_id,
-            "thread_id": config.thread_id,
-            "runtime_partition_mode": config.runtime_partition_mode,
-            "modes": list(config.modes),
-            "iterations_per_mode": config.iterations,
-            "scenario_count": len(scenarios),
-            "max_wait_secs": config.max_wait,
-            "max_idle_secs": config.max_idle_secs,
-            "username": config.username,
-            "skip_reset": config.skip_reset,
-            "fail_on_mcp_error": config.fail_on_mcp_error,
-            "feedback_policy": config.feedback_policy,
-            "feedback_down_threshold": config.feedback_down_threshold,
-        },
-        "scenarios": [
-            {
-                "id": scenario.scenario_id,
-                "description": scenario.description,
-                "setup_prompts": list(scenario.setup_prompts),
-                "queries": [
-                    {
-                        "prompt": query.prompt,
-                        "expected_keywords": list(query.expected_keywords),
-                        "required_ratio": query.required_ratio,
-                    }
-                    for query in scenario.queries
-                ],
-            }
-            for scenario in scenarios
-        ],
-        "mode_summaries": {mode: asdict(summary) for mode, summary in mode_summaries.items()},
-        "comparison": comparison,
-        "turns": {
-            mode: [serialize_turn(turn) for turn in turns] for mode, turns in mode_turns.items()
-        },
-    }
-
-    config.output_json.write_text(
-        json.dumps(json_payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    config.output_markdown.write_text(markdown + "\n", encoding="utf-8")
-
-    print("\nBenchmark completed.", flush=True)
-    print(f"JSON report: {config.output_json}", flush=True)
-    print(f"Markdown report: {config.output_markdown}", flush=True)
-    total_mcp_error_turns = sum(summary.mcp_error_turns for summary in mode_summaries.values())
-    if total_mcp_error_turns > 0:
-        print(
-            f"Observed MCP error interference on {total_mcp_error_turns} query turn(s).",
-            flush=True,
-        )
-    if comparison is not None:
-        print("Adaptive delta vs baseline:", flush=True)
-        for key, value in comparison.items():
-            print(f"  {key}={value:.4f}", flush=True)
-
-    return 0
 
 
 if __name__ == "__main__":

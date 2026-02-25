@@ -5,8 +5,6 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from omni.core.knowledge.symbol_indexer import (
     Symbol,
     SymbolIndex,

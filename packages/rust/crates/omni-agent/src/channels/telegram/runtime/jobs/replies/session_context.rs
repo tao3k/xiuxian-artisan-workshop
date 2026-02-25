@@ -8,6 +8,7 @@ pub(in super::super) fn format_session_context_snapshot(
     partition_mode: &str,
     active: crate::agent::SessionContextWindowInfo,
     snapshot: Option<crate::agent::SessionContextSnapshotInfo>,
+    admission: crate::agent::DownstreamAdmissionRuntimeSnapshot,
 ) -> String {
     let mut lines = vec![
         "============================================================".to_string(),
@@ -54,6 +55,32 @@ pub(in super::super) fn format_session_context_snapshot(
             lines.push("  status=none".to_string());
         }
     }
+    lines.push("------------------------------------------------------------".to_string());
+    lines.push("Admission:".to_string());
+    lines.push(format!("  enabled={}", admission.enabled));
+    lines.push(format!(
+        "  llm_reject_threshold_pct={}",
+        admission.llm_reject_threshold_pct
+    ));
+    lines.push(format!(
+        "  embedding_reject_threshold_pct={}",
+        admission.embedding_reject_threshold_pct
+    ));
+    lines.push(format!("  total={}", admission.metrics.total));
+    lines.push(format!("  admitted={}", admission.metrics.admitted));
+    lines.push(format!("  rejected={}", admission.metrics.rejected));
+    lines.push(format!(
+        "  reject_rate_pct={}",
+        admission.metrics.reject_rate_pct
+    ));
+    lines.push(format!(
+        "  rejected_llm_saturated={}",
+        admission.metrics.rejected_llm_saturated
+    ));
+    lines.push(format!(
+        "  rejected_embedding_saturated={}",
+        admission.metrics.rejected_embedding_saturated
+    ));
     lines.push("============================================================".to_string());
     lines.join("\n")
 }
@@ -64,6 +91,7 @@ pub(in super::super) fn format_session_context_snapshot_json(
     partition_mode: &str,
     active: crate::agent::SessionContextWindowInfo,
     snapshot: Option<crate::agent::SessionContextSnapshotInfo>,
+    admission: crate::agent::DownstreamAdmissionRuntimeSnapshot,
 ) -> String {
     let snapshot_json = match snapshot {
         Some(info) => json!({
@@ -93,6 +121,19 @@ pub(in super::super) fn format_session_context_snapshot_json(
             "window_tool_calls": active.total_tool_calls,
         },
         "saved_snapshot": snapshot_json,
+        "admission": {
+            "enabled": admission.enabled,
+            "llm_reject_threshold_pct": admission.llm_reject_threshold_pct,
+            "embedding_reject_threshold_pct": admission.embedding_reject_threshold_pct,
+            "metrics": {
+                "total": admission.metrics.total,
+                "admitted": admission.metrics.admitted,
+                "rejected": admission.metrics.rejected,
+                "rejected_llm_saturated": admission.metrics.rejected_llm_saturated,
+                "rejected_embedding_saturated": admission.metrics.rejected_embedding_saturated,
+                "reject_rate_pct": admission.metrics.reject_rate_pct,
+            },
+        },
     })
     .to_string()
 }

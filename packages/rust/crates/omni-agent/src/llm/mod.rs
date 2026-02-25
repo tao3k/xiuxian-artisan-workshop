@@ -9,7 +9,7 @@ mod providers;
 mod tools;
 mod types;
 
-pub use client::LlmClient;
+pub use client::{LlmClient, LlmInFlightSnapshot};
 pub use types::AssistantMessage;
 
 #[cfg(test)]

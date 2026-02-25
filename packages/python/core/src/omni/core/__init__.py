@@ -16,8 +16,8 @@ This layer provides:
 from .errors import (
     CoreErrorCode,
     ErrorCategory,
-    OmniError,
     OmniCellError,
+    OmniError,
     SecurityError,
     ToolExecutionError,
     ToolNotFoundError,

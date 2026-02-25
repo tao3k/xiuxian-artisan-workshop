@@ -19,11 +19,10 @@ from typing import Any, cast
 
 import orjson
 
-from mcp.server.stdio import stdio_server as mcp_stdio_server
 from mcp.types import JSONRPCMessage
+from omni.foundation.config.logging import get_logger
 
 from ..interfaces import MCPRequestHandler, MCPTransport
-from omni.foundation.config.logging import get_logger
 
 logger = get_logger("omni.mcp.transport.stdio")
 
@@ -102,7 +101,7 @@ class StdioTransport(MCPTransport):
                 await self._send_invalid_request("Message must be a JSON object")
                 return
 
-            response = await server.process_message(cast(JSONRPCMessage, data))
+            response = await server.process_message(cast("JSONRPCMessage", data))
 
             if response:
                 self._write_response(response)
@@ -146,7 +145,7 @@ class StdioTransport(MCPTransport):
                 # Handle list[TextContent] responses from call_tool
                 response_dict = {"result": response}
             else:
-                response_dict = cast(dict[str, Any], response)
+                response_dict = cast("dict[str, Any]", response)
 
             # Normalize list result to canonical tools/call shape (content + isError) for MCP clients
             if isinstance(response_dict.get("result"), list):

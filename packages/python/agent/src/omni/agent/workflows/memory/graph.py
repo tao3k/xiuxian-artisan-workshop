@@ -1,6 +1,7 @@
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
+
+from .nodes import recall_node, store_node, synthesize_node
 from .state import MemoryState
-from .nodes import recall_node, synthesize_node, store_node
 
 
 def build_memory_graph():

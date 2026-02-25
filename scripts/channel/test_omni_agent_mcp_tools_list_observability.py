@@ -14,202 +14,65 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib
 import json
-import re
-import statistics
 import sys
-import time
-from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-import httpx
 from log_io import iter_log_lines
 
+_models_module = importlib.import_module("mcp_tools_list_observability_models")
+_runtime_module = importlib.import_module("mcp_tools_list_observability_runtime")
 
-def _percentile(sorted_values: list[float], p: float) -> float:
-    if not sorted_values:
-        return 0.0
-    idx = max(0, min(len(sorted_values) - 1, int(len(sorted_values) * p) - 1))
-    return sorted_values[idx]
+SequentialStats = _models_module.SequentialStats
+BenchmarkStats = _models_module.BenchmarkStats
 
-
-def _normalize_base_url(base_url: str) -> str:
-    return base_url.rstrip("/")
-
-
-@dataclass
-class SequentialStats:
-    count: int
-    first_ms: float
-    second_ms: float
-    min_ms: float
-    median_ms: float
-    max_ms: float
-
-
-@dataclass
-class BenchmarkStats:
-    total: int
-    concurrency: int
-    errors: int
-    elapsed_s: float
-    rps: float
-    p50_ms: float
-    p95_ms: float
-    p99_ms: float
-
-
-async def _call_tools_list(
-    client: httpx.AsyncClient,
-    rpc_url: str,
-    request_id: int,
-) -> tuple[float, int, int]:
-    started = time.perf_counter()
-    resp = await client.post(
-        rpc_url,
-        json={"jsonrpc": "2.0", "id": request_id, "method": "tools/list", "params": {}},
-    )
-    elapsed_ms = (time.perf_counter() - started) * 1000.0
-    resp.raise_for_status()
-    payload = resp.json()
-    if payload.get("error") is not None:
-        raise RuntimeError(f"tools/list returned error: {payload['error']}")
-    result = payload.get("result")
-    if not isinstance(result, dict):
-        raise RuntimeError("tools/list result is not an object")
-    tools = result.get("tools")
-    if not isinstance(tools, list):
-        raise RuntimeError("tools/list result.tools is not a list")
-    return elapsed_ms, len(resp.content), len(tools)
+_percentile = _runtime_module.percentile
+_normalize_base_url = _runtime_module.normalize_base_url
+_call_tools_list = _runtime_module.call_tools_list
 
 
 async def _run_sequential_profile(
-    client: httpx.AsyncClient,
+    client: Any,
     rpc_url: str,
     *,
     sample_count: int,
     sleep_ms: int,
     start_id: int,
 ) -> SequentialStats:
-    latencies: list[float] = []
-    for i in range(sample_count):
-        elapsed_ms, _, _ = await _call_tools_list(client, rpc_url, start_id + i)
-        latencies.append(elapsed_ms)
-        if sleep_ms > 0:
-            await asyncio.sleep(sleep_ms / 1000.0)
-
-    sorted_lat = sorted(latencies)
-    second = sorted_lat[1] if len(sorted_lat) > 1 else sorted_lat[0]
-    return SequentialStats(
-        count=len(sorted_lat),
-        first_ms=round(sorted_lat[0], 2),
-        second_ms=round(second, 2),
-        min_ms=round(sorted_lat[0], 2),
-        median_ms=round(statistics.median(sorted_lat), 2),
-        max_ms=round(sorted_lat[-1], 2),
+    return await _runtime_module.run_sequential_profile(
+        client,
+        rpc_url,
+        sample_count=sample_count,
+        sleep_ms=sleep_ms,
+        start_id=start_id,
+        call_tools_list_fn=_call_tools_list,
+        sequential_stats_cls=SequentialStats,
     )
 
 
 async def _run_benchmark(
-    client: httpx.AsyncClient,
+    client: Any,
     rpc_url: str,
     *,
     total: int,
     concurrency: int,
     start_id: int,
 ) -> BenchmarkStats:
-    semaphore = asyncio.Semaphore(concurrency)
-    latencies: list[float] = []
-    errors = 0
-
-    async def one(idx: int) -> None:
-        nonlocal errors
-        async with semaphore:
-            try:
-                elapsed_ms, _, _ = await _call_tools_list(client, rpc_url, start_id + idx)
-            except Exception:
-                errors += 1
-                return
-            latencies.append(elapsed_ms)
-
-    started = time.perf_counter()
-    await asyncio.gather(*(one(i) for i in range(total)))
-    elapsed_s = time.perf_counter() - started
-    sorted_lat = sorted(latencies)
-
-    p50 = _percentile(sorted_lat, 0.50)
-    p95 = _percentile(sorted_lat, 0.95)
-    p99 = _percentile(sorted_lat, 0.99)
-    rps = (total / elapsed_s) if elapsed_s > 0 else 0.0
-
-    return BenchmarkStats(
+    return await _runtime_module.run_benchmark(
+        client,
+        rpc_url,
         total=total,
         concurrency=concurrency,
-        errors=errors,
-        elapsed_s=round(elapsed_s, 3),
-        rps=round(rps, 2),
-        p50_ms=round(p50, 2),
-        p95_ms=round(p95, 2),
-        p99_ms=round(p99, 2),
+        start_id=start_id,
+        call_tools_list_fn=_call_tools_list,
+        benchmark_stats_cls=BenchmarkStats,
     )
 
 
-_TOOLS_STATS_LINE_RE = re.compile(
-    r"requests=(?P<requests>\d+)\s+hit_rate=(?P<hit_rate>[0-9.]+)%\s+"
-    r"cache_hits=(?P<cache_hits>\d+)\s+cache_misses=(?P<cache_misses>\d+)\s+"
-    r"build_count=(?P<build_count>\d+)\s+build_failures=(?P<build_failures>\d+)\s+"
-    r"build_avg_ms=(?P<build_avg_ms>[0-9.]+)\s+build_max_ms=(?P<build_max_ms>[0-9.]+)"
-)
-
-
 def _scan_log_file(log_file: Path) -> dict[str, Any]:
-    if not log_file.exists():
-        return {"exists": False}
-
-    dynamic_loader_count = 0
-    tools_list_stats_count = 0
-    tools_list_served_debug_count = 0
-    last_dynamic_loader_line: str | None = None
-    last_tools_list_stats_line: str | None = None
-    tools_stats_lines: list[str] = []
-
-    for line in iter_log_lines(log_file, errors="replace"):
-        if "Dynamic Loader" in line:
-            dynamic_loader_count += 1
-            last_dynamic_loader_line = line
-        if "[MCP] tools/list stats" in line:
-            tools_list_stats_count += 1
-            last_tools_list_stats_line = line
-            tools_stats_lines.append(line)
-        if "tools/list served" in line:
-            tools_list_served_debug_count += 1
-
-    parsed_stats: dict[str, Any] | None = None
-    if tools_stats_lines:
-        match = _TOOLS_STATS_LINE_RE.search(tools_stats_lines[-1])
-        if match:
-            parsed_stats = {
-                "requests": int(match.group("requests")),
-                "hit_rate_pct": float(match.group("hit_rate")),
-                "cache_hits": int(match.group("cache_hits")),
-                "cache_misses": int(match.group("cache_misses")),
-                "build_count": int(match.group("build_count")),
-                "build_failures": int(match.group("build_failures")),
-                "build_avg_ms": float(match.group("build_avg_ms")),
-                "build_max_ms": float(match.group("build_max_ms")),
-            }
-
-    return {
-        "exists": True,
-        "path": str(log_file),
-        "dynamic_loader_count": dynamic_loader_count,
-        "tools_list_stats_count": tools_list_stats_count,
-        "tools_list_served_debug_count": tools_list_served_debug_count,
-        "last_dynamic_loader_line": last_dynamic_loader_line,
-        "last_tools_list_stats_line": last_tools_list_stats_line,
-        "parsed_last_tools_list_stats": parsed_stats,
-    }
+    return _runtime_module.scan_log_file(log_file, iter_log_lines_fn=iter_log_lines)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -247,68 +110,16 @@ def _parse_args() -> argparse.Namespace:
 
 
 async def _run_probe(args: argparse.Namespace) -> dict[str, Any]:
-    base_url = _normalize_base_url(args.base_url)
-    health_url = f"{base_url}/health"
-    rpc_url = f"{base_url}/"
-    embed_url = f"{base_url}/embed/batch"
-
-    timeout = httpx.Timeout(args.timeout_secs)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        health_resp = await client.get(health_url)
-        health_resp.raise_for_status()
-
-        first_latency_ms, payload_bytes, tool_count = await _call_tools_list(client, rpc_url, 1)
-        sequential = await _run_sequential_profile(
-            client,
-            rpc_url,
-            sample_count=args.sequential_samples,
-            sleep_ms=args.sequential_sleep_ms,
-            start_id=1000,
-        )
-
-        small = await _run_benchmark(
-            client,
-            rpc_url,
-            total=args.bench_small_total,
-            concurrency=args.bench_small_concurrency,
-            start_id=10_000,
-        )
-        large = await _run_benchmark(
-            client,
-            rpc_url,
-            total=args.bench_large_total,
-            concurrency=args.bench_large_concurrency,
-            start_id=20_000,
-        )
-
-        embed_resp = await client.post(embed_url, json={"texts": ["obs-probe-a", "obs-probe-b"]})
-        embed_resp.raise_for_status()
-        embed_payload = embed_resp.json()
-        vectors = embed_payload.get("vectors")
-        if not isinstance(vectors, list) or not vectors or not isinstance(vectors[0], list):
-            raise RuntimeError("embed/batch returned invalid vectors payload")
-
-    log_scan = _scan_log_file(args.log_file) if args.log_file else None
-
-    return {
-        "base_url": base_url,
-        "health_ok": True,
-        "tools_list": {
-            "tool_count": tool_count,
-            "payload_bytes": payload_bytes,
-            "first_call_ms": round(first_latency_ms, 2),
-        },
-        "embed_batch": {
-            "vector_count": len(vectors),
-            "vector_dim": len(vectors[0]),
-        },
-        "sequential_profile": asdict(sequential),
-        "benchmarks": {
-            "small": asdict(small),
-            "large": asdict(large),
-        },
-        "log_scan": log_scan,
-    }
+    return await _runtime_module.run_probe(
+        args,
+        sequential_stats_cls=SequentialStats,
+        benchmark_stats_cls=BenchmarkStats,
+        iter_log_lines_fn=iter_log_lines,
+        call_tools_list_fn=_call_tools_list,
+        run_sequential_profile_fn=_runtime_module.run_sequential_profile,
+        run_benchmark_fn=_runtime_module.run_benchmark,
+        scan_log_file_fn=_runtime_module.scan_log_file,
+    )
 
 
 def main() -> int:

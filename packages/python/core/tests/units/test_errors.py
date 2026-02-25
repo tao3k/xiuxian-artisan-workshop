@@ -4,8 +4,6 @@ test_errors.py - Unit tests for error code system
 Tests for OmniError exception and CoreErrorCode enum.
 """
 
-import pytest
-
 from omni.core.errors import (
     CoreErrorCode,
     ErrorCategory,

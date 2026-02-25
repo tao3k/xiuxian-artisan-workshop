@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::agent::MemoryRuntimeStatusSnapshot;
+use crate::agent::{DownstreamAdmissionRuntimeSnapshot, MemoryRuntimeStatusSnapshot};
 
 use super::helpers::is_backend_ready;
 
@@ -32,5 +32,24 @@ pub(in super::super) fn format_memory_runtime_status_json(
         "gate_obsolete_max_ttl_score": status.gate_obsolete_max_ttl_score,
         "episodes_total": status.episodes_total,
         "q_values_total": status.q_values_total,
+    })
+}
+
+#[allow(clippy::needless_pass_by_value)]
+pub(in super::super) fn format_downstream_admission_status_json(
+    status: DownstreamAdmissionRuntimeSnapshot,
+) -> serde_json::Value {
+    json!({
+        "enabled": status.enabled,
+        "llm_reject_threshold_pct": status.llm_reject_threshold_pct,
+        "embedding_reject_threshold_pct": status.embedding_reject_threshold_pct,
+        "metrics": {
+            "total": status.metrics.total,
+            "admitted": status.metrics.admitted,
+            "rejected": status.metrics.rejected,
+            "rejected_llm_saturated": status.metrics.rejected_llm_saturated,
+            "rejected_embedding_saturated": status.metrics.rejected_embedding_saturated,
+            "reject_rate_pct": status.metrics.reject_rate_pct,
+        },
     })
 }

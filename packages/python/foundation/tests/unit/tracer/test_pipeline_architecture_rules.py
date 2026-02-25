@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 TRACER_DIR = Path(__file__).resolve().parents[3] / "src" / "omni" / "tracer"
 
 
@@ -62,4 +61,4 @@ def test_runtime_module_imports_modular_layers_only() -> None:
 
     assert any("pipeline_builder" in mod for mod in imported)
     assert any("pipeline_schema" in mod for mod in imported)
-    assert all(".pipeline" != mod for mod in imported)
+    assert all(mod != ".pipeline" for mod in imported)

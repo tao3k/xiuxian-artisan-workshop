@@ -1,0 +1,28 @@
+# packages/conf/xiuxian.toml
+# Xiuxian (修仙) Engine Configuration
+# Define LLM providers, search backends, and array configurations.
+
+[llm]
+default_provider = "minimax"
+default_model = "MiniMax-M2.5"
+
+[llm.providers.minimax]
+# Base URL for the OpenAI compatible endpoint
+base_url = "https://api.minimax.io/v1"
+# Environment variable to read the API key from
+api_key_env = "MINIMAX_API_KEY"
+# Optional mapping for model names that need normalization
+[llm.providers.minimax.model_aliases]
+"minimax-m2.1-highspeed" = "MiniMax-M2.1-lightning"
+
+[llm.providers.openai]
+base_url = "https://api.openai.com/v1"
+api_key_env = "OPENAI_API_KEY"
+
+[llm.providers.anthropic]
+base_url = "https://api.anthropic.com/v1"
+api_key_env = "ANTHROPIC_API_KEY"
+
+[llm.providers.deepseek]
+base_url = "https://api.deepseek.com/v1"
+api_key_env = "DEEPSEEK_API_KEY"

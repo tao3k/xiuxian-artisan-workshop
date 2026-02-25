@@ -411,17 +411,16 @@ fn test_utility_similarity_tradeoff() {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
-        embedding_dim: 128,
+        embedding_dim: 4,
         table_name: "test".to_string(),
     };
     let store = EpisodeStore::new(config);
-    let encoder = store.encoder();
 
     // High similarity, low Q (old failure)
     let ep1 = Episode::new(
         "high-sim-low-q".to_string(),
         "debug api timeout".to_string(),
-        encoder.encode("debug api timeout"),
+        vec![0.95, 0.05, 0.0, 0.0],
         "Old failed fix".to_string(),
         "failure".to_string(),
     );
@@ -430,7 +429,7 @@ fn test_utility_similarity_tradeoff() {
     let ep2 = Episode::new(
         "low-sim-high-q".to_string(),
         "fix database connection pool".to_string(),
-        encoder.encode("fix database connection pool"),
+        vec![0.0, 1.0, 0.0, 0.0],
         "New successful fix".to_string(),
         "success".to_string(),
     );
@@ -440,7 +439,7 @@ fn test_utility_similarity_tradeoff() {
     store.update_q("high-sim-low-q", 0.1);
     store.update_q("low-sim-high-q", 0.95);
 
-    let query = encoder.encode("api timeout error");
+    let query = vec![1.0, 0.0, 0.0, 0.0];
 
     // λ = 0: Similarity only
     let results_lambda_0 = store.two_phase_recall_with_embedding(&query, 2, 2, 0.0);

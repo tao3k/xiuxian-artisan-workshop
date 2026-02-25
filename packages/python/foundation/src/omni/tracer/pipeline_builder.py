@@ -4,7 +4,8 @@ pipeline_builder.py - Compile declarative pipeline config into graph definition.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from .engine import ExecutionTracer
 from .pipeline_schema import PipelineConfig, Segment
@@ -243,6 +244,6 @@ def _create_branch_condition(
 
 __all__ = [
     "LangGraphPipelineBuilder",
-    "_create_loop_condition",
     "_create_branch_condition",
+    "_create_loop_condition",
 ]

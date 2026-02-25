@@ -15,17 +15,17 @@ Quick start:
 
 from __future__ import annotations
 
-# Level 1: Static Analysis
-from .validator import StaticValidator, SecurityViolation, scan_file, scan_content, quick_check
-
-# Level 2: Dynamic Simulation
-from .simulator import SkillSimulator, SimulationResult, verify_skill
-
-# Level 3: System Integration
-from .system import ImmuneSystem, ImmuneReport, create_immune_system
-
 # Bridge utilities - import from foundation.bridge directly (not relative)
 from omni.foundation.bridge import rust_immune
+
+# Level 2: Dynamic Simulation
+from .simulator import SimulationResult, SkillSimulator, verify_skill
+
+# Level 3: System Integration
+from .system import ImmuneReport, ImmuneSystem, create_immune_system
+
+# Level 1: Static Analysis
+from .validator import SecurityViolation, StaticValidator, quick_check, scan_content, scan_file
 
 __all__ = [
     # Level 1

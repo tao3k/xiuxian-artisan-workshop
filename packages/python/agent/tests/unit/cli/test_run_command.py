@@ -59,8 +59,8 @@ class TestRunCommandExecution:
     def test_gateway_agent_commands_registered(self):
         """Verify gateway and agent commands are registered."""
         from omni.agent.cli.commands.gateway_agent import (
-            register_gateway_command,
             register_agent_command,
+            register_gateway_command,
         )
 
         assert callable(register_gateway_command)

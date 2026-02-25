@@ -12,11 +12,11 @@ from __future__ import annotations
 import pytest
 
 from omni.tracer import (
+    ExecutionTracer,
+    LangGraphPipelineBuilder,
+    MappingToolInvoker,
     PipelineConfig,
     PipelineExecutor,
-    LangGraphPipelineBuilder,
-    ExecutionTracer,
-    MappingToolInvoker,
 )
 
 

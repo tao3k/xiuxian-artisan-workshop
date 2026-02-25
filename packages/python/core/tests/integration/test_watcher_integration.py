@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -218,8 +218,11 @@ def commit():
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Watcher-triggered markdown refresh should flow into monitor index signals."""
+        import io
+
         from omni.core.kernel.watcher import FileChangeEvent, FileChangeType, ReactiveSkillWatcher
         from omni.foundation.runtime.skills_monitor.context import (
+            record_phase,
             reset_current_monitor,
             set_current_monitor,
         )
@@ -227,8 +230,6 @@ def commit():
         from omni.foundation.runtime.skills_monitor.reporters.summary_reporter import (
             SummaryReporter,
         )
-        from omni.foundation.runtime.skills_monitor.context import record_phase
-        import io
 
         class _Backend:
             async def refresh_with_delta(self, _changed_paths, *, force_full: bool = False):
@@ -344,9 +345,9 @@ def test_cmd():
     @pytest.mark.asyncio
     async def test_kernel_start_with_watcher(self, sample_skills_dir: Path) -> None:
         """Test Kernel can be started with watcher enabled."""
-        from omni.core.kernel.watcher import ReactiveSkillWatcher
-        from omni.core.skills.indexer import SkillIndexer
         from unittest.mock import MagicMock
+
+        from omni.core.kernel.watcher import ReactiveSkillWatcher
 
         # Create mock indexer
         mock_indexer = MagicMock()
@@ -633,8 +634,7 @@ class TestSkillDiscoveryCache:
     @pytest.fixture
     def discovery_service(self):
         """Create a SkillDiscoveryService for testing with mocked store."""
-        from unittest.mock import AsyncMock, MagicMock, patch
-        import asyncio
+        from unittest.mock import MagicMock, patch
 
         # Create mock store that returns tools
         mock_store = MagicMock()
@@ -864,9 +864,10 @@ class TestWatcherWithKernelIntegration:
     @pytest.mark.asyncio
     async def test_reload_skill_called_on_modification(self, kernel_mock):
         """Test that kernel.reload_skill is called on file modification."""
-        from omni.core.kernel.watcher import FileChangeEvent, FileChangeType, ReactiveSkillWatcher
-        from unittest.mock import AsyncMock, patch
         from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+
+        from omni.core.kernel.watcher import FileChangeEvent, FileChangeType, ReactiveSkillWatcher
 
         mock_indexer = AsyncMock()
         mock_indexer.reindex_file = AsyncMock(return_value=1)
@@ -900,9 +901,10 @@ class TestWatcherWithKernelIntegration:
     @pytest.mark.asyncio
     async def test_reload_skill_not_called_for_unknown_skill(self, kernel_mock):
         """Test that reload_skill is not called for files outside skills dir."""
-        from omni.core.kernel.watcher import FileChangeEvent, FileChangeType, ReactiveSkillWatcher
-        from unittest.mock import AsyncMock, patch
         from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+
+        from omni.core.kernel.watcher import FileChangeEvent, FileChangeType, ReactiveSkillWatcher
 
         mock_indexer = AsyncMock()
         mock_indexer.reindex_file = AsyncMock(return_value=1)

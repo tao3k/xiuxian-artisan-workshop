@@ -1,6 +1,6 @@
-import re
 import json
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any
 
 
 def parse_xml_tag(content: str, tag: str) -> str:
@@ -22,7 +22,7 @@ def parse_xml_tag(content: str, tag: str) -> str:
     return ""
 
 
-def parse_xml_steps(plan_xml: str) -> List[Dict[str, Any]]:
+def parse_xml_steps(plan_xml: str) -> list[dict[str, Any]]:
     """
     Parse <step> tags specifically, handling attributes.
     Returns a list of step dictionaries.
@@ -53,7 +53,7 @@ def parse_xml_steps(plan_xml: str) -> List[Dict[str, Any]]:
     return steps
 
 
-def extract_json_from_action(action_content: str) -> Dict[str, Any]:
+def extract_json_from_action(action_content: str) -> dict[str, Any]:
     """
     Extracts and parses JSON from within an <action> tag or markdown block.
     """
@@ -74,7 +74,7 @@ def extract_json_from_action(action_content: str) -> Dict[str, Any]:
         return {}
 
 
-def map_action_data(data: Dict[str, Any]) -> tuple[Optional[str], Dict[str, Any]]:
+def map_action_data(data: dict[str, Any]) -> tuple[str | None, dict[str, Any]]:
     """
     Maps various JSON formats to a standard (tool_name, tool_args) tuple.
     Supports:

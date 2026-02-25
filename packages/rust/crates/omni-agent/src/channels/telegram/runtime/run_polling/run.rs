@@ -6,6 +6,7 @@ use super::super::console::{print_foreground_config, print_managed_commands_help
 use super::super::dispatch::start_telegram_runtime;
 use super::channel_listener;
 use super::loop_control;
+use super::loop_control::PollingEventLoopContext;
 use crate::agent::Agent;
 use crate::channels::telegram::TelegramCommandAdminRule;
 use crate::channels::telegram::TelegramControlCommandPolicy;
@@ -50,7 +51,7 @@ pub async fn run_telegram_with_control_command_policy(
     control_command_policy: TelegramControlCommandPolicy,
 ) -> Result<()> {
     let runtime_config = TelegramRuntimeConfig::from_env();
-    let (channel, channel_for_send, mut inbound_rx, listener) =
+    let (channel, channel_for_send, inbound_tx, mut inbound_rx, listener) =
         channel_listener::start_polling_listener(
             bot_token,
             allowed_users,
@@ -80,11 +81,15 @@ pub async fn run_telegram_with_control_command_policy(
     loop_control::run_polling_event_loop(
         &mut inbound_rx,
         &mut completion_rx,
-        &channel_for_send,
-        &foreground_tx,
-        &interrupt_controller,
-        &job_manager,
-        &agent,
+        PollingEventLoopContext {
+            inbound_tx: &inbound_tx,
+            channel_for_send: &channel_for_send,
+            foreground_tx: &foreground_tx,
+            interrupt_controller: &interrupt_controller,
+            job_manager: &job_manager,
+            agent: &agent,
+            runtime_config,
+        },
     )
     .await;
 

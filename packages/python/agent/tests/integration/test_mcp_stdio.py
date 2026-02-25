@@ -180,8 +180,9 @@ class TestMCPProtocolHandlers:
 
     def test_server_registers_handlers(self):
         """Test that server registers required handlers."""
-        from omni.agent.mcp_server.server import AgentMCPServer
         import inspect
+
+        from omni.agent.mcp_server.server import AgentMCPServer
 
         source = inspect.getsource(AgentMCPServer._register_handlers)
 
@@ -195,8 +196,9 @@ class TestMCPProtocolHandlers:
 
     def test_server_has_specific_tools(self):
         """Verify server registers special kernel tools."""
-        from omni.agent.mcp_server.server import AgentMCPServer
         import inspect
+
+        from omni.agent.mcp_server.server import AgentMCPServer
 
         source = inspect.getsource(AgentMCPServer._register_handlers)
         assert 'name="omni"' in source
@@ -205,8 +207,9 @@ class TestMCPProtocolHandlers:
 
     def test_call_tool_resolves_alias_before_validation(self):
         """Alias resolution must happen before validate_tool_args() call."""
-        from omni.agent.mcp_server.server import AgentMCPServer
         import inspect
+
+        from omni.agent.mcp_server.server import AgentMCPServer
 
         source = inspect.getsource(AgentMCPServer._register_handlers)
         alias_line = source.find("real_command = self._alias_to_real.get(name, name)")
@@ -219,8 +222,9 @@ class TestMCPProtocolHandlers:
 
     def test_server_uses_logger_warning_not_warn(self):
         """Deprecated logger.warn() should not appear in handler registration."""
-        from omni.agent.mcp_server.server import AgentMCPServer
         import inspect
+
+        from omni.agent.mcp_server.server import AgentMCPServer
 
         source = inspect.getsource(AgentMCPServer._register_handlers)
         assert "logger.warn(" not in source
@@ -428,8 +432,8 @@ class TestSkillPathResolutionIntegration:
         This catches the bug where scripts_path was invalid because
         skill_path was extracted incorrectly.
         """
+
         from omni.agent.server import create_agent_handler
-        from pathlib import Path
 
         handler = create_agent_handler()
         await handler.initialize()
@@ -466,8 +470,9 @@ class TestSkillPathResolutionIntegration:
         This prevents the regression where tools/list returned response
         with id=null, causing MCP client validation failures.
         """
-        from omni.agent.server import create_agent_handler
         from mcp.types import JSONRPCRequest
+
+        from omni.agent.server import create_agent_handler
 
         handler = create_agent_handler()
         await handler.initialize()
@@ -511,6 +516,7 @@ class TestEmbeddingHttpServiceSharing:
     async def test_check_embedding_service_detects_used_port(self):
         """Test that _check_embedding_service returns True for a port in use."""
         import socket
+
         from omni.agent.cli.commands.mcp import _check_embedding_service
 
         test_port = self._get_random_port()
@@ -541,8 +547,9 @@ class TestEmbeddingHttpServiceSharing:
     async def test_run_embedding_http_server_returns_false_when_service_exists(self):
         """Test that _run_embedding_http_server returns False when service already exists."""
         import socket
-        from omni.agent.cli.commands.mcp import _run_embedding_http_server
+
         import omni.agent.cli.commands.mcp as mcp_module
+        from omni.agent.cli.commands.mcp import _run_embedding_http_server
 
         test_port = self._get_random_port()
 
@@ -565,11 +572,11 @@ class TestEmbeddingHttpServiceSharing:
     @pytest.mark.asyncio
     async def test_run_embedding_http_server_returns_true_when_starting_new(self):
         """Test that _run_embedding_http_server returns True when starting new server."""
+        import omni.agent.cli.commands.mcp as mcp_module
         from omni.agent.cli.commands.mcp import (
             _run_embedding_http_server,
             _stop_embedding_http_server,
         )
-        import omni.agent.cli.commands.mcp as mcp_module
 
         test_port = self._get_random_port()
 
@@ -604,12 +611,13 @@ class TestEmbeddingHttpServiceSharing:
     @pytest.mark.asyncio
     async def test_embedding_http_handler_accepts_requests(self):
         """Test that the embedding HTTP handler processes requests correctly."""
+        import httpx
+
+        import omni.agent.cli.commands.mcp as mcp_module
         from omni.agent.cli.commands.mcp import (
             _run_embedding_http_server,
             _stop_embedding_http_server,
         )
-        import httpx
-        import omni.agent.cli.commands.mcp as mcp_module
 
         test_port = self._get_random_port()
         await _run_embedding_http_server("127.0.0.1", test_port)

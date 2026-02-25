@@ -4,9 +4,9 @@ Benchmark tests for omni.rag.entities module.
 These tests measure the performance of entity dataclass operations.
 """
 
-import pytest
 import time
-from typing import Any
+
+import pytest
 
 
 class TestEntityDataclassPerformance:
@@ -51,7 +51,6 @@ class TestEntityDataclassPerformance:
 
     def test_entity_hash_performance(self, sample_entities):
         """Test entity hashing performance."""
-        from omni.rag.entities import Entity
 
         start = time.perf_counter()
         for _ in range(100):
@@ -91,7 +90,6 @@ class TestEntityDataclassPerformance:
 
     def test_entity_to_dict_performance(self, sample_entities):
         """Test entity to_dict performance."""
-        from omni.rag.entities import Entity
 
         start = time.perf_counter()
         for _ in range(100):
@@ -121,7 +119,6 @@ class TestEntityDataclassPerformance:
 
     def test_entity_id_performance(self, sample_entities):
         """Test entity ID generation performance."""
-        from omni.rag.entities import Entity
 
         start = time.perf_counter()
         for _ in range(100):
@@ -199,7 +196,7 @@ class TestRelationDataclassPerformance:
 
     def test_relation_creation_performance(self):
         """Test relation creation performance."""
-        from omni.rag.entities import Relation, Entity
+        from omni.rag.entities import Entity, Relation
 
         entity_a = Entity(
             name="Python", entity_type="LANGUAGE", description="Lang", source="test.md"
@@ -225,7 +222,7 @@ class TestRelationDataclassPerformance:
 
     def test_relation_to_dict_performance(self):
         """Test relation to_dict performance."""
-        from omni.rag.entities import Relation, Entity
+        from omni.rag.entities import Entity, Relation
 
         entity_a = Entity(
             name="Python", entity_type="LANGUAGE", description="Lang", source="test.md"

@@ -1,6 +1,7 @@
 """Unit tests for omni.mcp.interfaces."""
 
 from typing import Any
+
 import pytest
 from mcp.types import JSONRPCRequest, JSONRPCResponse
 from omni.mcp.interfaces import (

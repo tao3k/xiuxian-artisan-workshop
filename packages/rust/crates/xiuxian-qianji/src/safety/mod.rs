@@ -1,5 +1,7 @@
 //! Formal logic and safety auditing.
 
+pub mod logic;
+
 use crate::engine::QianjiEngine;
 use crate::error::QianjiError;
 use petgraph::algo::is_cyclic_directed;

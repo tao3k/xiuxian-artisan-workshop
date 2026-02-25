@@ -17,15 +17,12 @@ Run with:
 """
 
 import asyncio
-import io
 import json
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
 from omni.mcp.transport.stdio import StdioTransport
-from omni.mcp.server import MCPServer
 
 
 class MockServer:

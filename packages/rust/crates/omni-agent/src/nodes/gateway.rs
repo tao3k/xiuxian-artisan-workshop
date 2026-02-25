@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use omni_agent::{RuntimeSettings, run_http};
 
-use crate::agent_builder::build_agent;
+use crate::runtime_agent_factory::build_agent;
 
 pub(crate) async fn run_gateway_mode(
     bind_addr: String,

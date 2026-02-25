@@ -7,7 +7,6 @@ Runs LLM-generated test cases in a sandbox to verify skill functionality.
 
 from __future__ import annotations
 
-import asyncio
 import tempfile
 from pathlib import Path
 from typing import Any

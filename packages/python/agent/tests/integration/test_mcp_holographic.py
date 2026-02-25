@@ -11,9 +11,9 @@ Usage:
     uv run pytest packages/python/agent/tests/integration/test_mcp_holographic.py -v
 """
 
-import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 
 
 class TestHolographicServerInitialization:
@@ -431,6 +431,7 @@ class TestRunFunctions:
     def test_run_sse_server_accepts_holographic_flag(self):
         """Verify run_sse_server accepts use_holographic parameter."""
         import inspect
+
         from omni.agent.mcp_server.server import run_sse_server
 
         sig = inspect.signature(run_sse_server)
@@ -462,7 +463,6 @@ class TestCLIParsing:
     def test_parser_has_holographic_argument(self):
         """Verify CLI parser accepts --holographic flag."""
         import argparse
-        from omni.agent.mcp_server.server import main_async
 
         # Create a new parser with the same arguments
         parser = argparse.ArgumentParser(description="Test")

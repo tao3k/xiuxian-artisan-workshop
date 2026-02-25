@@ -1,0 +1,4 @@
+[[rule]]
+toolName = "delete_command"
+commandRegex = "rm -rf"
+decision = "deny"

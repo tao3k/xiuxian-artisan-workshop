@@ -1,7 +1,5 @@
 """Tests for ContextPruner - Rust-accelerated context window management."""
 
-import pytest
-
 from omni.agent.core.context.pruner import ContextPruner, create_pruner_for_model
 
 

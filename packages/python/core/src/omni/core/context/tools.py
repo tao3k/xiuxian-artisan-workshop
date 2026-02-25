@@ -20,7 +20,6 @@ Python dynamically retrieves authoritative JSON Schemas via FFI.
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -236,11 +235,11 @@ class ToolContextBuilder:
 
                 signature = f"{tool_def.name}({', '.join(param_strs)})"
                 lines.append(f"### {tool_def.name}")
-                lines.append(f"```python")
+                lines.append("```python")
                 lines.append(f"def {signature} -> Any:")
                 lines.append(f'    """{tool_def.description}"""')
-                lines.append(f"    ...")
-                lines.append(f"```")
+                lines.append("    ...")
+                lines.append("```")
                 lines.append("")
 
             except Exception as e:

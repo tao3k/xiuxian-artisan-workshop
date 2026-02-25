@@ -7,7 +7,6 @@ import os
 import re
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from jsonschema import Draft202012Validator
 from omni.test_kit.fixtures.vector import (
     make_router_result_payload,

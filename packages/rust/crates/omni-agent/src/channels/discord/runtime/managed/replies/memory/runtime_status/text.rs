@@ -1,4 +1,4 @@
-use crate::agent::MemoryRuntimeStatusSnapshot;
+use crate::agent::{DownstreamAdmissionRuntimeSnapshot, MemoryRuntimeStatusSnapshot};
 
 use super::super::super::shared::{
     format_optional_f32, format_optional_u32, format_optional_usize,
@@ -79,6 +79,29 @@ pub(in super::super) fn format_memory_runtime_status_lines(
         format!(
             "- `q_values_total={}`",
             format_optional_usize(status.q_values_total)
+        ),
+    ]
+}
+
+pub(in super::super) fn format_downstream_admission_status_lines(
+    status: DownstreamAdmissionRuntimeSnapshot,
+) -> Vec<String> {
+    vec![
+        format!("- `enabled={}`", format_yes_no(status.enabled)),
+        format!(
+            "- `llm_reject_threshold_pct={}` / `embedding_reject_threshold_pct={}`",
+            status.llm_reject_threshold_pct, status.embedding_reject_threshold_pct
+        ),
+        format!(
+            "- `total={}` / `admitted={}` / `rejected={}` / `reject_rate_pct={}`",
+            status.metrics.total,
+            status.metrics.admitted,
+            status.metrics.rejected,
+            status.metrics.reject_rate_pct
+        ),
+        format!(
+            "- `rejected_llm_saturated={}` / `rejected_embedding_saturated={}`",
+            status.metrics.rejected_llm_saturated, status.metrics.rejected_embedding_saturated
         ),
     ]
 }

@@ -45,7 +45,7 @@ class KnowledgeConfig:
                 pass
 
         if self._config_path and self._config_path.exists():
-            with open(self._config_path, "r") as f:
+            with open(self._config_path) as f:
                 self._config = yaml.safe_load(f) or {}
 
     @property

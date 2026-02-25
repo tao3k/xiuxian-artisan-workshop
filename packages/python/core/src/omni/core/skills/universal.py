@@ -232,7 +232,6 @@ class UniversalScriptSkill:
         context = context or {}
         cwd = context.get("cwd", os.getcwd())
         allow_module_reuse = bool(context.get("allow_module_reuse", False))
-        skip_workflow_clear = bool(context.get("skip_workflow_clear", False))
 
         logger.debug(f"[{self._name}] Loading from {self._path}")
 
@@ -256,26 +255,6 @@ class UniversalScriptSkill:
             skill=self._name,
             allow_module_reuse=allow_module_reuse,
             cleared_modules=cleared_modules,
-        )
-
-        # Also clear workflow visualizations for this skill (they cache at module level)
-        workflow_clear_started = time.perf_counter()
-        workflow_cleared = 0
-        if not skip_workflow_clear:
-            try:
-                from omni.langgraph.visualize import clear_workflows
-
-                workflow_cleared = clear_workflows(self._name)
-                if workflow_cleared:
-                    logger.debug(f"[{self._name}] Cleared {workflow_cleared} workflow diagrams")
-            except ImportError:
-                pass
-        _record_phase(
-            "runner.fast.load.workflows.clear",
-            (time.perf_counter() - workflow_clear_started) * 1000,
-            skill=self._name,
-            cleared=workflow_cleared,
-            skipped=skip_workflow_clear,
         )
 
         # 1. Load Extensions

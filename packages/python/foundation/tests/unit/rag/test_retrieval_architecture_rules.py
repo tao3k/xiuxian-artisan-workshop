@@ -11,9 +11,8 @@ import pytest
 
 from omni.foundation.services.vector_schema import SearchOptionsContract
 from omni.rag.retrieval.factory import create_retrieval_backend
-from omni.rag.retrieval.interface import RetrievalConfig
 from omni.rag.retrieval.hybrid import HybridRetrievalBackend
-
+from omni.rag.retrieval.interface import RetrievalConfig
 
 RAG_RETRIEVAL_DIR = Path(__file__).resolve().parents[3] / "src" / "omni" / "rag" / "retrieval"
 pytestmark = pytest.mark.architecture

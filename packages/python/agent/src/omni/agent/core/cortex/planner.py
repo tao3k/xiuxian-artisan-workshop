@@ -11,7 +11,6 @@ Integration: CortexOrchestrator → TaskDecomposer → TaskGraph
 
 from __future__ import annotations
 
-import asyncio
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -310,7 +309,7 @@ class TaskDecomposer:
             max_concurrent=3,
         )
 
-        for file_path in scope.keys():
+        for file_path in scope:
             task = TaskNode(
                 description=f"Test {file_path}",
                 command=f"python -m pytest {file_path} -v",
@@ -411,7 +410,7 @@ class TaskDecomposer:
 
 
 __all__ = [
-    "TaskDecomposer",
     "DecompositionResult",
     "FileAnalysis",
+    "TaskDecomposer",
 ]

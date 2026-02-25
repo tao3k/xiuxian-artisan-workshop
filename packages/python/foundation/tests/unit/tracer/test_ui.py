@@ -7,18 +7,16 @@ Tests colored console output and TracedExecution context manager.
 from __future__ import annotations
 
 import pytest
-from datetime import datetime
 
 from omni.tracer.ui import (
-    TracedExecution,
     StepInfo,
+    TracedExecution,
     print_header,
-    print_step_start,
-    print_step_end,
-    print_thinking,
     print_memory,
     print_param,
-    console,
+    print_step_end,
+    print_step_start,
+    print_thinking,
 )
 
 

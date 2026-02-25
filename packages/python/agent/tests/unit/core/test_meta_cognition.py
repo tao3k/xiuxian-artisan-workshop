@@ -6,9 +6,9 @@ Tests for:
 - create_omni_loop_context: Orchestrator factory for Omni Loop
 """
 
+from unittest.mock import patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 
 class TestPromptLoader:
@@ -165,6 +165,7 @@ class TestRoutingGuidanceProvider:
     def test_provider_provide_returns_context_result(self):
         """Test that provider.provide returns valid ContextResult."""
         import asyncio
+
         from omni.agent.core.context.providers import RoutingGuidanceProvider
 
         provider = RoutingGuidanceProvider()
@@ -187,6 +188,7 @@ class TestRoutingGuidanceProvider:
     def test_provider_caches_content(self):
         """Test that provider caches loaded content."""
         import asyncio
+
         from omni.agent.core.context.providers import RoutingGuidanceProvider
 
         provider = RoutingGuidanceProvider()
@@ -205,6 +207,7 @@ class TestRoutingGuidanceProvider:
     def test_provider_priority_is_high(self):
         """Test that routing protocol has high priority (low number = high priority)."""
         import asyncio
+
         from omni.agent.core.context.providers import RoutingGuidanceProvider
 
         provider = RoutingGuidanceProvider()
@@ -223,8 +226,8 @@ class TestCreateOmniLoopContext:
     def test_create_omni_loop_context_returns_orchestrator(self):
         """Test that factory returns ContextOrchestrator."""
         from omni.core.context.orchestrator import (
-            create_omni_loop_context,
             ContextOrchestrator,
+            create_omni_loop_context,
         )
 
         orchestrator = create_omni_loop_context()
@@ -239,8 +242,8 @@ class TestCreateOmniLoopContext:
 
     def test_orchestrator_has_routing_provider(self):
         """Test that orchestrator includes RoutingGuidanceProvider."""
-        from omni.core.context.orchestrator import create_omni_loop_context
         from omni.agent.core.context.providers import RoutingGuidanceProvider
+        from omni.core.context.orchestrator import create_omni_loop_context
 
         orchestrator = create_omni_loop_context()
         provider_types = [type(p) for p in orchestrator._providers]
@@ -296,6 +299,7 @@ class TestCreateOmniLoopContext:
     def test_build_context_returns_string(self):
         """Test that build_context returns a string."""
         import asyncio
+
         from omni.core.context.orchestrator import create_omni_loop_context
 
         orchestrator = create_omni_loop_context()
@@ -309,6 +313,7 @@ class TestCreateOmniLoopContext:
     def test_build_context_includes_routing_protocol(self):
         """Test that built context includes routing protocol."""
         import asyncio
+
         from omni.core.context.orchestrator import create_omni_loop_context
 
         orchestrator = create_omni_loop_context()

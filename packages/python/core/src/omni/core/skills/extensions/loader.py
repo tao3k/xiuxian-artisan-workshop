@@ -141,9 +141,7 @@ class SkillExtensionLoader:
         if item.name == "__pycache__":
             return True
         # Skip non-Python files (except __init__.py in directories)
-        if item.is_file() and item.suffix != ".py":
-            return True
-        return False
+        return bool(item.is_file() and item.suffix != ".py")
 
     def _load_module(self, name: str, path: Path) -> ExtensionWrapper | None:
         """Load a single-file Python module."""

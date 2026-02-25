@@ -33,18 +33,30 @@ pub(in super::super) async fn handle_session_memory(
         EVENT_DISCORD_COMMAND_SESSION_MEMORY_REPLIED
     };
     let runtime_status = agent.inspect_memory_runtime_status();
+    let admission_status = agent.downstream_admission_runtime_snapshot();
     let metrics = agent.inspect_memory_recall_metrics().await;
     let response = match agent.inspect_memory_recall_snapshot(session_id).await {
-        Some(snapshot) if format.is_json() => {
-            format_memory_recall_snapshot_json(snapshot, metrics, runtime_status, session_id)
-        }
-        Some(snapshot) => {
-            format_memory_recall_snapshot(snapshot, metrics, runtime_status, session_id)
-        }
-        None if format.is_json() => {
-            format_memory_recall_not_found_json(metrics, runtime_status, session_id)
-        }
-        None => format_memory_recall_not_found(runtime_status, session_id),
+        Some(snapshot) if format.is_json() => format_memory_recall_snapshot_json(
+            snapshot,
+            metrics,
+            runtime_status,
+            admission_status,
+            session_id,
+        ),
+        Some(snapshot) => format_memory_recall_snapshot(
+            snapshot,
+            metrics,
+            runtime_status,
+            admission_status,
+            session_id,
+        ),
+        None if format.is_json() => format_memory_recall_not_found_json(
+            metrics,
+            runtime_status,
+            admission_status,
+            session_id,
+        ),
+        None => format_memory_recall_not_found(runtime_status, admission_status, session_id),
     };
     send_response(channel, &msg.recipient, response, msg, command_event).await;
 }

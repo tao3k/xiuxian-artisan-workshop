@@ -72,7 +72,7 @@ def create_initial_state(parameters: dict[str, object], scenario: str) -> DemoSt
     """Create initial state for a scenario."""
     max_iterations = 0 if scenario == "simple" else int(parameters["max_iterations"])
     return cast(
-        DemoState,
+        "DemoState",
         {
             "topic": str(parameters["topic"]),
             "iterations": 0,
@@ -181,8 +181,8 @@ def register_scenario_graph(
 
 
 __all__ = [
-    "default_parameters_for_scenario",
     "apply_parameter_overrides",
     "create_initial_state",
+    "default_parameters_for_scenario",
     "register_scenario_graph",
 ]

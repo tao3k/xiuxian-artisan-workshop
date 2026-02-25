@@ -101,12 +101,6 @@ def __getattr__(name: str):
 
         return RustSkillScanner
 
-    # Immune System Bridge
-    if name == "rust_immune":
-        from . import rust_immune
-
-        return rust_immune
-
     # Status functions
     if name in (
         "is_rust_available",

@@ -6,8 +6,6 @@ Tests for ToolResponse class and ResponseStatus enum.
 
 from datetime import UTC, datetime
 
-import pytest
-
 from omni.core.responses import ResponseStatus, ToolResponse
 
 

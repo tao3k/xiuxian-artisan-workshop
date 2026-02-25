@@ -10,13 +10,13 @@ Tests for:
 
 import pytest
 
+from omni.agent.core.omni.loop import EpistemicGater
 from omni.agent.core.omni.react import (
     ArgumentValidator,
     OutputCompressor,
-    ValidationResult,
     ResilientReAct,
+    ValidationResult,
 )
-from omni.agent.core.omni.loop import EpistemicGater
 
 
 class TestValidationResult:

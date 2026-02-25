@@ -3,3 +3,4 @@
 pub mod embedding;
 pub mod llm;
 pub mod mcp;
+pub mod mistral;

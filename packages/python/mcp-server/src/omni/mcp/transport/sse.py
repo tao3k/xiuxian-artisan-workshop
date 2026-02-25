@@ -31,8 +31,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
-from mcp.types import JSONRPCRequest, JSONRPCResponse
-
+from mcp.types import JSONRPCRequest
 from omni.foundation.config.logging import get_logger
 
 from ..interfaces import MCPRequestHandler
@@ -183,7 +182,7 @@ class SSEServer:
                     )
 
                 # Cast to JSONRPCRequest (TypedDict doesn't support **kwargs)
-                request_obj = cast(JSONRPCRequest, data)
+                request_obj = cast("JSONRPCRequest", data)
 
                 # Check if it's a notification (no id)
                 msg_id = request_obj.get("id")
@@ -204,7 +203,7 @@ class SSEServer:
                 if hasattr(response, "model_dump"):
                     response_dict: dict[str, Any] = response.model_dump()
                 else:
-                    response_dict = cast(dict[str, Any], response)
+                    response_dict = cast("dict[str, Any]", response)
 
                 # Build response
                 resp_data: dict[str, Any] = {

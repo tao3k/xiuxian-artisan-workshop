@@ -36,7 +36,6 @@ async def handle_file_change(event):
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
@@ -68,7 +67,7 @@ class EventTopic(Enum):
     CORTEX_QUERY = "cortex/query"
 
     @classmethod
-    def from_string(cls, topic: str) -> "EventTopic | None":
+    def from_string(cls, topic: str) -> EventTopic | None:
         """Convert string to EventTopic."""
         for member in cls:
             if member.value == topic:
@@ -259,7 +258,7 @@ class KernelReactor:
                 # Get event from queue (with timeout for checking _running)
                 event = await asyncio.wait_for(self._queue.get(), timeout=0.5)
                 await self._dispatch(event)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break

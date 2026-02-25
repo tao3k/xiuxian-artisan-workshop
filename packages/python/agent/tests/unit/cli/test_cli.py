@@ -22,7 +22,7 @@ from collections.abc import Callable
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -116,10 +116,10 @@ def test_commands_submodules():
     print("\n[Commands Submodules]")
 
     from omni.agent.cli.commands import register_mcp_command, register_run_command
-    from omni.agent.cli.commands.sync import sync_app
     from omni.agent.cli.commands.reindex import reindex_app
     from omni.agent.cli.commands.route import route_app
     from omni.agent.cli.commands.skill import skill_app
+    from omni.agent.cli.commands.sync import sync_app
 
     assert skill_app is not None, "skill_app is None"
     assert register_run_command is not None, "register_run_command is None"
@@ -779,11 +779,11 @@ def test_verbose_flag_enables_debug_logging():
     """Test that verbose flag configures debug logging (lightweight)."""
     print("\n[Verbose Flag Logging]")
 
-    from omni.agent.cli.app import _is_verbose, _bootstrap_configuration
     import structlog
 
     # Reset logging state by accessing the module's _configured attribute
     import omni.foundation.config.logging as logging_module  # type: ignore[import]
+    from omni.agent.cli.app import _bootstrap_configuration, _is_verbose
 
     logging_module._configured = False
     structlog.reset_defaults()

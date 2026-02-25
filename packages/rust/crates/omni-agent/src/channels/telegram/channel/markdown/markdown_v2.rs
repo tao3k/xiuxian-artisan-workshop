@@ -8,127 +8,182 @@ use super::escape::{
 };
 use super::options::telegram_markdown_options;
 
-#[must_use]
-#[allow(clippy::too_many_lines)]
-pub fn markdown_to_telegram_markdown_v2(markdown: &str) -> String {
-    let parser = Parser::new_ext(markdown, telegram_markdown_options());
-    let mut rendered = String::new();
-    let mut ordered_list_stack: Vec<usize> = Vec::new();
-    let mut list_is_ordered_stack: Vec<bool> = Vec::new();
-    let mut link_stack: Vec<String> = Vec::new();
-    let mut in_code_block = false;
+struct MarkdownV2Renderer {
+    rendered: String,
+    ordered_list_stack: Vec<usize>,
+    list_is_ordered_stack: Vec<bool>,
+    link_stack: Vec<String>,
+    in_code_block: bool,
+}
 
-    for event in parser {
+impl MarkdownV2Renderer {
+    fn new() -> Self {
+        Self {
+            rendered: String::new(),
+            ordered_list_stack: Vec::new(),
+            list_is_ordered_stack: Vec::new(),
+            link_stack: Vec::new(),
+            in_code_block: false,
+        }
+    }
+
+    fn render(mut self, markdown: &str) -> String {
+        for event in Parser::new_ext(markdown, telegram_markdown_options()) {
+            self.handle_event(event);
+        }
+        self.finish(markdown)
+    }
+
+    fn handle_event(&mut self, event: Event<'_>) {
         match event {
-            Event::Start(tag) => match tag {
-                Tag::Strong | Tag::Heading { .. } => rendered.push('*'),
-                Tag::Emphasis => rendered.push('_'),
-                Tag::Strikethrough => rendered.push('~'),
-                Tag::CodeBlock(kind) => {
-                    in_code_block = true;
-                    rendered.push_str("```");
-                    if let Some(language) = normalize_code_fence_language(kind) {
-                        rendered.push_str(&language);
-                    }
-                    rendered.push('\n');
-                }
-                Tag::Link { dest_url, .. } => {
-                    rendered.push('[');
-                    link_stack.push(dest_url.into_string());
-                }
-                Tag::List(start) => {
-                    if let Some(start_number) = start {
-                        ordered_list_stack
-                            .push(usize::try_from(start_number).unwrap_or(usize::MAX));
-                        list_is_ordered_stack.push(true);
-                    } else {
-                        ordered_list_stack.push(1);
-                        list_is_ordered_stack.push(false);
-                    }
-                }
-                Tag::Item => {
-                    if !rendered.is_empty() && !rendered.ends_with('\n') {
-                        rendered.push('\n');
-                    }
-                    match list_is_ordered_stack.last().copied() {
-                        Some(true) => {
-                            if let Some(current) = ordered_list_stack.last_mut() {
-                                let _ = write!(rendered, "{current}\\. ");
-                                *current += 1;
-                            } else {
-                                rendered.push_str("• ");
-                            }
-                        }
-                        _ => rendered.push_str("• "),
-                    }
-                }
-                Tag::BlockQuote(_) => rendered.push_str("> "),
-                _ => {}
-            },
-            Event::End(tag_end) => match tag_end {
-                TagEnd::Strong => rendered.push('*'),
-                TagEnd::Emphasis => rendered.push('_'),
-                TagEnd::Strikethrough => rendered.push('~'),
-                TagEnd::CodeBlock => {
-                    in_code_block = false;
-                    if !rendered.ends_with('\n') {
-                        rendered.push('\n');
-                    }
-                    rendered.push_str("```\n\n");
-                }
-                TagEnd::Link => {
-                    let link_target = link_stack.pop().unwrap_or_default();
-                    rendered.push(']');
-                    rendered.push('(');
-                    rendered.push_str(&escape_markdown_v2_url(&link_target));
-                    rendered.push(')');
-                }
-                TagEnd::Heading(_) => rendered.push_str("*\n\n"),
-                TagEnd::Paragraph => rendered.push_str("\n\n"),
-                TagEnd::List(_) => {
-                    ordered_list_stack.pop();
-                    list_is_ordered_stack.pop();
-                    rendered.push('\n');
-                }
-                _ => {}
-            },
-            Event::Text(text) => {
-                if in_code_block {
-                    rendered.push_str(&escape_markdown_v2_code(text.as_ref()));
-                } else {
-                    rendered.push_str(&escape_markdown_v2_text(text.as_ref()));
-                }
-            }
-            Event::Code(text) => {
-                rendered.push('`');
-                rendered.push_str(&escape_markdown_v2_code(text.as_ref()));
-                rendered.push('`');
-            }
-            Event::SoftBreak | Event::HardBreak => rendered.push('\n'),
-            Event::Rule => rendered.push_str("\n\\-\\-\\-\\-\n"),
+            Event::Start(tag) => self.handle_start_tag(tag),
+            Event::End(tag_end) => self.handle_end_tag(tag_end),
+            Event::Text(text) => self.push_text(text.as_ref()),
+            Event::Code(text) => self.push_inline_code(text.as_ref()),
+            Event::SoftBreak | Event::HardBreak => self.rendered.push('\n'),
+            Event::Rule => self.rendered.push_str("\n\\-\\-\\-\\-\n"),
             Event::Html(text) | Event::InlineHtml(text) => {
-                rendered.push_str(&escape_markdown_v2_text(text.as_ref()));
+                self.rendered
+                    .push_str(&escape_markdown_v2_text(text.as_ref()));
             }
-            Event::TaskListMarker(checked) => {
-                if checked {
-                    rendered.push_str("\\[x\\] ");
-                } else {
-                    rendered.push_str("\\[ \\] ");
-                }
-            }
-            Event::FootnoteReference(name) => {
-                rendered.push_str("\\[");
-                rendered.push_str(&escape_markdown_v2_text(name.as_ref()));
-                rendered.push_str("\\]");
-            }
+            Event::TaskListMarker(checked) => self.push_task_list_marker(checked),
+            Event::FootnoteReference(name) => self.push_footnote_reference(name.as_ref()),
             _ => {}
         }
     }
 
-    trim_trailing_blank_lines(&mut rendered);
-    if rendered.is_empty() {
-        escape_markdown_v2_text(markdown)
-    } else {
-        rendered
+    fn handle_start_tag(&mut self, tag: Tag<'_>) {
+        match tag {
+            Tag::Strong | Tag::Heading { .. } => self.rendered.push('*'),
+            Tag::Emphasis => self.rendered.push('_'),
+            Tag::Strikethrough => self.rendered.push('~'),
+            Tag::CodeBlock(kind) => self.start_code_block(kind),
+            Tag::Link { dest_url, .. } => self.start_link(dest_url.into_string()),
+            Tag::List(start) => self.start_list(start),
+            Tag::Item => self.start_list_item(),
+            Tag::BlockQuote(_) => self.rendered.push_str("> "),
+            _ => {}
+        }
     }
+
+    fn handle_end_tag(&mut self, tag_end: TagEnd) {
+        match tag_end {
+            TagEnd::Strong => self.rendered.push('*'),
+            TagEnd::Emphasis => self.rendered.push('_'),
+            TagEnd::Strikethrough => self.rendered.push('~'),
+            TagEnd::CodeBlock => self.end_code_block(),
+            TagEnd::Link => self.end_link(),
+            TagEnd::Heading(_) => self.rendered.push_str("*\n\n"),
+            TagEnd::Paragraph => self.rendered.push_str("\n\n"),
+            TagEnd::List(_) => self.end_list(),
+            _ => {}
+        }
+    }
+
+    fn start_code_block(&mut self, kind: pulldown_cmark::CodeBlockKind<'_>) {
+        self.in_code_block = true;
+        self.rendered.push_str("```");
+        if let Some(language) = normalize_code_fence_language(kind) {
+            self.rendered.push_str(&language);
+        }
+        self.rendered.push('\n');
+    }
+
+    fn end_code_block(&mut self) {
+        self.in_code_block = false;
+        if !self.rendered.ends_with('\n') {
+            self.rendered.push('\n');
+        }
+        self.rendered.push_str("```\n\n");
+    }
+
+    fn start_link(&mut self, target: String) {
+        self.rendered.push('[');
+        self.link_stack.push(target);
+    }
+
+    fn end_link(&mut self) {
+        let link_target = self.link_stack.pop().unwrap_or_default();
+        self.rendered.push(']');
+        self.rendered.push('(');
+        self.rendered
+            .push_str(&escape_markdown_v2_url(&link_target));
+        self.rendered.push(')');
+    }
+
+    fn start_list(&mut self, start: Option<u64>) {
+        if let Some(start_number) = start {
+            self.ordered_list_stack
+                .push(usize::try_from(start_number).unwrap_or(usize::MAX));
+            self.list_is_ordered_stack.push(true);
+        } else {
+            self.ordered_list_stack.push(1);
+            self.list_is_ordered_stack.push(false);
+        }
+    }
+
+    fn end_list(&mut self) {
+        self.ordered_list_stack.pop();
+        self.list_is_ordered_stack.pop();
+        self.rendered.push('\n');
+    }
+
+    fn start_list_item(&mut self) {
+        if !self.rendered.is_empty() && !self.rendered.ends_with('\n') {
+            self.rendered.push('\n');
+        }
+        match self.list_is_ordered_stack.last().copied() {
+            Some(true) => {
+                if let Some(current) = self.ordered_list_stack.last_mut() {
+                    let _ = write!(self.rendered, "{current}\\. ");
+                    *current += 1;
+                } else {
+                    self.rendered.push_str("• ");
+                }
+            }
+            _ => self.rendered.push_str("• "),
+        }
+    }
+
+    fn push_text(&mut self, text: &str) {
+        if self.in_code_block {
+            self.rendered.push_str(&escape_markdown_v2_code(text));
+        } else {
+            self.rendered.push_str(&escape_markdown_v2_text(text));
+        }
+    }
+
+    fn push_inline_code(&mut self, code: &str) {
+        self.rendered.push('`');
+        self.rendered.push_str(&escape_markdown_v2_code(code));
+        self.rendered.push('`');
+    }
+
+    fn push_task_list_marker(&mut self, checked: bool) {
+        if checked {
+            self.rendered.push_str("\\[x\\] ");
+        } else {
+            self.rendered.push_str("\\[ \\] ");
+        }
+    }
+
+    fn push_footnote_reference(&mut self, name: &str) {
+        self.rendered.push_str("\\[");
+        self.rendered.push_str(&escape_markdown_v2_text(name));
+        self.rendered.push_str("\\]");
+    }
+
+    fn finish(mut self, markdown: &str) -> String {
+        trim_trailing_blank_lines(&mut self.rendered);
+        if self.rendered.is_empty() {
+            escape_markdown_v2_text(markdown)
+        } else {
+            self.rendered
+        }
+    }
+}
+
+#[must_use]
+pub fn markdown_to_telegram_markdown_v2(markdown: &str) -> String {
+    MarkdownV2Renderer::new().render(markdown)
 }

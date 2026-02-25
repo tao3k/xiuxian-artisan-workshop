@@ -5,7 +5,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from omni_core_rs import py_chunk_code, py_extract_skeleton, discover_files, should_skip_path
+from omni_core_rs import discover_files, py_chunk_code, py_extract_skeleton, should_skip_path
+
 from omni.foundation.runtime.path_filter import SKIP_DIRS as DEFAULT_SKIP_DIRS
 
 from .config import KnowledgeConfig

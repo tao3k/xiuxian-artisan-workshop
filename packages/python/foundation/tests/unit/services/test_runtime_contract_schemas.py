@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from jsonschema import Draft202012Validator
+
 from omni.foundation.api.schema_locator import resolve_schema_file_path
 
 

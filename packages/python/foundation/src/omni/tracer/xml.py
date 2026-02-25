@@ -32,6 +32,6 @@ def extract_attr(xml: str, tag: str, attr: str) -> str:
 
 __all__ = [
     "escape_xml",
-    "extract_tag",
     "extract_attr",
+    "extract_tag",
 ]

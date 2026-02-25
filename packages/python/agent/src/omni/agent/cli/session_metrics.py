@@ -7,7 +7,7 @@ Path: .cache/omni/session_metrics.json (via get_cache_dir).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +31,7 @@ def write_session_metrics(metrics: dict[str, Any]) -> None:
     path = _metrics_path()
     payload = dict(metrics)
     if "timestamp" not in payload:
-        payload["timestamp"] = datetime.now(timezone.utc).isoformat()
+        payload["timestamp"] = datetime.now(UTC).isoformat()
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 

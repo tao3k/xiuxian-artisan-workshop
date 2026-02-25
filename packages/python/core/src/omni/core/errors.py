@@ -24,7 +24,7 @@ Usage:
 """
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ErrorCategory(str, Enum):
@@ -146,9 +146,9 @@ class OmniError(Exception):
     def __init__(
         self,
         message: str,
-        code: Optional[CoreErrorCode] = None,
+        code: CoreErrorCode | None = None,
         category: ErrorCategory = ErrorCategory.UNKNOWN,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize OmniError.
 
@@ -211,9 +211,9 @@ class ValidationError(OmniError):
     def __init__(
         self,
         message: str,
-        field: Optional[str] = None,
-        value: Optional[Any] = None,
-        details: Optional[dict[str, Any]] = None,
+        field: str | None = None,
+        value: Any | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize ValidationError.
 
@@ -241,8 +241,8 @@ class SecurityError(OmniError):
     def __init__(
         self,
         message: str,
-        check_type: Optional[str] = None,
-        details: Optional[dict[str, Any]] = None,
+        check_type: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize SecurityError.
 
@@ -269,7 +269,7 @@ class ToolNotFoundError(OmniError):
     def __init__(
         self,
         tool_name: str,
-        available_tools: Optional[list[str]] = None,
+        available_tools: list[str] | None = None,
     ):
         """Initialize ToolNotFoundError.
 
@@ -296,9 +296,9 @@ class ToolExecutionError(OmniError):
         self,
         tool_name: str,
         message: str,
-        exit_code: Optional[int] = None,
-        stderr: Optional[str] = None,
-        details: Optional[dict[str, Any]] = None,
+        exit_code: int | None = None,
+        stderr: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize ToolExecutionError.
 
@@ -331,9 +331,9 @@ class OmniCellError(OmniError):
     def __init__(
         self,
         message: str,
-        command: Optional[str] = None,
-        error_type: Optional[str] = None,
-        details: Optional[dict[str, Any]] = None,
+        command: str | None = None,
+        error_type: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize OmniCellError.
 

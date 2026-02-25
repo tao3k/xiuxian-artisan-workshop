@@ -19,6 +19,13 @@ from omni.foundation.config.logging import get_logger
 logger = get_logger("omni.skills.extensions.directory")
 
 
+import importlib.util
+from pathlib import Path
+from typing import Any
+
+from .interfaces import ISkillExtension
+
+
 class DirectoryExtensionLoader:
     """Load extensions from directory."""
 

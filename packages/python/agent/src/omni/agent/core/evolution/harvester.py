@@ -36,7 +36,7 @@ class Harvester:
         self.llm = llm
         self._engine = engine
 
-    async def analyze_session(self, history: list[dict[str, Any]]) -> "CandidateSkill | None":
+    async def analyze_session(self, history: list[dict[str, Any]]) -> CandidateSkill | None:
         """Analyze session history and extract a candidate skill if worthy.
 
         Converts conversation history to ExecutionTrace format and runs process_trace_for_skill.
@@ -95,12 +95,12 @@ class Harvester:
 # Trace-Based Harvesting
 # =============================================================================
 
-from .schemas import CandidateSkill
 from .prompts import SKILL_EXTRACTION_PROMPT
+from .schemas import CandidateSkill
 
 
 async def process_trace_for_skill(
-    trace: "ExecutionTrace",
+    trace: ExecutionTrace,
     llm: InferenceClient | None = None,
 ) -> CandidateSkill | None:
     """
@@ -178,7 +178,7 @@ async def process_trace_for_skill(
         return None
 
 
-def _heuristic_extract(trace: "ExecutionTrace") -> CandidateSkill | None:
+def _heuristic_extract(trace: ExecutionTrace) -> CandidateSkill | None:
     """
     Fallback: Extract skill using heuristics when LLM is unavailable.
 

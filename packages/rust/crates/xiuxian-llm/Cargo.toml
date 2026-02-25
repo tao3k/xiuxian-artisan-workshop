@@ -15,7 +15,7 @@ serde_json = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["rt", "sync", "time"] }
 tracing = { workspace = true }
-redis = { version = "1.0.3", default-features = false, features = ["tokio-comp"] }
+redis = { workspace = true, features = ["tokio-comp"] }
 sha2 = { workspace = true }
 hex = { workspace = true }
 rmcp = { workspace = true }
@@ -26,3 +26,6 @@ axum = { workspace = true }
 
 [lints]
 workspace = true
+
+[lib]
+doctest = false

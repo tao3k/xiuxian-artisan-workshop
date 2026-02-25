@@ -17,14 +17,13 @@ Usage:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from omni.core.skills.variants import get_variant_registry
-
 # Import registry from tools_loader (populated by @skill_command decorator)
 from omni.core.skills.tools_loader import _skill_command_registry
+from omni.core.skills.variants import get_variant_registry
 
 
 # Optional base tool schema path.
@@ -117,7 +116,7 @@ def generate_tool_schemas() -> dict[str, Any]:
         "info": {
             "name": "Omni-Dev-Fusion MCP Tools",
             "version": "1.0.0",
-            "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         },
         "tools": tools,
     }
@@ -329,9 +328,9 @@ def validate_tool_call(tool_name: str, arguments: dict) -> tuple[bool, list[str]
             expected_type = props[field].get("type", "string")
             actual_type = type(value).__name__
 
-            if expected_type == "array" and not isinstance(value, list):
-                errors.append(f"Field '{field}': expected {expected_type}, got {actual_type}")
-            elif expected_type == "object" and not isinstance(value, dict):
+            if (expected_type == "array" and not isinstance(value, list)) or (
+                expected_type == "object" and not isinstance(value, dict)
+            ):
                 errors.append(f"Field '{field}': expected {expected_type}, got {actual_type}")
 
     return len(errors) == 0, errors

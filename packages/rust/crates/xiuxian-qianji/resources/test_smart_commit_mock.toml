@@ -1,0 +1,40 @@
+name = "Test_Smart_Commit"
+
+[[nodes]]
+id = "StageFiles"
+task_type = "command"
+weight = 1.0
+params = { cmd = "echo 'staged_file.rs'", output_key = "staged_files", stop_on_empty_stdout = true }
+
+[[nodes]]
+id = "SecurityScan"
+task_type = "security_scan"
+weight = 1.0
+params = { files_key = "staged_files", output_key = "security_issues", abort_on_violation = false }
+
+[[nodes]]
+id = "UserApproval"
+task_type = "suspend"
+weight = 1.0
+params = { reason = "waiting_for_approval", prompt = "Please review.", resume_key = "final_message" }
+
+[[nodes]]
+id = "ExecuteCommit"
+task_type = "command"
+weight = 1.0
+params = { cmd = "echo 'Commit: {{final_message}}'", output_key = "commit_output" }
+
+[[edges]]
+from = "StageFiles"
+to = "SecurityScan"
+weight = 1.0
+
+[[edges]]
+from = "SecurityScan"
+to = "UserApproval"
+weight = 1.0
+
+[[edges]]
+from = "UserApproval"
+to = "ExecuteCommit"
+weight = 1.0

@@ -11,18 +11,18 @@ Tests core tracing functionality including:
 from __future__ import annotations
 
 import json
+
 import pytest
-from datetime import datetime
 
 from omni.tracer import (
     DispatchMode,
-    StepType,
     ExecutionStep,
-    MemoryPool,
     ExecutionTrace,
     ExecutionTracer,
-    LoggingCallback,
     InMemoryTraceStorage,
+    LoggingCallback,
+    MemoryPool,
+    StepType,
 )
 
 

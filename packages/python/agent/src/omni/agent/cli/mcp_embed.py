@@ -17,6 +17,7 @@ import json
 import logging
 import socket
 import threading
+import time
 from contextlib import suppress
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
@@ -28,12 +29,74 @@ if TYPE_CHECKING:
 PROBE_TIMEOUT_S = 3.0
 # Timeout for actual embed requests.
 REQUEST_TIMEOUT_S = 30.0
+MCP_EMBED_CLIENT_TIMEOUT_S = 5.0
 
 EMBEDDING_HTTP_PORT = 18501
 _MCP_HTTP_EMBED_PATHS = ("/embed", "/embed/batch")
+_MCP_EMBED_TERMINAL_CODES = {
+    "embedding_timeout",
+    "embedding_unavailable",
+    "embedding_overloaded",
+}
+_MCP_EMBED_TERMINAL_MESSAGE_MARKERS = (
+    "embedding timed out",
+    "embedding timeout",
+    "embedding unavailable",
+    "embedding queue saturated",
+    "tool_embedding_timeout",
+)
+_MCP_EMBED_UNAVAILABLE_COOLDOWN_S = 20.0
+_MCP_EMBED_UNAVAILABLE_UNTIL: dict[int, float] = {}
 _SHARED_HTTP_CLIENT = None
 _SHARED_HTTP_CLIENT_LOCK = threading.Lock()
 logger = logging.getLogger("omni.agent.cli.mcp_embed")
+
+
+class McpEmbedUnavailable(RuntimeError):
+    """Raised when MCP is reachable but upstream embedding is unavailable."""
+
+
+def _mcp_embed_unavailable_cooldown_secs() -> float:
+    """Cooldown window after terminal MCP embed failures."""
+    try:
+        from omni.foundation.config.settings import get_setting
+
+        value = get_setting("mcp.embed_unavailable_cooldown_secs")
+    except Exception:
+        value = None
+    try:
+        parsed = float(value) if value is not None else _MCP_EMBED_UNAVAILABLE_COOLDOWN_S
+    except Exception:
+        return _MCP_EMBED_UNAVAILABLE_COOLDOWN_S
+    return parsed if parsed > 0 else _MCP_EMBED_UNAVAILABLE_COOLDOWN_S
+
+
+def _mcp_embed_client_timeout_secs() -> float:
+    """Client timeout budget for MCP embed calls (separate from server-side timeout)."""
+    try:
+        from omni.foundation.config.settings import get_setting
+
+        value = get_setting("mcp.embed_client_timeout_secs")
+    except Exception:
+        value = None
+    try:
+        parsed = float(value) if value is not None else MCP_EMBED_CLIENT_TIMEOUT_S
+    except Exception:
+        return MCP_EMBED_CLIENT_TIMEOUT_S
+    return parsed if parsed > 0 else MCP_EMBED_CLIENT_TIMEOUT_S
+
+
+def _mcp_embed_cooldown_remaining(port: int) -> float:
+    """Seconds remaining before MCP embed should be retried for a port."""
+    until = _MCP_EMBED_UNAVAILABLE_UNTIL.get(port, 0.0)
+    remaining = until - time.monotonic()
+    return remaining if remaining > 0 else 0.0
+
+
+def _mark_mcp_embed_unavailable(port: int) -> None:
+    """Mark MCP embed backend as temporarily unavailable for this port."""
+    cooldown = _mcp_embed_unavailable_cooldown_secs()
+    _MCP_EMBED_UNAVAILABLE_UNTIL[port] = time.monotonic() + cooldown
 
 
 def _get_shared_http_client():
@@ -120,10 +183,70 @@ def _mcp_paths_for_port(port: int) -> tuple[str, ...]:
     return ("/messages/", "/mcp", "/")
 
 
+def _extract_embed_error_code(payload: object) -> str:
+    """Extract lower-cased embedding error code from HTTP/MCP payload."""
+    if not isinstance(payload, dict):
+        return ""
+    direct_code = payload.get("code")
+    if isinstance(direct_code, str):
+        return direct_code.strip().lower()
+    nested = payload.get("error")
+    if isinstance(nested, dict):
+        nested_code = nested.get("code")
+        if isinstance(nested_code, str):
+            return nested_code.strip().lower()
+    return ""
+
+
+def _extract_embed_error_message(payload: object) -> str:
+    """Extract lower-cased embedding error message from HTTP/MCP payload."""
+    if not isinstance(payload, dict):
+        return ""
+    direct_error = payload.get("error")
+    if isinstance(direct_error, str):
+        return direct_error.strip().lower()
+    nested = payload.get("error")
+    if isinstance(nested, dict):
+        nested_message = nested.get("message")
+        if isinstance(nested_message, str):
+            return nested_message.strip().lower()
+    return ""
+
+
+def _is_terminal_embedding_failure(status_code: int, payload: object) -> bool:
+    """Return True when response means MCP embed is reachable but backend unavailable."""
+    code = _extract_embed_error_code(payload)
+    if code in _MCP_EMBED_TERMINAL_CODES:
+        return True
+    message = _extract_embed_error_message(payload)
+    if any(marker in message for marker in _MCP_EMBED_TERMINAL_MESSAGE_MARKERS):
+        return True
+    return status_code in {503, 504} and bool(message)
+
+
+def _is_timeout_exception(exc: Exception) -> bool:
+    """Best-effort timeout classification without hard dependency on httpx types."""
+    class_name = exc.__class__.__name__.lower()
+    if "timeout" in class_name:
+        return True
+    message = str(exc).lower()
+    return "timed out" in message or "timeout" in message
+
+
+def _format_exception(exc: Exception) -> str:
+    """Readable exception text for logs/error messages."""
+    message = str(exc).strip()
+    if message:
+        return message
+    return exc.__class__.__name__
+
+
 async def embed_via_mcp(
     texts: list[str],
     port: int,
     path: str = "/messages/",
+    *,
+    try_http_fast_path: bool = True,
     request_timeout_s: float = REQUEST_TIMEOUT_S,
 ) -> list[list[float]] | None:
     """Get embeddings via MCP server JSON-RPC path.
@@ -131,7 +254,7 @@ async def embed_via_mcp(
     Returns None if the server is unavailable or the response is invalid.
     """
     # Fast path for MCP transports: direct embedding endpoint avoids JSON-RPC tool envelope.
-    if path == "/messages/":
+    if path == "/messages/" and try_http_fast_path:
         vectors = await embed_via_mcp_http(
             texts,
             port=port,
@@ -165,8 +288,15 @@ async def embed_via_mcp(
             headers={"Content-Type": "application/json"},
             timeout=request_timeout_s,
         )
+        payload: object = {}
+        with suppress(Exception):
+            payload = response.json()
+        if _is_terminal_embedding_failure(response.status_code, payload):
+            raise McpEmbedUnavailable(
+                f"status={response.status_code}, code={_extract_embed_error_code(payload) or 'unknown'}"
+            )
         response.raise_for_status()
-        result = response.json()
+        result = payload if isinstance(payload, dict) else response.json()
 
         if result.get("result"):
             content = result["result"].get("content", [])
@@ -176,12 +306,20 @@ async def embed_via_mcp(
                     data = json.loads(text_content)
                     if data.get("success"):
                         return data.get("vectors")
+        if _is_terminal_embedding_failure(response.status_code, result):
+            raise McpEmbedUnavailable(
+                f"status={response.status_code}, code={_extract_embed_error_code(result) or 'unknown'}"
+            )
         logger.debug(
             "MCP embed tool call returned no vectors",
             extra={"port": port, "path": path, "status_code": response.status_code},
         )
         return None
+    except McpEmbedUnavailable:
+        raise
     except Exception as exc:
+        if _is_timeout_exception(exc):
+            raise McpEmbedUnavailable(f"request_timeout: {_format_exception(exc)}") from exc
         logger.debug(
             "MCP embed tool call failed",
             extra={"port": port, "path": path, "error": str(exc), "url": url},
@@ -216,11 +354,22 @@ async def embed_via_mcp_http(
                     )
                     return vectors
             else:
+                payload: object = {}
+                with suppress(Exception):
+                    payload = response.json()
+                if _is_terminal_embedding_failure(response.status_code, payload):
+                    raise McpEmbedUnavailable(
+                        f"status={response.status_code}, code={_extract_embed_error_code(payload) or 'unknown'}"
+                    )
                 logger.debug(
                     "MCP direct embed endpoint not ready",
                     extra={"port": port, "path": path, "status_code": response.status_code},
                 )
+        except McpEmbedUnavailable:
+            raise
         except Exception as exc:
+            if _is_timeout_exception(exc):
+                raise McpEmbedUnavailable(f"request_timeout: {_format_exception(exc)}") from exc
             logger.debug(
                 "MCP direct embed endpoint failed",
                 extra={"port": port, "path": path, "error": str(exc), "url": url},
@@ -359,28 +508,45 @@ def make_mcp_embed_func(port: int) -> Callable[[list[str]], Awaitable[list[list[
     """Return an async embed function that uses MCP or embedding HTTP on the given port, with local fallback."""
 
     async def _embed(texts: list[str]) -> list[list[float]]:
-        if port == EMBEDDING_HTTP_PORT:
-            vectors = await embed_via_http(texts, port)
-            if vectors is not None:
-                return vectors
-        else:
-            vectors = await embed_via_mcp_http(
-                texts,
-                port=port,
-                request_timeout_s=REQUEST_TIMEOUT_S,
-            )
-            if vectors is not None:
-                return vectors
+        from omni.foundation.services.embedding import EmbeddingUnavailableError
 
-            for path in _mcp_paths_for_port(port):
-                vectors = await embed_via_mcp(
+        cooldown_remaining = _mcp_embed_cooldown_remaining(port)
+        if cooldown_remaining > 0 and port != EMBEDDING_HTTP_PORT:
+            raise EmbeddingUnavailableError(
+                f"MCP embedding unavailable on port {port} "
+                f"(cooldown_remaining_secs={cooldown_remaining:.1f})"
+            )
+
+        try:
+            request_timeout_s = _mcp_embed_client_timeout_secs()
+            if port == EMBEDDING_HTTP_PORT:
+                vectors = await embed_via_http(texts, port)
+                if vectors is not None:
+                    return vectors
+            else:
+                vectors = await embed_via_mcp_http(
                     texts,
-                    port,
-                    path=path,
-                    request_timeout_s=REQUEST_TIMEOUT_S,
+                    port=port,
+                    request_timeout_s=request_timeout_s,
                 )
                 if vectors is not None:
                     return vectors
+
+                for path in _mcp_paths_for_port(port):
+                    vectors = await embed_via_mcp(
+                        texts,
+                        port,
+                        path=path,
+                        try_http_fast_path=False,
+                        request_timeout_s=request_timeout_s,
+                    )
+                    if vectors is not None:
+                        return vectors
+        except McpEmbedUnavailable as exc:
+            _mark_mcp_embed_unavailable(port)
+            raise EmbeddingUnavailableError(
+                f"MCP embedding unavailable on port {port}: {exc}"
+            ) from exc
         from omni.foundation.services.embedding import get_embedding_service
 
         loop = asyncio.get_running_loop()

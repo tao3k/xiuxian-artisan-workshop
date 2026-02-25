@@ -131,11 +131,12 @@ def skill_list(
     Uses Rust DB (LanceDB) only - no filesystem scan, no kernel/sniffer/watcher init.
     Use --json to get machine-readable output. Run 'omni sync' first if index is empty.
     """
-    from rich.tree import Tree
     from rich.text import Text
-    from omni.core.config.loader import load_command_overrides, is_filtered
-    from omni.foundation.config.skills import SKILLS_DIR
+    from rich.tree import Tree
+
+    from omni.core.config.loader import is_filtered, load_command_overrides
     from omni.foundation.bridge import RustVectorStore
+    from omni.foundation.config.skills import SKILLS_DIR
 
     # Light path: list_all_tools reads from LanceDB (fast); avoid get_skill_index_sync (filesystem scan can hang)
     skills_dir = SKILLS_DIR()
@@ -352,10 +353,9 @@ def skill_schema(
 
     Displays the MCP Tool Schema including parameters, annotations, and variants.
     """
-    from omni.core.skills.schema_gen import generate_tool_schemas
-
     # Load all skills first to register their commands
     from omni.core.kernel import get_kernel
+    from omni.core.skills.schema_gen import generate_tool_schemas
 
     kernel = get_kernel()
 
@@ -408,8 +408,6 @@ def skill_schema(
         return
 
     # Pretty print the schema
-    from rich.json import JSON
-    from rich.columns import Columns
 
     err_console.print(Panel(f"[bold]Tool Schema: {tool_schema.get('name', '')}[/]", style="cyan"))
 

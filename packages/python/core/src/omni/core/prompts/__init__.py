@@ -49,7 +49,7 @@ def inject_prompt(content: str, category: str = "custom", **kwargs) -> str:
 def load_prompt(
     path: str,
     category: str = "custom",
-    tag: Optional[str] = None,
+    tag: str | None = None,
     encoding: str = "utf-8",
 ) -> str:
     """Load a prompt from a file and inject it.
@@ -116,9 +116,9 @@ def load_and_merge(
 
 
 __all__ = [
+    "PROMPT_TAGS",
     "inject_prompt",
+    "load_and_merge",
     "load_prompt",
     "merge_prompts",
-    "load_and_merge",
-    "PROMPT_TAGS",
 ]

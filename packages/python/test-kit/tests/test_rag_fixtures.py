@@ -81,7 +81,6 @@ class TestRAGFixturesDemo:
         self, rag_graph_extractor, sample_text_for_entity_extraction
     ):
         """Test entity extraction using fixtures."""
-        import asyncio
 
         extractor = rag_graph_extractor
         # Note: This would need async test in real scenario

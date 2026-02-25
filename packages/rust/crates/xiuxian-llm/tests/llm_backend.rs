@@ -24,6 +24,26 @@ fn parse_llm_backend_kind_supports_http_aliases() {
         parse_llm_backend_kind(Some("openai-compatible")),
         Some(LlmBackendKind::OpenAiCompatibleHttp)
     );
+    assert_eq!(
+        parse_llm_backend_kind(Some("openai_http")),
+        Some(LlmBackendKind::OpenAiCompatibleHttp)
+    );
+}
+
+#[test]
+fn parse_llm_backend_kind_supports_mistral_aliases() {
+    assert_eq!(
+        parse_llm_backend_kind(Some("mistral_server")),
+        Some(LlmBackendKind::MistralLocal)
+    );
+    assert_eq!(
+        parse_llm_backend_kind(Some("mistral_local")),
+        Some(LlmBackendKind::MistralLocal)
+    );
+    assert_eq!(
+        parse_llm_backend_kind(Some("mistral-rs")),
+        Some(LlmBackendKind::MistralLocal)
+    );
 }
 
 #[test]

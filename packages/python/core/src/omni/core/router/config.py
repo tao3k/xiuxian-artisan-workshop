@@ -67,7 +67,7 @@ class RouterConfidenceProfile(BaseModel):
     low_floor: float = Field(0.10, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
-    def _validate_profile(self) -> "RouterConfidenceProfile":
+    def _validate_profile(self) -> RouterConfidenceProfile:
         if self.high_threshold < self.medium_threshold:
             raise ValueError("profile.high_threshold must be >= profile.medium_threshold")
         if self.high_cap < self.high_base:
@@ -132,7 +132,7 @@ class RouterSearchConfig(BaseModel):
     adaptive_max_attempts: int = Field(3, ge=1)
 
     @model_validator(mode="after")
-    def _validate_threshold_order(self) -> "RouterSearchConfig":
+    def _validate_threshold_order(self) -> RouterSearchConfig:
         if not self.profiles:
             raise ValueError("router.search.profiles must not be empty")
         if self.active_profile not in self.profiles:

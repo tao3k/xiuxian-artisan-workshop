@@ -8,6 +8,7 @@ Verifies:
 """
 
 import asyncio
+
 import pytest
 
 from omni.core.skills.discovery import (
@@ -273,6 +274,7 @@ class TestSkillQueryCommand:
     def test_skill_query_function_signature(self):
         """Test skill_query function has expected parameters."""
         import inspect
+
         from omni.agent.cli.commands.skill.query import skill_query
 
         sig = inspect.signature(skill_query)
@@ -323,6 +325,7 @@ class TestSkillQueryCommand:
     def test_json_output_can_be_constructed(self):
         """Test that JSON output can be constructed from search results."""
         import json
+
         from omni.core.skills.discovery import SkillDiscoveryService
 
         service = SkillDiscoveryService()

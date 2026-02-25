@@ -12,16 +12,14 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from omni.foundation.utils.asyncio import run_async_blocking
-
 from omni.agent.services.reindex import (
-    ensure_embedding_index_compatibility,
     reindex_all,
     reindex_clear,
     reindex_knowledge,
     reindex_skills_only,
     reindex_status,
 )
+from omni.foundation.utils.asyncio import run_async_blocking
 
 reindex_app = typer.Typer(
     name="reindex",
@@ -199,6 +197,6 @@ def register_reindex_command(parent_app: typer.Typer) -> None:
 
 
 __all__ = [
-    "reindex_app",
     "register_reindex_command",
+    "reindex_app",
 ]

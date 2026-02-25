@@ -10,16 +10,17 @@ Architecture:
 5. Output Compression - Prevent context overflow
 """
 
-import re
-import json
 import hashlib
-from typing import Any, Dict, List, Set, Optional
+import json
+import re
+from typing import Any
+
 from pydantic import BaseModel
 
-from omni.foundation.services.llm import InferenceClient
 from omni.foundation.config.logging import get_logger
+from omni.foundation.services.llm import InferenceClient
 
-from .logging import log_completion, log_result, log_step, log_llm_response
+from .logging import log_completion, log_llm_response, log_result, log_step
 
 logger = get_logger("omni.agent.react")
 
@@ -33,8 +34,8 @@ class ValidationResult(BaseModel):
     """Result of parameter validation."""
 
     is_valid: bool
-    error_message: Optional[str] = None
-    cleaned_args: Optional[Dict[str, Any]] = None
+    error_message: str | None = None
+    cleaned_args: dict[str, Any] | None = None
 
 
 class OutputCompressor:
@@ -60,7 +61,7 @@ class ArgumentValidator:
     """Static Guard: Validates arguments against JSON schema before execution."""
 
     @staticmethod
-    def validate(schema: Dict[str, Any], args: Dict[str, Any]) -> ValidationResult:
+    def validate(schema: dict[str, Any], args: dict[str, Any]) -> ValidationResult:
         """
         Lightweight validation against JSON schema (parameters).
         Checks for required fields and basic types.
@@ -143,7 +144,7 @@ class ToolCallParser:
                             tool_calls.append({"name": name, "input": args})
 
                 # Extract text content if present
-                if "content" in data and data["content"]:
+                if data.get("content"):
                     text_parts.append(data["content"].strip())
 
                 if tool_calls:
@@ -344,7 +345,7 @@ class OmniReplExecutor:
                 else:
                     results.append(f"[{tool_name}] Error: {response.error_message}")
             except Exception as e:
-                results.append(f"[{tool_name}] Error: {str(e)}")
+                results.append(f"[{tool_name}] Error: {e!s}")
 
         return True, "\n\n".join(results)
 
@@ -391,8 +392,8 @@ class ResilientReAct:
         # State tracking
         self.step_count = 0
         self.tool_calls_count = 0
-        self._tool_hash_history: Set[str] = set()
-        self._tool_schema_cache: Dict[str, Dict[str, Any]] = {}
+        self._tool_hash_history: set[str] = set()
+        self._tool_schema_cache: dict[str, dict[str, Any]] = {}
 
         # Omni REPL executor for models without native tool calling
         self._repl_executor = OmniReplExecutor()
@@ -407,7 +408,7 @@ class ResilientReAct:
         self,
         task: str,
         system_prompt: str,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
     ) -> str:
         """Execute the ResilientReAct workflow."""
         tools = await self._load_schemas()
@@ -500,7 +501,7 @@ class ResilientReAct:
                             is_error = False
                             consecutive_errors = 0  # Reset on success
                         except Exception as e:
-                            result = f"Runtime Error: {str(e)}"
+                            result = f"Runtime Error: {e!s}"
                             is_error = True
                             consecutive_errors += 1
 
@@ -526,7 +527,7 @@ class ResilientReAct:
 
         return response_content
 
-    def _compute_tool_hash(self, name: str, args: Dict) -> str:
+    def _compute_tool_hash(self, name: str, args: dict) -> str:
         """Computes a stable hash for loop detection using MD5."""
         s = f"{name}:{json.dumps(args, sort_keys=True)}"
         return hashlib.md5(s.encode()).hexdigest()
@@ -555,7 +556,7 @@ class ResilientReAct:
         prefix = "Error" if is_error else "Result"
         return f"[Tool: {name}] {prefix}: {result}"
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get workflow statistics."""
         return {
             "step_count": self.step_count,

@@ -1,7 +1,9 @@
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
+use xiuxian_llm::mistral::ManagedMistralServer;
 
 use crate::agent::Agent;
 use crate::embedding::EmbeddingClient;
@@ -40,6 +42,7 @@ pub struct GatewayState {
 pub struct GatewayEmbeddingRuntime {
     pub client: Arc<EmbeddingClient>,
     pub default_model: Option<String>,
+    pub managed_mistral_server: Option<Arc<Mutex<ManagedMistralServer>>>,
 }
 
 #[derive(Debug, Deserialize)]

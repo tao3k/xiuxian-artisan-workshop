@@ -18,14 +18,13 @@ from unittest.mock import patch
 import pytest
 
 from omni.foundation.bridge.rust_vector import (
-    RUST_AVAILABLE,
     _DEFAULT_INDEX_CACHE_BYTES,
     _DEFAULT_MAX_CACHED_TABLES,
+    RUST_AVAILABLE,
     RustVectorStore,
     get_vector_store,
 )
 from omni.foundation.services.vector import VectorStoreClient
-
 
 # Safe upper bounds for defaults (regression: do not exceed without explicit review)
 MAX_ACCEPTABLE_INDEX_CACHE_BYTES = 512 * 1024 * 1024  # 512 MiB

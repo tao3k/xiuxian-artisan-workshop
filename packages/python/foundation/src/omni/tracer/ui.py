@@ -21,18 +21,18 @@ Usage:
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any, AsyncGenerator
+from typing import Any
 
+from rich import box
+from rich.align import Align
 from rich.console import Console
-from rich.theme import Theme
-from rich.text import Text
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
-from rich import box
-from rich.markup import escape
-from rich.columns import Columns
-from rich.align import Align
+from rich.text import Text
+from rich.theme import Theme
 
 # UltraRAG-inspired theme
 THEME = Theme(
@@ -284,7 +284,7 @@ class TracedExecution:
         self._step_count = 0
         self._thinking_count = 0
 
-    async def __aenter__(self) -> "TracedExecution":
+    async def __aenter__(self) -> TracedExecution:
         """Enter context manager."""
         self._start_time = datetime.now()
         self.trace_id = self.trace_id or f"trace_{self._start_time.strftime('%Y%m%d_%H%M%S')}"
@@ -511,7 +511,7 @@ async def traced(
     trace_id: str | None = None,
     user_query: str | None = None,
     stream: bool = True,
-) -> AsyncGenerator[TracedExecution, None]:
+) -> AsyncGenerator[TracedExecution]:
     """Quick context manager for traced execution.
 
     Usage:
@@ -525,18 +525,18 @@ async def traced(
 
 
 __all__ = [
-    "console",
     "TracedExecution",
-    "traced",
+    "console",
+    "print_error",
+    "print_execution_path",
     "print_header",
-    "print_step_start",
-    "print_step_end",
-    "print_thinking",
+    "print_info",
     "print_memory",
     "print_param",
-    "print_error",
+    "print_step_end",
+    "print_step_start",
     "print_success",
-    "print_info",
+    "print_thinking",
     "print_trace_summary",
-    "print_execution_path",
+    "traced",
 ]

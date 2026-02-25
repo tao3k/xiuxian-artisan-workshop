@@ -9,8 +9,7 @@ Supports dynamic prompt registration for 10,000+ skills.
 
 from __future__ import annotations
 
-from typing import Any, Callable
-
+from collections.abc import Callable
 
 PROMPTS: dict[str, dict[str, str]] = {
     "default": {

@@ -1,13 +1,13 @@
 """Tests for sys_query (Project Cerebellum) in omni_cell.py."""
 
-import json
+from unittest.mock import patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from omni.core.skills.runtime.omni_cell import (
-    OmniCellRunner,
     ActionType,
+    OmniCellRunner,
 )
 
 

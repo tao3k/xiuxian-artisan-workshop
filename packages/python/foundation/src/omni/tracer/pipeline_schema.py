@@ -12,6 +12,7 @@ from typing import Any, TypedDict
 import yaml
 
 from omni.foundation.config.logging import get_logger
+
 from .pipeline_json_schema import validate_pipeline_schema, validate_pipeline_tool_contracts
 
 logger = get_logger("omni.tracer.pipeline")
@@ -111,7 +112,7 @@ class PipelineConfig:
     runtime: PipelineRuntimeConfig = field(default_factory=PipelineRuntimeConfig)
 
     @classmethod
-    def from_yaml(cls, path: str | Path) -> "PipelineConfig":
+    def from_yaml(cls, path: str | Path) -> PipelineConfig:
         """Load pipeline from YAML file."""
         path = Path(path) if isinstance(path, str) else path
 
@@ -378,16 +379,16 @@ class PipelineConfig:
 
 
 __all__ = [
-    "PipelineState",
-    "Segment",
-    "StepConfig",
-    "LoopConfig",
     "BranchConfig",
     "CheckpointerRuntimeConfig",
     "InvokerRuntimeConfig",
-    "RetrievalRuntimeConfig",
-    "TracerRuntimeConfig",
-    "StateRuntimeConfig",
-    "PipelineRuntimeConfig",
+    "LoopConfig",
     "PipelineConfig",
+    "PipelineRuntimeConfig",
+    "PipelineState",
+    "RetrievalRuntimeConfig",
+    "Segment",
+    "StateRuntimeConfig",
+    "StepConfig",
+    "TracerRuntimeConfig",
 ]

@@ -16,10 +16,10 @@ Usage:
 
 from __future__ import annotations
 
-import structlog
-from pathlib import Path
 from functools import lru_cache
-from typing import Dict, Optional
+from pathlib import Path
+
+import structlog
 
 from omni.foundation.config.paths import get_config_paths
 from omni.foundation.config.settings import get_setting
@@ -97,7 +97,7 @@ class PromptLoader:
             return ""
 
     @staticmethod
-    def load_rendered(name: str, variables: Dict[str, str]) -> str:
+    def load_rendered(name: str, variables: dict[str, str]) -> str:
         """
         Load a prompt and render it with variables.
 

@@ -104,7 +104,8 @@ in
   # };
 
   enterShell = ''
-    export PATH="$PATH:"$DEVENV_ROOT"/.venv/bin"
+    export PATH="$PATH:$DEVENV_ROOT/.venv/bin"
+    export OLLAMA_MODELS="''${OLLAMA_MODELS:-''${PRJ_DATA_HOME:-$DEVENV_ROOT/.data}/models}"
   '';
   # https://devenv.sh/tests/
   enterTest = "";

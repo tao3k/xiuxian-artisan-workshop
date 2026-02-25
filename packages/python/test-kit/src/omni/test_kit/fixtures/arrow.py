@@ -7,6 +7,7 @@ and any Arrow IPC stream produced by the Rust bindings (TableHealthReport → Re
 from __future__ import annotations
 
 import io
+
 import pyarrow as pa
 import pyarrow.ipc as ipc
 
@@ -91,8 +92,8 @@ def assert_table_health_ipc_table(table: pa.Table) -> None:
 
 __all__ = [
     "TABLE_HEALTH_IPC_COLUMNS",
-    "table_health_ipc_schema",
-    "make_table_health_ipc_bytes",
-    "decode_table_health_ipc_bytes",
     "assert_table_health_ipc_table",
+    "decode_table_health_ipc_bytes",
+    "make_table_health_ipc_bytes",
+    "table_health_ipc_schema",
 ]

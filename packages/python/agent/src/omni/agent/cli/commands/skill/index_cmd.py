@@ -9,7 +9,6 @@ Data is stored in LanceDB (.cache/omni-vector/).
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import typer
 from rich.panel import Panel
@@ -110,7 +109,6 @@ def skill_sync(
         omni skill sync --dry-run   # Preview changes without applying
     """
     import logging
-    from pathlib import Path
 
     # Suppress verbose logging by default
     if not verbose:

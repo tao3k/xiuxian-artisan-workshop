@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 import json
+from functools import lru_cache
 from typing import Any, Literal
 
 from jsonschema import Draft202012Validator
+
 from ..api.schema_provider import get_schema
 
 HYBRID_SCHEMA_V1 = "omni.vector.hybrid.v1"
@@ -86,7 +87,7 @@ class HybridPayload(BaseModel):
         keyword_score: Any | None = None,
     ) -> list[HybridPayload]:
         """Build list of HybridPayload from Arrow columns (no JSON parse)."""
-        import pyarrow as pa  # noqa: PLC0415
+        import pyarrow as pa
 
         def _arr(x: Any) -> pa.Array:
             return x.combine_chunks() if isinstance(x, pa.ChunkedArray) else x
@@ -195,7 +196,7 @@ class VectorPayload(BaseModel):
         Table must have columns: id, content, _distance, metadata (Utf8).
         Optional: tool_name, file_path, routing_keywords, intents.
         """
-        import pyarrow as pa  # noqa: PLC0415
+        import pyarrow as pa
 
         if table.num_rows == 0:
             return []
@@ -337,7 +338,8 @@ class ToolSearchPayload(BaseModel):
         input_schema, skill_name, category when not provided as columns.
         """
         import math
-        import pyarrow as pa  # noqa: PLC0415
+
+        import pyarrow as pa
 
         def _arr(x: Any) -> pa.Array:
             return x.combine_chunks() if isinstance(x, pa.ChunkedArray) else x
@@ -900,9 +902,9 @@ __all__ = [
     "ToolRouterPayload",
     "ToolRouterResult",
     "ToolSearchPayload",
-    "build_tool_router_result",
     "VectorPayload",
     "build_search_options_json",
+    "build_tool_router_result",
     "get_search_options_schema",
     "parse_hybrid_payload",
     "parse_tool_router_result",

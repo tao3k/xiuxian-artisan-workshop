@@ -43,9 +43,8 @@ from typing import Any
 
 from mcp.types import Tool
 
-from omni.foundation.config.logging import get_logger
-from omni.core.context.tools import ToolContextBuilder
 from omni.core.skills.registry.holographic import HolographicRegistry, ToolMetadata
+from omni.foundation.config.logging import get_logger
 
 logger = get_logger(__name__)
 

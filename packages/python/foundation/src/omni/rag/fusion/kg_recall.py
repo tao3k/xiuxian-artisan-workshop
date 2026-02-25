@@ -14,7 +14,6 @@ from typing import Any
 
 from ._config import _load_kg, logger
 
-
 # Base boost per KG entity match in a recall result's source
 KG_RECALL_ENTITY_BOOST = 0.06
 

@@ -2,10 +2,12 @@
 Unit tests for Alias/Override awareness in OmniLoop
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from omni.agent.core.omni.loop import OmniLoop
+
 from omni.agent.core.omni.config import OmniLoopConfig
+from omni.agent.core.omni.loop import OmniLoop
 from omni.core.config.loader import CommandOverride, OverridesConfig
 
 

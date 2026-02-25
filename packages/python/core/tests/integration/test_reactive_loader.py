@@ -11,24 +11,21 @@ Note: Uses unique LanceDB paths per test to ensure isolation.
 
 from __future__ import annotations
 
-import hashlib
 import uuid
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
 
+from omni.core.kernel.watcher import FileChangeEvent, FileChangeType, ReactiveSkillWatcher
 from omni.core.skills.indexer import SkillIndexer
 from omni.core.skills.registry.holographic import ToolMetadata
-from omni.core.kernel.watcher import ReactiveSkillWatcher, FileChangeType, FileChangeEvent
 
 
 def _unique_db_path() -> str:
     """Generate a unique LanceDB path for test isolation."""
     import tempfile
-    import os
 
     # Create unique temp directory
     temp_dir = tempfile.mkdtemp(prefix=f"omni_test_{uuid.uuid4().hex[:8]}_")

@@ -41,7 +41,7 @@ class SystemPersonaProvider(ContextProvider):
         if self._knowledge_content is None:
             # Try to use settings, fall back to default path
             try:
-                from omni.foundation.config import get_setting, get_config_paths
+                from omni.foundation.config import get_config_paths, get_setting
 
                 prompt_path = get_setting("prompts.system_core") or get_setting(
                     "prompts.core_path", "assets/prompts/system_core.md"
@@ -140,10 +140,9 @@ class AvailableToolsProvider(ContextProvider):
 
         # Fallback: Load tools index (lazy)
         if self._index is None:
-            from omni.core.skills.index_loader import SkillIndexLoader
-
             # [FIX] Import is_filtered for pattern-based filtering
             from omni.core.config.loader import is_filtered
+            from omni.core.skills.index_loader import SkillIndexLoader
 
             loader = SkillIndexLoader()
             # Must call _ensure_loaded() to populate _metadata_map

@@ -2,7 +2,6 @@
 Unit tests for omni.foundation.utils.formatting
 """
 
-import pytest
 from omni.foundation.utils.formatting import one_line_preview, sanitize_tool_args
 
 

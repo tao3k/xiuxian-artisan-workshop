@@ -11,7 +11,6 @@ Tests the core hot reload functionality for skills including:
 
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest

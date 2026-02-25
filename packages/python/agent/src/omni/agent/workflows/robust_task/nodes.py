@@ -1,14 +1,14 @@
-import re
 import json
-import asyncio
 import logging
-from typing import Any, Dict, List, Optional
-from .state import RobustTaskState, Step
-from .prompts import CLARIFICATION_PROMPT, PLANNING_PROMPT, EXECUTION_PROMPT, VALIDATION_PROMPT
-from .utils import parse_xml_tag, parse_xml_steps, extract_json_from_action, map_action_data
+import re
+from typing import Any
 
-from omni.foundation.services.llm.client import InferenceClient
 from omni.core.kernel import get_kernel
+from omni.foundation.services.llm.client import InferenceClient
+
+from .prompts import CLARIFICATION_PROMPT, EXECUTION_PROMPT, PLANNING_PROMPT, VALIDATION_PROMPT
+from .state import RobustTaskState
+from .utils import extract_json_from_action, map_action_data, parse_xml_steps, parse_xml_tag
 
 logger = logging.getLogger("omni.agent.workflows")
 
@@ -50,10 +50,10 @@ async def call_llm(prompt: str, system: str = "You are a helpful assistant.") ->
         else:
             return f"<error>{result['error']}</error>"
     except Exception as e:
-        return f"<error>{str(e)}</error>"
+        return f"<error>{e!s}</error>"
 
 
-def record_event(type: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+def record_event(type: str, data: dict[str, Any]) -> list[dict[str, Any]]:
     """Helper to create a trace event."""
     return [{"type": type, "data": data}]
 
@@ -67,7 +67,7 @@ async def get_skill_documentation(skill_name: str) -> str:
     return "No detailed documentation available."
 
 
-async def discovery_node(state: RobustTaskState) -> Dict[str, Any]:
+async def discovery_node(state: RobustTaskState) -> dict[str, Any]:
     """
     Enhanced Discovery Node - Performs Intent Normalization, Multi-source Recall,
     and Skill Documentation Deep-Dive.
@@ -183,7 +183,7 @@ async def discovery_node(state: RobustTaskState) -> Dict[str, Any]:
     }
 
 
-def format_tools_for_prompt(tools: List[Dict[str, Any]]) -> str:
+def format_tools_for_prompt(tools: list[dict[str, Any]]) -> str:
     """Format discovered_tools for LLM consumption (Compact + Score + Detailed Docs)."""
     lines = []
     for t in tools:
@@ -204,7 +204,7 @@ def format_tools_for_prompt(tools: List[Dict[str, Any]]) -> str:
     return "\n\n".join(lines)
 
 
-async def clarify_node(state: RobustTaskState) -> Dict[str, Any]:
+async def clarify_node(state: RobustTaskState) -> dict[str, Any]:
     # print("--- Clarify Node ---")
 
     tools_str = format_tools_for_prompt(state.get("discovered_tools", []))
@@ -304,7 +304,7 @@ async def clarify_node(state: RobustTaskState) -> Dict[str, Any]:
         }
 
 
-async def plan_node(state: RobustTaskState) -> Dict[str, Any]:
+async def plan_node(state: RobustTaskState) -> dict[str, Any]:
     # print("--- Plan Node ---")
 
     tools_str = format_tools_for_prompt(state.get("discovered_tools", []))
@@ -393,9 +393,9 @@ async def plan_node(state: RobustTaskState) -> Dict[str, Any]:
     }
 
 
-async def execute_node(state: RobustTaskState) -> Dict[str, Any]:
+async def execute_node(state: RobustTaskState) -> dict[str, Any]:
     """Execute a step with OmniCell kernel awareness."""
-    logger.info(f"[GRAPH] ================================================")
+    logger.info("[GRAPH] ================================================")
     goal = state.get("clarified_goal", "unknown")
     logger.info(f"[GRAPH] Executing step for goal: {str(goal)[:100]}")
 
@@ -485,7 +485,7 @@ IMPORTANT: DO NOT use $in variable. Use simple file paths instead.
 
                 # [KERNEL] Check for intrinsic OmniCell tools
                 if tool_name in ("sys_query", "sys_exec"):
-                    from omni.core.skills.runtime.omni_cell import OmniCellRunner, ActionType
+                    from omni.core.skills.runtime.omni_cell import ActionType, OmniCellRunner
 
                     logger.info(f"[KERNEL] Intrinsic tool detected: {tool_name}")
                     logger.info(f"[KERNEL] {tool_name} args: {tool_args}")
@@ -535,13 +535,13 @@ IMPORTANT: DO NOT use $in variable. Use simple file paths instead.
                     try:
                         # Kernel execute_tool expects args as dict
                         tool_output = await kernel.execute_tool(tool_name, tool_args)
-                        execution_result = f"Tool {tool_name} Output: {str(tool_output)}"
+                        execution_result = f"Tool {tool_name} Output: {tool_output!s}"
                         logger.info(f"[GRAPH] {tool_name} result: {str(tool_output)[:200]}...")
                         trace.extend(
                             record_event("tool_call_end", {"tool": tool_name, "status": "success"})
                         )
                     except Exception as e:
-                        execution_result = f"Tool Execution Failed: {str(e)}"
+                        execution_result = f"Tool Execution Failed: {e!s}"
                         logger.error(f"[GRAPH] {tool_name} failed: {e}")
                         trace.extend(
                             record_event(
@@ -580,13 +580,13 @@ def check_execution_progress(state: RobustTaskState) -> str:
     return "continue"
 
 
-def advance_step(state: RobustTaskState) -> Dict[str, Any]:
+def advance_step(state: RobustTaskState) -> dict[str, Any]:
     plan = state["plan"]
     plan["current_step_index"] += 1
     return {"plan": plan}
 
 
-async def validate_node(state: RobustTaskState) -> Dict[str, Any]:
+async def validate_node(state: RobustTaskState) -> dict[str, Any]:
     # print("--- Validate Node ---")
     prompt = VALIDATION_PROMPT.format(
         goal=state["clarified_goal"], history="\n".join(state["execution_history"])
@@ -623,8 +623,8 @@ async def validate_node(state: RobustTaskState) -> Dict[str, Any]:
     if should_store:
         try:
             from omni.agent.core.memory.hippocampus import (
-                get_hippocampus,
                 create_hippocampus_trace,
+                get_hippocampus,
             )
 
             hippocampus = get_hippocampus()
@@ -662,7 +662,7 @@ async def validate_node(state: RobustTaskState) -> Dict[str, Any]:
     }
 
 
-async def summary_node(state: RobustTaskState) -> Dict[str, Any]:
+async def summary_node(state: RobustTaskState) -> dict[str, Any]:
     """Generate a final Markdown summary of the session."""
     # print("--- Summary Node ---")
 

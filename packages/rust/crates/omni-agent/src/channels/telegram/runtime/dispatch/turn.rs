@@ -90,4 +90,28 @@ pub(super) async fn process_foreground_message(
         Ok(()) => tracing::info!(r#"→ Bot: "{preview}""#, preview = log_preview(&reply)),
         Err(error) => tracing::error!("Failed to send foreground reply: {error}"),
     }
+
+    // Trigger Wendao sync asynchronously if binary is available
+    if let Ok(wendao_bin) = std::env::var("WENDAO_BIN") {
+        tokio::spawn(async move {
+            match tokio::process::Command::new(wendao_bin)
+                .arg("sync")
+                .output()
+                .await
+            {
+                Ok(output) if output.status.success() => {
+                    tracing::debug!("Wendao automatic incremental sync succeeded");
+                }
+                Ok(output) => {
+                    tracing::warn!(
+                        "Wendao automatic sync failed with status: {}",
+                        output.status
+                    );
+                }
+                Err(error) => {
+                    tracing::warn!("Failed to trigger Wendao automatic sync: {error}");
+                }
+            }
+        });
+    }
 }

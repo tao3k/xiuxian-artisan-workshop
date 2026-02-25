@@ -59,7 +59,7 @@ class RetrievalBackend(Protocol):
 
 
 __all__ = [
-    "RetrievalResult",
-    "RetrievalConfig",
     "RetrievalBackend",
+    "RetrievalConfig",
+    "RetrievalResult",
 ]

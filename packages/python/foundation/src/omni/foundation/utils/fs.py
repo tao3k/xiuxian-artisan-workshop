@@ -5,8 +5,8 @@ Provides filesystem-related utility functions.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 
 def find_markdown_files(directory: str) -> list[str]:
@@ -65,6 +65,6 @@ def find_files_by_extension(directory: str, extensions: Sequence[str]) -> list[s
 
 
 __all__ = [
-    "find_markdown_files",
     "find_files_by_extension",
+    "find_markdown_files",
 ]

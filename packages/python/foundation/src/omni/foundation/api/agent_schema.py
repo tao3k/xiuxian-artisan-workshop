@@ -6,12 +6,11 @@ Load, validate, and build payloads for GET /sse and /mcp responses.
 
 from __future__ import annotations
 
-import json
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
+
 from .schema_provider import get_schema
 
 # SSOT: omni.agent.server_info.v1
@@ -58,12 +57,12 @@ def build_server_info(
 
 
 __all__ = [
-    "SCHEMA_NAME",
-    "NAME_KEY",
-    "VERSION_KEY",
-    "PROTOCOL_VERSION_KEY",
     "MESSAGE_KEY",
+    "NAME_KEY",
+    "PROTOCOL_VERSION_KEY",
+    "SCHEMA_NAME",
+    "VERSION_KEY",
+    "build_server_info",
     "get_validator",
     "validate",
-    "build_server_info",
 ]

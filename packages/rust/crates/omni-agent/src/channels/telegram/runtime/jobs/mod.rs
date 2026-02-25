@@ -2,7 +2,7 @@ mod api;
 mod background_completion;
 mod command_handlers;
 mod command_router;
-mod observability;
+pub(crate) mod observability;
 mod replies;
 
 #[allow(unused_imports)]

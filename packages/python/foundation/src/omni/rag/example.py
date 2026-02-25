@@ -5,7 +5,6 @@ Quick examples for using the RAG integration in Omni skills.
 """
 
 import asyncio
-from pathlib import Path
 
 from omni.rag import create_rag_adapter
 

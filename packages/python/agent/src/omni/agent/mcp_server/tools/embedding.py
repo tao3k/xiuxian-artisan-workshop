@@ -65,7 +65,7 @@ def register_embedding_tools(app: Server) -> None:
 
         except Exception as e:
             logger.error(f"embed_texts failed: {e}")
-            return [TextContent(type="text", text=f"Error: {str(e)}")]
+            return [TextContent(type="text", text=f"Error: {e!s}")]
 
     @app.call_tool()
     async def embed_single(arguments: dict) -> list[Any]:
@@ -102,7 +102,7 @@ def register_embedding_tools(app: Server) -> None:
 
         except Exception as e:
             logger.error(f"embed_single failed: {e}")
-            return [TextContent(type="text", text=f"Error: {str(e)}")]
+            return [TextContent(type="text", text=f"Error: {e!s}")]
 
     logger.info("📦 Embedding tools registered (embed_texts, embed_single)")
 

@@ -36,7 +36,7 @@ def test_parse_turn_signals_extracts_plan_decision_feedback_and_flags() -> None:
         'event="agent.memory.embedding.timeout_fallback_hash"',
         'event="agent.memory.embedding.cooldown_fallback_hash"',
         'event="agent.memory.embedding.unavailable_fallback_hash"',
-        'tools/call: Mcp error',
+        "tools/call: Mcp error",
         "→ Bot: benchmark reply line",
     ]
 

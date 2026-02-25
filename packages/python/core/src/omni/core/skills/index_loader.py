@@ -9,10 +9,7 @@ Python 3.12+ Features:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from typing import Any
 
 from omni.foundation.config.logging import get_logger
 
@@ -38,7 +35,6 @@ class SkillIndexLoader:
             return
 
         try:
-            import asyncio
             from omni.foundation.bridge import RustVectorStore
 
             store = RustVectorStore()

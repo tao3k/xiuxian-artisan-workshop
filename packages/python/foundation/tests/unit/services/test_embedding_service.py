@@ -8,10 +8,11 @@ Tests cover:
 - Singleton behavior
 """
 
-import pytest
 import socket
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestEmbeddingServicePortDetection:
@@ -402,28 +403,28 @@ class TestEmbeddingServiceLazyLoad:
         """When provider=client, _auto_detect_and_init runs health check; if healthy, uses client mode."""
         from omni.foundation.services.embedding import EmbeddingService
 
-        with patch.object(
-            EmbeddingService, "_check_http_server_healthy", return_value=True
-        ) as mock_health:
-            with patch.object(
-                EmbeddingService, "_verify_embedding_service_works", return_value=True
-            ):
-                with patch("omni.foundation.services.embedding.get_setting") as mock_setting:
-                    mock_setting.side_effect = lambda key, default=None: {
-                        "embedding.provider": "client",
-                        "embedding.client_url": "http://127.0.0.1:18501",
-                        "embedding.http_port": 18501,
-                        "embedding.dimension": 1024,
-                    }.get(key, default)
+        with (
+            patch.object(
+                EmbeddingService, "_check_http_server_healthy", return_value=True
+            ) as mock_health,
+            patch.object(EmbeddingService, "_verify_embedding_service_works", return_value=True),
+            patch("omni.foundation.services.embedding.get_setting") as mock_setting,
+        ):
+            mock_setting.side_effect = lambda key, default=None: {
+                "embedding.provider": "client",
+                "embedding.client_url": "http://127.0.0.1:18501",
+                "embedding.http_port": 18501,
+                "embedding.dimension": 1024,
+            }.get(key, default)
 
-                    service = EmbeddingService()
-                    with patch.object(service, "_embed_http", return_value=[[0.1] * 1024]):
-                        service.embed("test")
+            service = EmbeddingService()
+            with patch.object(service, "_embed_http", return_value=[[0.1] * 1024]):
+                service.embed("test")
 
-                    mock_health.assert_called()
-                    assert service._initialized is True
-                    assert service._client_mode is True
-                    assert service._client_url == "http://127.0.0.1:18501"
+            mock_health.assert_called()
+            assert service._initialized is True
+            assert service._client_mode is True
+            assert service._client_url == "http://127.0.0.1:18501"
 
     def test_embed_batch_auto_detects_mcp_server(self):
         """embed_batch() should auto-detect MCP server if not initialized."""

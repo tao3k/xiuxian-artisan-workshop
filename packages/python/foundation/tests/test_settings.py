@@ -5,8 +5,6 @@ Tests for omni.foundation.config.settings module (basic functionality only).
 Uses clean_settings fixture for isolation.
 """
 
-import pytest
-
 
 class TestSettingsClass:
     """Test the Settings singleton class."""

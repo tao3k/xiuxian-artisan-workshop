@@ -1,7 +1,8 @@
 use serde_json::json;
 
 use crate::agent::{
-    MemoryRecallMetricsSnapshot, MemoryRuntimeStatusSnapshot, SessionMemoryRecallSnapshot,
+    DownstreamAdmissionRuntimeSnapshot, MemoryRecallMetricsSnapshot, MemoryRuntimeStatusSnapshot,
+    SessionMemoryRecallSnapshot,
 };
 
 use super::super::super::shared::{format_optional_f32, format_optional_usize};
@@ -9,6 +10,7 @@ use super::super::metrics::{
     format_memory_recall_metrics_json, format_memory_recall_metrics_lines,
 };
 use super::super::runtime_status::{
+    format_downstream_admission_status_json, format_downstream_admission_status_lines,
     format_memory_runtime_status_json, format_memory_runtime_status_lines,
 };
 
@@ -16,6 +18,7 @@ pub(in super::super::super::super) fn format_memory_recall_snapshot(
     snapshot: SessionMemoryRecallSnapshot,
     metrics: MemoryRecallMetricsSnapshot,
     runtime_status: MemoryRuntimeStatusSnapshot,
+    admission_status: DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
     let mut lines = vec![
@@ -39,6 +42,8 @@ pub(in super::super::super::super) fn format_memory_recall_snapshot(
         "### Persistence".to_string(),
     ];
     lines.extend(format_memory_runtime_status_lines(runtime_status));
+    lines.extend([String::new(), "### Admission".to_string()]);
+    lines.extend(format_downstream_admission_status_lines(admission_status));
     lines.extend([
         String::new(),
         "### Recall Plan".to_string(),
@@ -90,6 +95,7 @@ pub(in super::super::super::super) fn format_memory_recall_snapshot_json(
     snapshot: SessionMemoryRecallSnapshot,
     metrics: MemoryRecallMetricsSnapshot,
     runtime_status: MemoryRuntimeStatusSnapshot,
+    admission_status: DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
     json!({
@@ -125,6 +131,7 @@ pub(in super::super::super::super) fn format_memory_recall_snapshot_json(
             "weakest_score": snapshot.weakest_score,
         },
         "runtime": format_memory_runtime_status_json(runtime_status),
+        "admission": format_downstream_admission_status_json(admission_status),
         "metrics": format_memory_recall_metrics_json(metrics),
     })
     .to_string()

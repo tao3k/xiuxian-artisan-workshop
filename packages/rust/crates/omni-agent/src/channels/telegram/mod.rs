@@ -4,7 +4,7 @@ mod acl_config;
 mod channel;
 pub(crate) mod commands;
 mod idempotency;
-mod runtime;
+pub(crate) mod runtime;
 mod runtime_config;
 mod session_gate;
 mod session_partition;

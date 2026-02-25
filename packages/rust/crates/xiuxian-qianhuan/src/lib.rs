@@ -7,10 +7,14 @@
 
 /// Synapse-Audit calibration primitives for adversarial alignment checks.
 pub mod calibration;
-mod config;
-mod contracts;
-mod entry;
-mod error;
+/// Configuration types for injection.
+pub mod config;
+/// Contract types for snapshots and blocks.
+pub mod contracts;
+/// Individual Q&A entry logic.
+pub mod entry;
+/// Error definitions for prompt injection.
+pub mod error;
 /// Orchestration layer for multi-layer prompt assembly.
 pub mod orchestrator;
 /// Persona model and registry for role-mix style injection.
@@ -19,8 +23,15 @@ pub mod persona;
 pub mod python_module;
 /// Tone transmutation traits and implementations.
 pub mod transmuter;
-mod window;
-mod xml;
+/// Bounded session-level system prompt injection window.
+pub mod window;
+/// XML parsing and rendering logic.
+pub mod xml;
+
+/// Interface definitions for manifestation and context injection.
+pub mod interface;
+/// Core manifestation manager and template engine.
+pub mod manifestation;
 
 pub use config::InjectionWindowConfig;
 pub use contracts::{
@@ -34,3 +45,6 @@ pub use persona::{PersonaProfile, PersonaRegistry};
 pub use transmuter::{MockTransmuter, ToneTransmuter};
 pub use window::SystemPromptInjectionWindow;
 pub use xml::SYSTEM_PROMPT_INJECTION_TAG;
+
+pub use interface::ManifestationInterface;
+pub use manifestation::ManifestationManager;

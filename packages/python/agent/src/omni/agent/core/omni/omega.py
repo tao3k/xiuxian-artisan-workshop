@@ -25,16 +25,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from omni.foundation.config.logging import get_logger
-
-from omni.agent.core.cortex.nodes import TaskGraph, TaskNode, TaskPriority
 from omni.agent.core.cortex import (
-    TaskDecomposer,
+    ConflictDetector,
     CortexOrchestrator,
     Homeostasis,
     HomeostasisConfig,
-    ConflictDetector,
+    TaskDecomposer,
 )
+from omni.agent.core.cortex.nodes import TaskGraph, TaskNode, TaskPriority
+from omni.foundation.config.logging import get_logger
 
 logger = get_logger("omni.omega")
 
@@ -141,9 +140,9 @@ class OmegaDashboard:
 
     def __init__(self):
         from rich.console import Console
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-        from rich.panel import Panel
         from rich.layout import Layout
+        from rich.panel import Panel
+        from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
         from rich.text import Text
 
         self.console = Console()
@@ -174,7 +173,6 @@ class OmegaDashboard:
     def start_mission(self, goal: str):
         """Start mission display."""
         from rich.panel import Panel
-        from rich.text import Text
 
         self.console.print(
             Panel(
@@ -235,7 +233,7 @@ class OmegaDashboard:
             result = await coro
             self.progress.stop()
             return result
-        except Exception as e:
+        except Exception:
             self.progress.stop()
             raise
 
@@ -511,7 +509,7 @@ class OmegaRunner:
             duration_ms = (datetime.now() - self._start_time).total_seconds() * 1000
             logger.error("omega.mission_failed", error=str(e))
 
-            self._emit("MISSION_FAIL", f"任务失败: {str(e)}")
+            self._emit("MISSION_FAIL", f"任务失败: {e!s}")
 
             return MissionResult(
                 success=False,
@@ -626,11 +624,8 @@ class CortexDashboard:
 
     def __init__(self):
         from rich.console import Console
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+        from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
         from rich.table import Table
-        from rich.panel import Panel
-        from rich.text import Text
-        from rich.live import Live
 
         self.console = Console()
         self.live = None
@@ -721,11 +716,11 @@ class CortexDashboard:
 
 
 __all__ = [
-    "OmegaRunner",
     "OMEGA_TOPICS",  # Event topic constants matching omni-events
+    "CortexDashboard",
     "MissionConfig",
     "MissionResult",
-    "RecoveryNode",
-    "CortexDashboard",
     "OmegaDashboard",
+    "OmegaRunner",
+    "RecoveryNode",
 ]

@@ -6,6 +6,7 @@ These tests measure the performance of text chunking operations.
 
 import asyncio
 import time
+
 import pytest
 
 
@@ -114,7 +115,7 @@ class TestChunkingPerformance:
 
     def test_repeated_chunker_creation(self, sample_text):
         """Test performance of creating and using multiple chunkers."""
-        from omni.rag.chunking import SentenceChunker, ParagraphChunker, SlidingWindowChunker
+        from omni.rag.chunking import ParagraphChunker, SentenceChunker, SlidingWindowChunker
 
         # Create chunkers once
         sentence_chunker = SentenceChunker()

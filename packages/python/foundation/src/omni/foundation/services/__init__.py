@@ -21,12 +21,12 @@ from .index_dimension import (
 from .vector import VectorStoreClient
 
 __all__ = [
+    "EmbeddingDimensionStatus",
     "VectorStoreClient",
     "embed_batch",
     "embed_text",
-    "get_embedding_service",
-    "EmbeddingDimensionStatus",
     "ensure_embedding_signature_written",
     "get_embedding_dimension_status",
+    "get_embedding_service",
     "get_embedding_signature_path",
 ]

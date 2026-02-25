@@ -9,17 +9,11 @@ Bridges RAG-Anything's multimodal processing with Omni's existing services:
 
 from __future__ import annotations
 
-import json
-import structlog
 from pathlib import Path
 from typing import Any
 
+import structlog
 from raganything import RAGAnything, RAGAnythingConfig
-from raganything.modalprocessors import (
-    ImageModalProcessor,
-    TableModalProcessor,
-    EquationModalProcessor,
-)
 
 logger = structlog.get_logger(__name__)
 

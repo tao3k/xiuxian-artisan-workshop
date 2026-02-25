@@ -22,7 +22,6 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-
 SIGNATURE_FILENAME = ".embedding_signature.json"
 
 
@@ -400,8 +399,9 @@ async def repair_vector_store_dimension(
     Returns:
         dict with repair status
     """
-    from omni.foundation.config.database import get_vector_db_path
     import shutil
+
+    from omni.foundation.config.database import get_vector_db_path
 
     vector_path = get_vector_db_path()
     config = _VECTOR_STORE_CONFIGS.get(store_name)

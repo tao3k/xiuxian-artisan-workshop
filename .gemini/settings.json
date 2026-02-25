@@ -4,12 +4,7 @@
   },
   "mcpServers": {
     "omniAgent": {
-      "args": ["mcp", "--transport", "stdio"],
-      "command": "omni",
-      "env": {
-        "OMNI_UX_MODE": "headless"
-      },
-      "type": "stdio"
+      "httpUrl": "http://localhost:3000/mcp"
     }
   }
 }

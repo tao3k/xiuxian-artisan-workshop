@@ -7,7 +7,6 @@ ODF-EP Protocol standards.
 
 from __future__ import annotations
 
-
 # ODF-EP Protocol rules for skill_command descriptions
 ODF_EP_RULES = """# ODF-EP PROTOCOL: skill_command Description Standards
 
@@ -103,4 +102,4 @@ def _escape_markdown(text: str) -> str:
     return text.replace("_", r"\_").replace("*", r"\*")
 
 
-__all__ = ["generate_commands_prompt", "generate_readme_prompt", "ODF_EP_RULES"]
+__all__ = ["ODF_EP_RULES", "generate_commands_prompt", "generate_readme_prompt"]

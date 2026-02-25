@@ -14,7 +14,7 @@ impl Agent {
         let mut force_react = forced_react_message.is_some();
         let mut user_message_owned =
             forced_react_message.unwrap_or_else(|| user_message.to_string());
-        let turn_id = self.next_runtime_turn_id();
+        let turn_id = Self::next_runtime_turn_id();
 
         if let Some(out) = self
             .handle_shortcuts(

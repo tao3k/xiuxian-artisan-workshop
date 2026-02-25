@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import tempfile
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from omni.agent.core.evolution.universal_solver import (
-    UniversalSolver,
     SolverResult,
     SolverStatus,
+    UniversalSolver,
 )
 
 

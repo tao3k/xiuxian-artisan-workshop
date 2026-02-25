@@ -1,5 +1,7 @@
 use serde_json::json;
 
+use crate::agent::DownstreamAdmissionRuntimeSnapshot;
+
 use super::super::shared::{
     format_optional_bool, format_optional_f32, format_optional_str, format_optional_string,
     format_optional_u32, format_optional_usize, format_yes_no,
@@ -121,4 +123,62 @@ pub(super) fn format_memory_gate_policy_compact_line(
 
 pub(super) fn memory_backend_ready(status: &crate::agent::MemoryRuntimeStatusSnapshot) -> bool {
     status.enabled && status.active_backend.is_some() && status.startup_load_status == "loaded"
+}
+
+pub(super) fn format_downstream_admission_status_lines(
+    status: DownstreamAdmissionRuntimeSnapshot,
+) -> Vec<String> {
+    vec![
+        format!("- `enabled={}`", format_yes_no(status.enabled)),
+        format!(
+            "- `llm_reject_threshold_pct={}` / `embedding_reject_threshold_pct={}`",
+            status.llm_reject_threshold_pct, status.embedding_reject_threshold_pct
+        ),
+        format!(
+            "- `total={}` / `admitted={}` / `rejected={}` / `reject_rate_pct={}`",
+            status.metrics.total,
+            status.metrics.admitted,
+            status.metrics.rejected,
+            status.metrics.reject_rate_pct
+        ),
+        format!(
+            "- `rejected_llm_saturated={}` / `rejected_embedding_saturated={}`",
+            status.metrics.rejected_llm_saturated, status.metrics.rejected_embedding_saturated
+        ),
+    ]
+}
+
+#[allow(clippy::needless_pass_by_value)]
+pub(super) fn format_downstream_admission_status_json(
+    status: DownstreamAdmissionRuntimeSnapshot,
+) -> serde_json::Value {
+    json!({
+        "enabled": status.enabled,
+        "llm_reject_threshold_pct": status.llm_reject_threshold_pct,
+        "embedding_reject_threshold_pct": status.embedding_reject_threshold_pct,
+        "metrics": {
+            "total": status.metrics.total,
+            "admitted": status.metrics.admitted,
+            "rejected": status.metrics.rejected,
+            "rejected_llm_saturated": status.metrics.rejected_llm_saturated,
+            "rejected_embedding_saturated": status.metrics.rejected_embedding_saturated,
+            "reject_rate_pct": status.metrics.reject_rate_pct,
+        },
+    })
+}
+
+pub(super) fn format_downstream_admission_compact_line(
+    status: DownstreamAdmissionRuntimeSnapshot,
+) -> String {
+    format!(
+        "- `admission(enabled={},llm_threshold_pct={},embedding_threshold_pct={},total={},rejected={},reject_rate_pct={},reject_llm={},reject_embedding={})`",
+        format_yes_no(status.enabled),
+        status.llm_reject_threshold_pct,
+        status.embedding_reject_threshold_pct,
+        status.metrics.total,
+        status.metrics.rejected,
+        status.metrics.reject_rate_pct,
+        status.metrics.rejected_llm_saturated,
+        status.metrics.rejected_embedding_saturated
+    )
 }

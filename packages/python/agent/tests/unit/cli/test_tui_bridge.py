@@ -2,21 +2,15 @@
 Tests for the TUI Bridge module with reverse connection architecture.
 """
 
-import asyncio
 import os
-import socket
-from datetime import datetime
-from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from omni.agent.cli.tui_bridge import (
-    TUIManager,
-    TUIConfig,
-    TUIBridgeProtocol,
     NullTUIBridge,
+    TUIConfig,
+    TUIManager,
     create_tui_bridge,
     get_env_bool,
 )

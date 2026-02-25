@@ -16,39 +16,35 @@ Integration:
                                     Homeostasis (Conflict Detection)
 """
 
+from .homeostasis import (
+    Homeostasis,
+    HomeostasisConfig,
+    HomeostasisResult,
+)
 from .nodes import (
-    TaskNode,
-    TaskGroup,
     TaskGraph,
-    TaskStatus,
+    TaskGroup,
+    TaskNode,
     TaskPriority,
+    TaskStatus,
 )
-
-from .planner import (
-    TaskDecomposer,
-    DecompositionResult,
-    FileAnalysis,
-)
-
 from .orchestrator import (
     CortexOrchestrator,
     ExecutionConfig,
     ExecutionResult,
 )
-
+from .planner import (
+    DecompositionResult,
+    FileAnalysis,
+    TaskDecomposer,
+)
 from .transaction import (
-    TransactionShield,
-    Transaction,
-    TransactionStatus,
     ConflictDetector,
     ConflictReport,
     ConflictSeverity,
-)
-
-from .homeostasis import (
-    Homeostasis,
-    HomeostasisConfig,
-    HomeostasisResult,
+    Transaction,
+    TransactionShield,
+    TransactionStatus,
 )
 
 __all__ = [

@@ -30,39 +30,38 @@ from typing import Any
 from mcp.server import Server
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 from mcp.types import (
-    Prompt,
-    Resource,
-    Tool,
-    TextContent,
     GetPromptResult,
+    Prompt,
     PromptMessage,
+    Resource,
+    TextContent,
+    Tool,
 )
 from pydantic.networks import AnyUrl
 
-from omni.foundation.config.logging import configure_logging, get_logger
-from omni.foundation.utils.asyncio import run_async_blocking
+from omni.core.config.loader import is_filtered, load_command_overrides
 from omni.core.kernel import get_kernel
-from omni.core.config.loader import load_command_overrides, is_filtered
 from omni.core.omni_tool import get_omni_tool_info
-from omni.core.skills.runtime.omni_cell import ActionType, get_runner
 
 # [NEW] Holographic Registry for dynamic tool discovery (Stage 3.5)
 from omni.core.skills.registry.holographic import HolographicRegistry, ToolMetadata
+from omni.core.skills.runtime.omni_cell import ActionType, get_runner
+from omni.foundation.config.logging import configure_logging, get_logger
+from omni.foundation.utils.asyncio import run_async_blocking
 
 # [NEW] Import shared formatting logic
-from omni.foundation.utils.formatting import sanitize_tool_args, one_line_preview
+from omni.foundation.utils.formatting import one_line_preview, sanitize_tool_args
 from omni.mcp.transport.sse import SSEServer
 from omni.mcp.transport.stdio import stdio_server
 
+from .prompts import get_prompt_with_args
+
 # [NEW] Import resources module for decorator pattern
 from .resources import (
-    read_project_context,
     read_agent_memory,
+    read_project_context,
     read_system_stats,
-    read_dynamic_resource,
-    list_dynamic_resources,
 )
-from .prompts import get_prompt_with_args, list_all_prompts
 
 # Configure logging
 configure_logging(level="INFO")
@@ -308,7 +307,7 @@ class AgentMCPServer:
 
         except Exception as e:
             logger.error(f"Error executing {name}: {e}")
-            return [TextContent(type="text", text=f"Error: {str(e)}")]
+            return [TextContent(type="text", text=f"Error: {e!s}")]
 
     def _build_routing_table(self):
         """Pre-compute routing tables from overrides config."""
@@ -576,7 +575,7 @@ class AgentMCPServer:
             # MCP hot path: validate with short timeout so we never block on Rust scanner.
             # (Kernel is already up; only validation can block if cache is cold.)
             try:
-                from omni.core.skills.validation import validate_tool_args, format_validation_errors
+                from omni.core.skills.validation import format_validation_errors, validate_tool_args
 
                 _VALIDATION_TIMEOUT = 2.0  # seconds; skip validation if scanner is slow
                 validation_errors = await asyncio.wait_for(
@@ -587,7 +586,7 @@ class AgentMCPServer:
                     error_msg = format_validation_errors(real_command, validation_errors)
                     logger.warning(f"Parameter validation failed: {real_command}")
                     return self._text_response(error_msg)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.debug(
                     "Validation skipped (timeout); proceeding to kernel",
                     command=real_command,
@@ -629,7 +628,7 @@ class AgentMCPServer:
                     logger.info(f"✅ Done: {name} -> {clean_result} ({duration:.2f}s)")
 
                     return self._text_response(str(result))
-                except asyncio.TimeoutError as e:
+                except TimeoutError as e:
                     logger.error(f"❌ Timeout: {name} — {e}")
                     return self._error_response(
                         str(e)
@@ -865,7 +864,7 @@ class AgentMCPServer:
         @self._app.list_prompts()
         async def list_prompts() -> list[Prompt]:
             """List available prompts."""
-            from .prompts import PROMPTS, _DYNAMIC_PROMPTS
+            from .prompts import _DYNAMIC_PROMPTS, PROMPTS
 
             prompts: list[Prompt] = []
 
@@ -884,7 +883,6 @@ class AgentMCPServer:
         @self._app.get_prompt()
         async def get_prompt(name: str, arguments: dict[str, str] | None = None) -> GetPromptResult:
             """Get prompt content."""
-            from .prompts import get_prompt_with_args
 
             prompt_data = get_prompt_with_args(name, arguments)
 
@@ -908,19 +906,16 @@ class AgentMCPServer:
 
     def _read_project_context(self) -> str:
         """Read project context from Sniffer — delegates to resources module."""
-        from .resources import read_project_context
 
         return read_project_context(self._kernel)
 
     async def _read_agent_memory(self) -> str:
         """Read agent memory from Checkpoint Store — delegates to resources module."""
-        from .resources import read_agent_memory
 
         return await read_agent_memory(self._kernel)
 
     def _read_system_stats(self) -> str:
         """Read system statistics — delegates to resources module."""
-        from .resources import read_system_stats
 
         return read_system_stats(self._kernel, self._start_time)
 

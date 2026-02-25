@@ -7,18 +7,11 @@ Tests cover:
 - Homeostasis integration layer
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from omni.agent.core.cortex.transaction import (
-    TransactionShield,
-    Transaction,
-    TransactionStatus,
-    ConflictDetector,
-    ConflictReport,
-    ConflictSeverity,
-)
+import pytest
+
 from omni.agent.core.cortex.homeostasis import (
     Homeostasis,
     HomeostasisConfig,
@@ -28,6 +21,14 @@ from omni.agent.core.cortex.nodes import (
     TaskGraph,
     TaskNode,
     TaskPriority,
+)
+from omni.agent.core.cortex.transaction import (
+    ConflictDetector,
+    ConflictReport,
+    ConflictSeverity,
+    Transaction,
+    TransactionShield,
+    TransactionStatus,
 )
 
 

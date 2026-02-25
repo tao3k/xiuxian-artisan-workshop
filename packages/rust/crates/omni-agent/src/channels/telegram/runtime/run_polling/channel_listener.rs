@@ -18,6 +18,7 @@ pub(super) fn start_polling_listener(
 ) -> Result<(
     Arc<TelegramChannel>,
     Arc<dyn Channel>,
+    mpsc::Sender<ChannelMessage>,
     mpsc::Receiver<ChannelMessage>,
     tokio::task::JoinHandle<()>,
 )> {
@@ -33,12 +34,13 @@ pub(super) fn start_polling_listener(
     let channel_for_send: Arc<dyn Channel> = channel.clone();
 
     let (tx, inbound_rx) = mpsc::channel::<ChannelMessage>(inbound_queue_capacity);
+    let listener_tx = tx.clone();
     let listener_channel = Arc::clone(&channel_for_send);
     let listener = tokio::spawn(async move {
-        if let Err(error) = listener_channel.listen(tx).await {
+        if let Err(error) = listener_channel.listen(listener_tx).await {
             tracing::error!("Telegram listener error: {error}");
         }
     });
 
-    Ok((channel, channel_for_send, inbound_rx, listener))
+    Ok((channel, channel_for_send, tx, inbound_rx, listener))
 }

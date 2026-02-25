@@ -7,15 +7,15 @@ Sub-modules by concern:
 - stats: stats, count
 """
 
-from ._resolver import db_app
+import typer
+
+from . import admin as _admin  # noqa: F401
+from . import inspect as _inspect  # noqa: F401
 
 # Import sub-modules to register their @db_app.command() decorators
 from . import query as _query  # noqa: F401
-from . import inspect as _inspect  # noqa: F401
-from . import admin as _admin  # noqa: F401
 from . import stats as _stats  # noqa: F401
-
-import typer
+from ._resolver import db_app
 
 
 def register_db_command(parent_app: typer.Typer) -> None:

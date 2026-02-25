@@ -7,17 +7,16 @@ Marker: unit (pure unit tests with mocks)
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from omni.core.skills.variants import (
+    VariantInfo,
     VariantProvider,
     VariantRegistry,
     VariantStatus,
-    VariantInfo,
+    get_best_variant,
+    get_variant,
     get_variant_registry,
     register_variant,
-    get_variant,
-    get_best_variant,
 )
 
 

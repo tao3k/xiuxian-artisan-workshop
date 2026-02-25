@@ -18,6 +18,7 @@ enrich attribute values at index time. Both steps use the LLM only.
 from __future__ import annotations
 
 import re
+
 from omni.foundation.config.logging import get_logger
 from omni.foundation.config.settings import get_setting
 

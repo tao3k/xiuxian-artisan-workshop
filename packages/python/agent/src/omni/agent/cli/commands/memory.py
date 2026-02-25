@@ -7,8 +7,8 @@ from rich.console import Console
 from rich.table import Table
 
 from omni.agent.services.memory import (
-    MemoryService,
     MemoryConfig,
+    MemoryService,
     get_memory_service,
     reset_memory_service,
 )

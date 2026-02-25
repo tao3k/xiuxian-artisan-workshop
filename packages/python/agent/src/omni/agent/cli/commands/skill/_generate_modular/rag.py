@@ -104,4 +104,4 @@ def format_rag_context(examples: list[dict[str, Any]]) -> str:
     return "\n".join(context_parts)
 
 
-__all__ = ["retrieve_similar_skills", "format_rag_context"]
+__all__ = ["format_rag_context", "retrieve_similar_skills"]

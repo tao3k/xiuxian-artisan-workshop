@@ -122,7 +122,7 @@ async def llm_analyze(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     updated_analysis_history = list(state.get("analysis_history", [])) + [analysis]
 
     return cast(
-        DemoState,
+        "DemoState",
         {
             "topic": state["topic"],
             "iterations": state["iterations"],
@@ -233,9 +233,7 @@ async def llm_evaluate(state: DemoState, tracer: LangGraphTracer) -> DemoState:
         new_quality = max(previous_quality, max(base_quality, 0.25))
     elif no_improvement:
         new_quality = max(0.0, min(base_quality, previous_quality - 0.20))
-    elif is_meta:
-        new_quality = max(0.0, min(base_quality, previous_quality - 0.12))
-    elif is_duplicate:
+    elif is_meta or is_duplicate:
         new_quality = max(0.0, min(base_quality, previous_quality - 0.12))
     else:
         improvement_bonus = 0.10 if analysis_similarity < 0.90 else 0.0
@@ -329,7 +327,7 @@ async def llm_evaluate(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     )
 
     return cast(
-        DemoState,
+        "DemoState",
         {
             "topic": state["topic"],
             "iterations": state["iterations"],
@@ -475,7 +473,7 @@ async def llm_reflect(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     )
 
     return cast(
-        DemoState,
+        "DemoState",
         {
             "topic": state["topic"],
             "iterations": state["iterations"],
@@ -544,7 +542,7 @@ async def llm_draft(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     console.print(ultra_step_exit("drafter.draft", {"draft": draft_preview}, reasoning=thought))
 
     return cast(
-        DemoState,
+        "DemoState",
         {
             "topic": state["topic"],
             "iterations": state["iterations"],
@@ -610,7 +608,7 @@ async def llm_finalize(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     console.print(ultra_step_exit("drafter.finalize", {"final": final_preview}, reasoning=thought))
 
     return cast(
-        DemoState,
+        "DemoState",
         {
             "topic": state["topic"],
             "iterations": state["iterations"],
@@ -645,8 +643,8 @@ async def llm_finalize(state: DemoState, tracer: LangGraphTracer) -> DemoState:
 
 __all__ = [
     "llm_analyze",
-    "llm_evaluate",
-    "llm_reflect",
     "llm_draft",
+    "llm_evaluate",
     "llm_finalize",
+    "llm_reflect",
 ]

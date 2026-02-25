@@ -15,7 +15,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any, Generic, TypeVar, Optional
+from typing import Any, TypeVar
 
 logger = __import__("logging").getLogger(__name__)
 
@@ -28,12 +28,12 @@ class ServiceRegistry:
     Allows stateless skills to access core services without direct dependencies.
     """
 
-    _instance: "ServiceRegistry | None" = None
+    _instance: ServiceRegistry | None = None
     _services: dict[str, Any] = {}
     _missing_warned: set[str] = set()
     _lock: __import__("threading").Lock = __import__("threading").Lock()
 
-    def __new__(cls) -> "ServiceRegistry":
+    def __new__(cls) -> ServiceRegistry:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -54,7 +54,7 @@ class ServiceRegistry:
         logger.debug(f"Service registered: {name}")
 
     @classmethod
-    def get(cls, name: str) -> Optional[Any]:
+    def get(cls, name: str) -> Any | None:
         """Retrieve a service by name.
 
         Args:
@@ -106,7 +106,7 @@ class ServiceRegistry:
 # =============================================================================
 
 
-def get_librarian() -> Optional["Librarian"]:
+def get_librarian() -> Librarian | None:
     """Get the global Librarian service.
 
     Returns:
@@ -116,12 +116,12 @@ def get_librarian() -> Optional["Librarian"]:
 
     service = ServiceRegistry.get("librarian")
     if service is not None and not isinstance(service, Librarian):
-        logger.warning(f"Service 'librarian' is not a Librarian instance")
+        logger.warning("Service 'librarian' is not a Librarian instance")
         return None
     return service
 
 
-def get_skill_manager() -> Optional["SkillManager"]:
+def get_skill_manager() -> SkillManager | None:
     """Get the global SkillManager service.
 
     Returns:
@@ -131,12 +131,12 @@ def get_skill_manager() -> Optional["SkillManager"]:
 
     service = ServiceRegistry.get("skill_manager")
     if service is not None and not isinstance(service, SkillManager):
-        logger.warning(f"Service 'skill_manager' is not a SkillManager instance")
+        logger.warning("Service 'skill_manager' is not a SkillManager instance")
         return None
     return service
 
 
-def get_embedding_service() -> Optional["EmbeddingService"]:
+def get_embedding_service() -> EmbeddingService | None:
     """Get the global EmbeddingService.
 
     Returns:
@@ -146,7 +146,7 @@ def get_embedding_service() -> Optional["EmbeddingService"]:
 
     service = ServiceRegistry.get("embedding")
     if service is not None and not isinstance(service, EmbeddingService):
-        logger.warning(f"Service 'embedding' is not an EmbeddingService instance")
+        logger.warning("Service 'embedding' is not an EmbeddingService instance")
         return None
     return service
 
@@ -156,7 +156,7 @@ def get_embedding_service() -> Optional["EmbeddingService"]:
 # =============================================================================
 
 
-def ensure_librarian(project_root: str = ".") -> "Librarian":
+def ensure_librarian(project_root: str = ".") -> Librarian:
     """Get or create the global Librarian service.
 
     Args:
@@ -174,7 +174,7 @@ def ensure_librarian(project_root: str = ".") -> "Librarian":
     return librarian
 
 
-def ensure_skill_manager() -> "SkillManager":
+def ensure_skill_manager() -> SkillManager:
     """Get or create the global SkillManager service.
 
     Returns:
@@ -192,9 +192,9 @@ def ensure_skill_manager() -> "SkillManager":
 # Re-exports
 __all__ = [
     "ServiceRegistry",
-    "get_librarian",
-    "get_skill_manager",
-    "get_embedding_service",
     "ensure_librarian",
     "ensure_skill_manager",
+    "get_embedding_service",
+    "get_librarian",
+    "get_skill_manager",
 ]

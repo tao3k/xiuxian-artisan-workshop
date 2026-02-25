@@ -34,11 +34,19 @@ fn parse_backend_kind_supports_openai_and_mistral_aliases() {
     );
     assert_eq!(
         parse_embedding_backend_kind(Some("mistral_rs")),
-        Some(EmbeddingBackendKind::OpenAiHttp)
+        Some(EmbeddingBackendKind::MistralLocal)
     );
     assert_eq!(
         parse_embedding_backend_kind(Some("mistral-http")),
-        Some(EmbeddingBackendKind::OpenAiHttp)
+        Some(EmbeddingBackendKind::MistralLocal)
+    );
+    assert_eq!(
+        parse_embedding_backend_kind(Some("mistral_server")),
+        Some(EmbeddingBackendKind::MistralLocal)
+    );
+    assert_eq!(
+        parse_embedding_backend_kind(Some("mistral_local")),
+        Some(EmbeddingBackendKind::MistralLocal)
     );
 }
 

@@ -18,11 +18,8 @@ Usage:
     assert pattern == "def authenticate"
 """
 
-from typing import List, Tuple
-
-
 # Semantic test cases for classifier validation
-SEMANTIC_TEST_CASES: List[Tuple[str, str]] = [
+SEMANTIC_TEST_CASES: list[tuple[str, str]] = [
     # Structural queries -> AST
     ("class User", "ast"),
     ("def authenticate", "ast"),
@@ -47,6 +44,7 @@ def classify_query_helper(query: str) -> dict:
     Returns the classification result dict.
     """
     from datetime import datetime
+
     from code_tools.scripts.search.nodes.classifier import classify_query
 
     state = {

@@ -21,7 +21,6 @@ Migrated from: src/agent/core/router/sniffer.py
 
 from __future__ import annotations
 
-import asyncio
 import fnmatch
 import json
 import os
@@ -44,7 +43,7 @@ except ImportError:
     EVENT_BUS_AVAILABLE = False
     logger.warning("Rust Event Bus not available, sniffer events disabled")
 
-from omni.core.kernel.reactor import get_reactor, EventTopic
+from omni.core.kernel.reactor import EventTopic, get_reactor
 
 # Threshold for activating a skill based on dynamic sniffer score.
 # Value comes from settings: router.sniffer.score_threshold

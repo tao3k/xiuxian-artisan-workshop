@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
-
 import logging
+from typing import Any
 
 logger = logging.getLogger("omni.agent.mcp_server.sse")
 

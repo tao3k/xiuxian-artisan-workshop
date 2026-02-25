@@ -10,10 +10,9 @@ Uses test-kit fixtures for consistent test environment.
 
 import os
 import tempfile
-import pytest
-from omni_core_rs import PySkillScanner, PySkillMetadata
-from omni.test_kit.fixtures import test_tracer, skills_root
 
+import pytest
+from omni_core_rs import PySkillMetadata, PySkillScanner
 
 # Sample SKILL.md content for testing (Anthropic format with metadata block)
 SAMPLE_SKILL_MD = """---

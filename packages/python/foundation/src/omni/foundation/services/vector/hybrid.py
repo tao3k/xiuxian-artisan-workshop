@@ -61,7 +61,7 @@ async def run_hybrid_search(
                 timeout=embed_timeout,
             )
             vector = embed_result[0]
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise EmbeddingUnavailableError(
                 f"Embedding timed out after {embed_timeout}s for hybrid search. "
                 "Ensure MCP embedding service is running and responsive."

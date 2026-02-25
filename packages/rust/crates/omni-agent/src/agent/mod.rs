@@ -1,5 +1,6 @@
 //! One-turn agent loop: user message -> LLM (+ optional tools) -> `tool_calls` -> MCP tools/call -> repeat.
 
+mod admission;
 mod bootstrap;
 mod consolidation;
 mod context_budget;
@@ -31,30 +32,25 @@ mod system_prompt_injection_state;
 mod turn_execution;
 mod turn_support;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use omni_tokenizer::count_tokens;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 use omni_memory::EpisodeStore;
-use xiuxian_qianhuan::{InjectionPolicy, InjectionSnapshot};
+use xiuxian_qianhuan::InjectionPolicy;
+use xiuxian_zhixing::ZhixingHeyi;
 
 use crate::config::AgentConfig;
-use crate::contracts::{
-    GraphExecutionPlan, OmegaDecision, OmegaFallbackPolicy, OmegaRoute, RouteTrace,
-    RouteTraceInjection,
-};
+use crate::contracts::{OmegaDecision, OmegaFallbackPolicy, OmegaRoute};
 use crate::embedding::EmbeddingClient;
 use crate::llm::LlmClient;
 use crate::observability::SessionEvent;
 use crate::session::{BoundedSessionStore, ChatMessage, SessionStore, SessionSummarySegment};
-use crate::shortcuts::{
-    CRAWL_TOOL_NAME, WorkflowBridgeMode, parse_crawl_shortcut, parse_react_shortcut,
-    parse_workflow_bridge_shortcut,
-};
+use crate::shortcuts::parse_react_shortcut;
 use embedding_dimension::{
     EMBEDDING_SOURCE_EMBEDDING, EMBEDDING_SOURCE_EMBEDDING_REPAIRED, repair_embedding_dimension,
 };
@@ -69,7 +65,6 @@ use memory_recall_feedback::{
     resolve_feedback_outcome, update_feedback_bias,
 };
 use memory_state::{MemoryStateBackend, MemoryStateLoadStatus};
-use omega::ShortcutFallbackAction;
 use reflection::PolicyHintDirective;
 use system_prompt_injection_state::SYSTEM_PROMPT_INJECTION_CONTEXT_MESSAGE_NAME;
 
@@ -79,6 +74,7 @@ const MIN_MEMORY_EMBED_TIMEOUT_MS: u64 = 100;
 const MAX_MEMORY_EMBED_TIMEOUT_MS: u64 = 60_000;
 const MAX_MEMORY_EMBED_COOLDOWN_MS: u64 = 300_000;
 
+pub(crate) use admission::DownstreamAdmissionRuntimeSnapshot;
 pub use consolidation::summarise_drained_turns;
 pub use context_budget::prune_messages_for_token_budget;
 pub use context_budget_state::{SessionContextBudgetClassSnapshot, SessionContextBudgetSnapshot};
@@ -138,8 +134,11 @@ pub struct Agent {
     memory_embed_timeout_cooldown: Duration,
     /// Unix timestamp millis until which embedding calls are rejected by cooldown policy.
     memory_embed_timeout_cooldown_until_ms: AtomicU64,
+    downstream_admission_policy: admission::DownstreamAdmissionPolicy,
+    downstream_admission_metrics: admission::DownstreamAdmissionMetrics,
     llm: LlmClient,
     mcp: Option<crate::mcp::McpClientPool>,
+    heyi: Option<Arc<ZhixingHeyi>>,
     memory_stream_consumer_task: Option<tokio::task::JoinHandle<()>>,
 }
 

@@ -56,7 +56,7 @@ class TestHippocampusTrace:
 
     def test_create_minimal_trace(self):
         """Test creating a trace with minimal required fields."""
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         trace = HippocampusTrace(
             trace_id="test-123",
@@ -74,7 +74,7 @@ class TestHippocampusTrace:
 
     def test_create_full_trace(self):
         """Test creating a trace with all fields."""
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         now = datetime.now()
         trace = HippocampusTrace(
@@ -112,7 +112,7 @@ class TestHippocampusTrace:
 
     def test_trace_json_serialization(self):
         """Test trace can be serialized to JSON."""
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         trace = HippocampusTrace(
             trace_id="test-789",
@@ -188,8 +188,8 @@ class TestExperienceRecallResult:
     def test_create_recall_result(self):
         """Test creating a recall result."""
         from omni.agent.core.memory.schemas import (
-            ExperienceRecallResult,
             ExecutionStep,
+            ExperienceRecallResult,
         )
 
         result = ExperienceRecallResult(
@@ -317,7 +317,7 @@ class TestHippocampusLogic:
         """Test Nu pattern extraction from file manipulation commands."""
         hippocampus, _ = self._create_hippocampus_with_mock_dir(tmp_path)
 
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         trace = HippocampusTrace(
             trace_id="test-pattern-1",
@@ -337,7 +337,7 @@ class TestHippocampusLogic:
         """Test Nu pattern extraction from git commands."""
         hippocampus, _ = self._create_hippocampus_with_mock_dir(tmp_path)
 
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         trace = HippocampusTrace(
             trace_id="test-pattern-2",
@@ -359,7 +359,7 @@ class TestHippocampusLogic:
         """Test Nu pattern extraction from empty trace."""
         hippocampus, _ = self._create_hippocampus_with_mock_dir(tmp_path)
 
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import HippocampusTrace
 
         trace = HippocampusTrace(
             trace_id="test-pattern-3",
@@ -375,7 +375,7 @@ class TestHippocampusLogic:
         """Test that Nu pattern removes duplicates while preserving order."""
         hippocampus, _ = self._create_hippocampus_with_mock_dir(tmp_path)
 
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         trace = HippocampusTrace(
             trace_id="test-pattern-4",
@@ -400,7 +400,7 @@ class TestHippocampusLogic:
         """Test complexity estimation for simple tasks."""
         hippocampus, _ = self._create_hippocampus_with_mock_dir(tmp_path)
 
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         trace = HippocampusTrace(
             trace_id="test-complex-1",
@@ -418,7 +418,7 @@ class TestHippocampusLogic:
         """Test complexity estimation for medium tasks."""
         hippocampus, _ = self._create_hippocampus_with_mock_dir(tmp_path)
 
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         steps = [
             ExecutionStep(command="find . -name '*.py' -type f", success=True) for _ in range(3)
@@ -435,7 +435,7 @@ class TestHippocampusLogic:
 
     def test_estimate_complexity_high(self, tmp_path):
         """Test complexity estimation for complex tasks."""
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         hippocampus, _ = self._create_hippocampus_with_mock_dir(tmp_path)
 
@@ -456,7 +456,7 @@ class TestHippocampusLogic:
         """Test formatting trace for vector indexing."""
         hippocampus, _ = self._create_hippocampus_with_mock_dir(tmp_path)
 
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         trace = HippocampusTrace(
             trace_id="test-index-1",
@@ -499,7 +499,7 @@ class TestHippocampusCommitLogic:
     def test_commit_skips_failed_traces_directly(self):
         """Test commit logic directly without disk/vector store."""
         # This tests the logic that skips failed traces
-        from omni.agent.core.memory.schemas import HippocampusTrace, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, HippocampusTrace
 
         # Create a trace that would be failed
         failed_trace = HippocampusTrace(
@@ -535,7 +535,6 @@ class TestHippocampusCommitLogic:
     async def test_vector_store_called_on_success(self, tmp_path):
         """Test that vector store is called when trace succeeds."""
         # This test uses a fresh module import to avoid singleton issues
-        import importlib
         from omni.agent.core.memory import hippocampus as hippo_module
 
         # Reset singletons for test

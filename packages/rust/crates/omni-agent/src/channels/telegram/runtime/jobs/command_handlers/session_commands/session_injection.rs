@@ -19,7 +19,6 @@ use crate::channels::telegram::commands::{
     SessionInjectionAction, parse_session_injection_command,
 };
 
-#[allow(clippy::too_many_lines)]
 pub(in crate::channels::telegram::runtime::jobs) async fn try_handle_session_injection_command(
     msg: &ChannelMessage,
     channel: &Arc<dyn Channel>,
@@ -35,96 +34,14 @@ pub(in crate::channels::telegram::runtime::jobs) async fn try_handle_session_inj
         &msg.content,
         &msg.recipient,
     ) {
-        let response = format_control_command_admin_required("/session inject", &msg.sender);
-        send_with_observability(
-            channel,
-            &response,
-            &msg.recipient,
-            "Failed to send session injection admin-required response",
-            Some(EVENT_TELEGRAM_COMMAND_CONTROL_ADMIN_REQUIRED_REPLIED),
-            Some(&msg.session_key),
-        )
-        .await;
+        send_session_injection_admin_required_response(msg, channel).await;
         return true;
     }
 
-    let command_event = if command.format.is_json() {
-        EVENT_TELEGRAM_COMMAND_SESSION_INJECTION_JSON_REPLIED
-    } else {
-        EVENT_TELEGRAM_COMMAND_SESSION_INJECTION_REPLIED
-    };
-
-    let response = match command.action {
-        SessionInjectionAction::Status => {
-            match agent.inspect_session_system_prompt_injection(session_id).await {
-                Some(snapshot) if command.format.is_json() => json!({
-                    "kind": "session_injection",
-                    "configured": true,
-                    "qa_count": snapshot.qa_count,
-                    "updated_at_unix_ms": snapshot.updated_at_unix_ms,
-                    "xml": snapshot.xml,
-                })
-                .to_string(),
-                Some(snapshot) => {
-                    let preview = truncate_preview(&snapshot.xml, 800);
-                    format!(
-                        "Session system prompt injection is configured.\nqa_count={}\nupdated_at_unix_ms={}\nxml_preview:\n{}",
-                        snapshot.qa_count, snapshot.updated_at_unix_ms, preview
-                    )
-                }
-                None if command.format.is_json() => json!({
-                    "kind": "session_injection",
-                    "configured": false,
-                    "message": "No system prompt injection is configured for this session.",
-                })
-                .to_string(),
-                None => "No system prompt injection is configured for this session.\nUse `/session inject <qa>...</qa>` to configure it.".to_string(),
-            }
-        }
-        SessionInjectionAction::Clear => match agent
-            .clear_session_system_prompt_injection(session_id)
-            .await
-        {
-            Ok(cleared) if command.format.is_json() => json!({
-                "kind": "session_injection",
-                "cleared": cleared,
-            })
-            .to_string(),
-            Ok(true) => "Session system prompt injection cleared.".to_string(),
-            Ok(false) => "No session system prompt injection existed to clear.".to_string(),
-            Err(error) if command.format.is_json() => {
-                format_command_error_json("session_injection_clear", &error.to_string())
-            }
-            Err(error) => format!("Failed to clear session system prompt injection: {error}"),
-        },
-        SessionInjectionAction::SetXml(payload) => {
-            match agent
-                .upsert_session_system_prompt_injection_xml(session_id, &payload)
-                .await
-            {
-                Ok(snapshot) => {
-                    if command.format.is_json() {
-                        json!({
-                            "kind": "session_injection",
-                            "configured": true,
-                            "qa_count": snapshot.qa_count,
-                            "updated_at_unix_ms": snapshot.updated_at_unix_ms,
-                        })
-                        .to_string()
-                    } else {
-                        format!(
-                            "Session system prompt injection updated.\nqa_count={}\nupdated_at_unix_ms={}",
-                            snapshot.qa_count, snapshot.updated_at_unix_ms
-                        )
-                    }
-                }
-                Err(error) if command.format.is_json() => {
-                    format_command_error_json("session_injection_set", &error.to_string())
-                }
-                Err(error) => format!("Invalid system prompt injection payload: {error}"),
-            }
-        }
-    };
+    let json_format = command.format.is_json();
+    let command_event = session_injection_command_event(json_format);
+    let response =
+        build_session_injection_response(command.action, json_format, agent, session_id).await;
 
     send_with_observability(
         channel,
@@ -136,4 +53,129 @@ pub(in crate::channels::telegram::runtime::jobs) async fn try_handle_session_inj
     )
     .await;
     true
+}
+
+async fn send_session_injection_admin_required_response(
+    msg: &ChannelMessage,
+    channel: &Arc<dyn Channel>,
+) {
+    let response = format_control_command_admin_required("/session inject", &msg.sender);
+    send_with_observability(
+        channel,
+        &response,
+        &msg.recipient,
+        "Failed to send session injection admin-required response",
+        Some(EVENT_TELEGRAM_COMMAND_CONTROL_ADMIN_REQUIRED_REPLIED),
+        Some(&msg.session_key),
+    )
+    .await;
+}
+
+fn session_injection_command_event(json_format: bool) -> &'static str {
+    if json_format {
+        EVENT_TELEGRAM_COMMAND_SESSION_INJECTION_JSON_REPLIED
+    } else {
+        EVENT_TELEGRAM_COMMAND_SESSION_INJECTION_REPLIED
+    }
+}
+
+async fn build_session_injection_response(
+    action: SessionInjectionAction,
+    json_format: bool,
+    agent: &Arc<Agent>,
+    session_id: &str,
+) -> String {
+    match action {
+        SessionInjectionAction::Status => {
+            build_session_injection_status_response(agent, session_id, json_format).await
+        }
+        SessionInjectionAction::Clear => {
+            build_session_injection_clear_response(agent, session_id, json_format).await
+        }
+        SessionInjectionAction::SetXml(payload) => {
+            build_session_injection_set_xml_response(agent, session_id, &payload, json_format).await
+        }
+    }
+}
+
+async fn build_session_injection_status_response(
+    agent: &Arc<Agent>,
+    session_id: &str,
+    json_format: bool,
+) -> String {
+    match agent.inspect_session_system_prompt_injection(session_id).await {
+        Some(snapshot) if json_format => json!({
+            "kind": "session_injection",
+            "configured": true,
+            "qa_count": snapshot.qa_count,
+            "updated_at_unix_ms": snapshot.updated_at_unix_ms,
+            "xml": snapshot.xml,
+        })
+        .to_string(),
+        Some(snapshot) => {
+            let preview = truncate_preview(&snapshot.xml, 800);
+            format!(
+                "Session system prompt injection is configured.\nqa_count={}\nupdated_at_unix_ms={}\nxml_preview:\n{}",
+                snapshot.qa_count, snapshot.updated_at_unix_ms, preview
+            )
+        }
+        None if json_format => json!({
+            "kind": "session_injection",
+            "configured": false,
+            "message": "No system prompt injection is configured for this session.",
+        })
+        .to_string(),
+        None => "No system prompt injection is configured for this session.\nUse `/session inject <qa>...</qa>` to configure it.".to_string(),
+    }
+}
+
+async fn build_session_injection_clear_response(
+    agent: &Arc<Agent>,
+    session_id: &str,
+    json_format: bool,
+) -> String {
+    match agent
+        .clear_session_system_prompt_injection(session_id)
+        .await
+    {
+        Ok(cleared) if json_format => json!({
+            "kind": "session_injection",
+            "cleared": cleared,
+        })
+        .to_string(),
+        Ok(true) => "Session system prompt injection cleared.".to_string(),
+        Ok(false) => "No session system prompt injection existed to clear.".to_string(),
+        Err(error) if json_format => {
+            format_command_error_json("session_injection_clear", &error.to_string())
+        }
+        Err(error) => format!("Failed to clear session system prompt injection: {error}"),
+    }
+}
+
+async fn build_session_injection_set_xml_response(
+    agent: &Arc<Agent>,
+    session_id: &str,
+    payload: &str,
+    json_format: bool,
+) -> String {
+    match agent
+        .upsert_session_system_prompt_injection_xml(session_id, payload)
+        .await
+    {
+        Ok(snapshot) if json_format => json!({
+            "kind": "session_injection",
+            "configured": true,
+            "qa_count": snapshot.qa_count,
+            "updated_at_unix_ms": snapshot.updated_at_unix_ms,
+        })
+        .to_string(),
+        Ok(snapshot) => format!(
+            "Session system prompt injection updated.\nqa_count={}\nupdated_at_unix_ms={}",
+            snapshot.qa_count, snapshot.updated_at_unix_ms
+        ),
+        Err(error) if json_format => {
+            format_command_error_json("session_injection_set", &error.to_string())
+        }
+        Err(error) => format!("Invalid system prompt injection payload: {error}"),
+    }
 }

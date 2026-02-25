@@ -88,7 +88,7 @@ async def run_with_heartbeat(
         while not stop.is_set():
             try:
                 await asyncio.wait_for(stop.wait(), timeout=interval_s)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 heartbeat()
 
     hb_task = asyncio.create_task(_loop())
@@ -151,7 +151,7 @@ async def run_with_idle_timeout(
                     await task
                 except asyncio.CancelledError:
                     pass
-                raise asyncio.TimeoutError(
+                raise TimeoutError(
                     f"No progress for {idle_timeout_s}s (idle timeout). "
                     "Tool should call heartbeat() during long work."
                 )
@@ -161,7 +161,7 @@ async def run_with_idle_timeout(
                     await task
                 except asyncio.CancelledError:
                     pass
-                raise asyncio.TimeoutError(f"Tool exceeded wall-clock limit of {total_timeout_s}s.")
+                raise TimeoutError(f"Tool exceeded wall-clock limit of {total_timeout_s}s.")
         return task.result()
     finally:
         clear_tool_context()

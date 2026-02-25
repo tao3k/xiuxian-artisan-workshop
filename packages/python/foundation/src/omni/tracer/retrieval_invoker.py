@@ -10,10 +10,10 @@ from __future__ import annotations
 from typing import Any
 
 from omni.rag.retrieval import (
-    RetrievalConfig,
-    RetrievalBackend,
-    LanceRetrievalBackend,
     HybridRetrievalBackend,
+    LanceRetrievalBackend,
+    RetrievalBackend,
+    RetrievalConfig,
 )
 
 from .node_factory import ToolInvoker

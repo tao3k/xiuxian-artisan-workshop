@@ -76,7 +76,7 @@ class SkillTestBuilder:
         intents: list[str] | None = None,
         repository: str = "",
         permissions: list[str] | None = None,
-    ) -> "SkillTestBuilder":
+    ) -> SkillTestBuilder:
         """Set skill metadata fields."""
         if version is not None:
             self.metadata["version"] = version
@@ -94,7 +94,7 @@ class SkillTestBuilder:
             self.permissions = permissions
         return self
 
-    def with_script(self, filename: str, content: str) -> "SkillTestBuilder":
+    def with_script(self, filename: str, content: str) -> SkillTestBuilder:
         """Add a script file to the skill's scripts directory."""
         self.scripts[filename] = content
         return self

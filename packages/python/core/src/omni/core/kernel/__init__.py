@@ -33,16 +33,16 @@ Usage:
 
 from .engine import Kernel, get_kernel, reset_kernel
 from .lifecycle import LifecycleManager, LifecycleState
-from .reactor import KernelReactor, get_reactor, reset_reactor, EventTopic
+from .reactor import EventTopic, KernelReactor, get_reactor, reset_reactor
 
 __all__ = [
+    "EventTopic",
     "Kernel",
+    "KernelReactor",
     "LifecycleManager",
     "LifecycleState",
-    "KernelReactor",
-    "EventTopic",
     "get_kernel",
-    "reset_kernel",
     "get_reactor",
+    "reset_kernel",
     "reset_reactor",
 ]

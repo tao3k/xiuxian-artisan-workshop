@@ -91,14 +91,10 @@ def _build_critique_status_report(xml_labels: list[str], analysis: str) -> str:
         status = "PENDING"
         # Prefer evaluator-dimension mapping if available.
         if "example" in c_lower or "typescript" in c_lower or "rust" in c_lower:
-            if specificity_score >= 0.60:
-                status = "ADDRESSED"
-            elif _contains_specific_examples(analysis):
+            if specificity_score >= 0.60 or _contains_specific_examples(analysis):
                 status = "ADDRESSED"
         elif "quantify" in c_lower or "productivity" in c_lower or "impact" in c_lower:
-            if evidence_score >= 0.60:
-                status = "ADDRESSED"
-            elif _contains_evidence_signal(analysis):
+            if evidence_score >= 0.60 or _contains_evidence_signal(analysis):
                 status = "ADDRESSED"
         elif (
             "trade-off" in c_lower
@@ -106,9 +102,7 @@ def _build_critique_status_report(xml_labels: list[str], analysis: str) -> str:
             or "overhead" in c_lower
             or "cost" in c_lower
         ):
-            if tradeoffs_score >= 0.60:
-                status = "ADDRESSED"
-            elif _contains_tradeoff_signal(analysis):
+            if tradeoffs_score >= 0.60 or _contains_tradeoff_signal(analysis):
                 status = "ADDRESSED"
         else:
             if completeness_score >= 0.60:
@@ -311,23 +305,23 @@ def _synthesize_novel_critique(topic: str, previous_critiques: list[str]) -> str
 
 
 __all__ = [
-    "_escape_xml",
-    "_extract_tag",
-    "_parse_llm_payload",
-    "_jaccard_similarity",
-    "_max_similarity",
-    "_summarize_critiques",
     "_build_critique_status_report",
     "_build_evaluation_xml",
     "_build_quality_xml",
+    "_classify_issue",
+    "_contains_evidence_signal",
     "_contains_specific_examples",
     "_contains_tradeoff_signal",
-    "_contains_evidence_signal",
+    "_ensure_analysis_contract",
+    "_escape_xml",
+    "_extract_analysis_slot",
     "_extract_attr",
-    "_classify_issue",
+    "_extract_tag",
+    "_jaccard_similarity",
+    "_max_similarity",
     "_novelty_ratio",
     "_parse_critique_coverage",
-    "_extract_analysis_slot",
-    "_ensure_analysis_contract",
+    "_parse_llm_payload",
+    "_summarize_critiques",
     "_synthesize_novel_critique",
 ]

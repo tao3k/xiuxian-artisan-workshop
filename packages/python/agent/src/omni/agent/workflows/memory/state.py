@@ -1,16 +1,16 @@
-from typing import TypedDict, List, Dict, Any, Optional, Annotated
 import operator
+from typing import Annotated, Any, TypedDict
 
 
 class MemoryState(TypedDict):
     # Input
     query: str
-    content: Optional[str]
+    content: str | None
     mode: str  # "recall" | "store"
 
     # Internal
-    retrieved_docs: List[Dict[str, Any]]
-    trace: Annotated[List[Dict[str, Any]], operator.add]
+    retrieved_docs: list[dict[str, Any]]
+    trace: Annotated[list[dict[str, Any]], operator.add]
 
     # Output
     final_context: str

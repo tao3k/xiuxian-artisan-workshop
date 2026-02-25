@@ -39,7 +39,7 @@ class TestOverridesConfig:
 
     def test_aliases_property(self):
         """Test aliases property builds reverse lookup."""
-        from omni.core.config.loader import OverridesConfig, CommandOverride
+        from omni.core.config.loader import CommandOverride, OverridesConfig
 
         config = OverridesConfig(
             commands={
@@ -54,7 +54,7 @@ class TestOverridesConfig:
 
     def test_aliases_skips_none(self):
         """Test aliases property skips commands without alias."""
-        from omni.core.config.loader import OverridesConfig, CommandOverride
+        from omni.core.config.loader import CommandOverride, OverridesConfig
 
         config = OverridesConfig(
             commands={
@@ -141,7 +141,7 @@ class TestResolveAlias:
 
     def test_resolves_existing_alias(self):
         """Test resolving an existing alias."""
-        from omni.core.config.loader import resolve_alias, reset_config
+        from omni.core.config.loader import reset_config, resolve_alias
 
         reset_config()
 
@@ -155,7 +155,7 @@ class TestResolveAlias:
 
     def test_returns_none_for_unknown_alias(self):
         """Test that unknown aliases return None."""
-        from omni.core.config.loader import resolve_alias, reset_config
+        from omni.core.config.loader import reset_config, resolve_alias
 
         reset_config()
 
@@ -221,10 +221,9 @@ class TestBAMThreeModes:
         Kernel executes: "memory.remember_insight"
         """
         from omni.core.config.loader import (
-            load_command_overrides,
-            resolve_alias,
             get_command_display,
             reset_config,
+            resolve_alias,
         )
 
         reset_config()
@@ -259,10 +258,9 @@ class TestBAMThreeModes:
         Kernel executes: "code_tools.replace_in_file"
         """
         from omni.core.config.loader import (
-            load_command_overrides,
-            resolve_alias,
             get_command_display,
             reset_config,
+            resolve_alias,
         )
 
         reset_config()
@@ -298,10 +296,9 @@ class TestBAMThreeModes:
         Description: Enhanced with append_doc
         """
         from omni.core.config.loader import (
-            load_command_overrides,
-            resolve_alias,
             get_command_display,
             reset_config,
+            resolve_alias,
         )
 
         reset_config()
@@ -325,10 +322,10 @@ class TestBAMThreeModes:
     def test_mixed_modes_all_together(self):
         """Test all three modes loaded simultaneously."""
         from omni.core.config.loader import (
-            load_command_overrides,
-            resolve_alias,
             get_command_display,
+            load_command_overrides,
             reset_config,
+            resolve_alias,
         )
 
         reset_config()
@@ -390,10 +387,9 @@ class TestBAMThreeModes:
     def test_empty_override_values(self):
         """Test that empty string alias/append_doc are handled."""
         from omni.core.config.loader import (
-            load_command_overrides,
-            resolve_alias,
             get_command_display,
             reset_config,
+            resolve_alias,
         )
 
         reset_config()

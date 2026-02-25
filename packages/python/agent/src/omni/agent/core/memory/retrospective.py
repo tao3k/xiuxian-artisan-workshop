@@ -206,6 +206,6 @@ def extract_knowledge_to_save(retro: dict[str, Any]) -> list[dict[str, Any]]:
 
 __all__ = [
     "create_session_retrospective",
-    "format_retrospective",
     "extract_knowledge_to_save",
+    "format_retrospective",
 ]

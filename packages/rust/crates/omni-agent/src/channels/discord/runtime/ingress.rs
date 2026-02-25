@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use anyhow::Result;
 use axum::{
@@ -152,18 +153,32 @@ async fn discord_ingress_handler(
 
     match state.channel.parse_gateway_message(&event) {
         Some(msg) => {
+            let session_key = msg.session_key.clone();
+            let recipient = msg.recipient.clone();
             tracing::info!(
                 channel = "discord",
-                session_key = %msg.session_key,
-                recipient = %msg.recipient,
+                session_key = %session_key,
+                recipient = %recipient,
                 "discord ingress parsed message"
             );
+            let send_started = Instant::now();
             if state.tx.send(msg).await.is_err() {
                 tracing::error!("discord inbound queue unavailable");
                 return Err((
                     StatusCode::SERVICE_UNAVAILABLE,
                     "discord inbound queue unavailable".to_string(),
                 ));
+            }
+            let send_wait_ms =
+                u64::try_from(send_started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            if send_wait_ms >= 50 {
+                tracing::warn!(
+                    event = "discord.ingress.inbound_queue_wait",
+                    wait_ms = send_wait_ms,
+                    session_key = %session_key,
+                    recipient = %recipient,
+                    "discord ingress waited on inbound queue send"
+                );
             }
         }
         None => {

@@ -3,6 +3,7 @@
 mod agent;
 mod mcp;
 mod settings;
+mod xiuxian;
 
 pub use agent::{
     AgentConfig, ContextBudgetStrategy, LITELLM_DEFAULT_URL, McpServerEntry, MemoryConfig,
@@ -17,3 +18,4 @@ pub use settings::{
     TelegramTopicSettings, load_runtime_settings, load_runtime_settings_from_paths,
     runtime_settings_paths, set_config_home_override,
 };
+pub use xiuxian::load_xiuxian_config;

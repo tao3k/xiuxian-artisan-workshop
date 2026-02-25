@@ -6,15 +6,16 @@ CLI should only parse args and call these functions; no business logic in CLI.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-from omni.foundation.utils.asyncio import run_async_blocking
 from omni.foundation.config import get_database_path, get_database_paths
-from omni.foundation.config.settings import get_setting
 from omni.foundation.config.dirs import get_vector_db_path
+from omni.foundation.config.settings import get_setting
 from omni.foundation.services.vector_schema import validate_vector_table_contract
+from omni.foundation.utils.asyncio import run_async_blocking
 
 
 @contextmanager
@@ -378,8 +379,8 @@ def reindex_all(
 
 def reindex_status() -> dict[str, Any]:
     """Return status of all vector databases."""
-    from omni.foundation.bridge import RustVectorStore
     from omni.core.knowledge.librarian import Librarian
+    from omni.foundation.bridge import RustVectorStore
 
     db_paths = get_database_paths()
     stats = {}

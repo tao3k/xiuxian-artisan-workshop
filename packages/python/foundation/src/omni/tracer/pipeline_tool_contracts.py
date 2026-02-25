@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from importlib import resources
-from typing import Any
-
 
 BUILTIN_CONTRACTS_VERSION = "v1"
 

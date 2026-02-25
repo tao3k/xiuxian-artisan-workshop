@@ -4,9 +4,8 @@ Agent Tests - Decorator Validation Tests
 Validates @skill_command decorator correctness using core skill scripts.
 """
 
-import sys
 import pytest
-from pathlib import Path
+
 from omni.foundation.config.skills import SKILLS_DIR
 
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -25,7 +25,7 @@ class ContextProvider(ABC):
     """Abstract base class for context providers."""
 
     @abstractmethod
-    async def provide(self, state: dict[str, Any], budget: int) -> Optional[ContextResult]:
+    async def provide(self, state: dict[str, Any], budget: int) -> ContextResult | None:
         """Generate context based on current state.
 
         Args:

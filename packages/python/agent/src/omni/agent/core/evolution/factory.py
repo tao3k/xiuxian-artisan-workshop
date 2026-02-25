@@ -9,16 +9,14 @@ Safety: All generated skills go to quarantine directory for review.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from omni.foundation.config.logging import get_logger
 from omni.foundation.config.skills import SKILLS_DIR
 
-from .schemas import CandidateSkill, CrystallizationResult
 from .prompts import render_xml_guide
+from .schemas import CandidateSkill, CrystallizationResult
 
 logger = get_logger("omni.evolution.factory")
 
@@ -200,7 +198,7 @@ def _generate_param_docs(parameters: dict[str, str]) -> str:
 def _generate_param_examples(parameters: dict[str, str]) -> str:
     """Generate parameter examples for SKILL.md."""
     lines = []
-    for name in parameters.keys():
+    for name in parameters:
         safe_name = _sanitize_name(name)
         if "path" in name.lower():
             lines.append(f'    {safe_name}="/path/to/file",')
@@ -313,7 +311,7 @@ class SkillFactory:
             files_created.append(str(readme_path))
 
             logger.info(
-                f"factory.skill_created",
+                "factory.skill_created",
                 skill_name=skill_name,
                 category=candidate.category,
                 files=files_created,
@@ -328,7 +326,7 @@ class SkillFactory:
 
         except Exception as e:
             logger.error(
-                f"factory.manufacture_failed",
+                "factory.manufacture_failed",
                 skill=candidate.suggested_name,
                 error=str(e),
             )
@@ -425,6 +423,6 @@ class SkillFactory:
 
 
 __all__ = [
-    "SkillFactory",
     "CrystallizationResult",
+    "SkillFactory",
 ]

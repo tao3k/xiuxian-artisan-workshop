@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from omni.agent.core.evolution.manager import (
-    EvolutionManager,
-    EvolutionConfig,
-    EvolutionState,
     CrystallizationCandidate,
+    EvolutionConfig,
+    EvolutionManager,
+    EvolutionState,
 )
 
 
@@ -285,7 +285,6 @@ class TestEvolutionManager:
     @pytest.mark.asyncio
     async def test_run_evolution_cycle(self, manager, mock_tracer):
         """Test running a complete evolution cycle."""
-        from omni.agent.core.evolution.tracer import ExecutionTrace
 
         mock_tracer.get_recent_traces = AsyncMock(return_value=[])
         manager.config.dry_run = True
@@ -415,8 +414,8 @@ class TestEvolutionManagerIntegration:
     @pytest.mark.asyncio
     async def test_manager_with_real_tracer(self, temp_dir):
         """Test manager with real TraceCollector."""
-        from omni.agent.core.evolution.tracer import TraceCollector
         from omni.agent.core.evolution.manager import EvolutionManager
+        from omni.agent.core.evolution.tracer import TraceCollector
 
         tracer = TraceCollector(trace_dir=temp_dir)
         manager = EvolutionManager(trace_collector=tracer)

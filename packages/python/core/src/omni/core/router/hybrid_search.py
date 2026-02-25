@@ -58,8 +58,9 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Awaitable
+from typing import Any
 
 from omni.foundation.config.logging import get_logger
 
@@ -74,9 +75,6 @@ from omni.foundation.services.vector_schema import (
     build_tool_router_result,
     parse_tool_search_payload,
 )
-
-if TYPE_CHECKING:
-    from omni.foundation.bridge.rust_vector import RustVectorStore
 
 logger = get_logger("omni.core.router.hybrid")
 _UUID_RE = re.compile(
@@ -347,9 +345,11 @@ def _attribute_overlap_strength(
     for term in query_terms:
         if any(term in kw for kw in keywords_lower) or term in " ".join(keywords_lower):
             hits += 2
-        elif any(term in it for it in intents_lower) or term in " ".join(intents_lower):
-            hits += 1
-        elif cat_lower and term in cat_lower:
+        elif (
+            any(term in it for it in intents_lower)
+            or term in " ".join(intents_lower)
+            or (cat_lower and term in cat_lower)
+        ):
             hits += 1
     return hits
 
@@ -628,7 +628,6 @@ class HybridSearch:
         route test would use base_path/keyword_index which sync never updates.
         """
         from omni.foundation.bridge.rust_vector import get_vector_store
-        from omni.foundation.config.database import get_database_path
         from omni.foundation.config.dirs import get_vector_db_path
 
         resolved_storage_path = storage_path
@@ -651,12 +650,11 @@ class HybridSearch:
         if self._relationship_graph is not None:
             return self._relationship_graph
         try:
-            from omni.foundation.config.dirs import get_vector_db_path
-
             from omni.core.router.skill_relationships import (
                 get_relationship_graph_path,
                 load_relationship_graph,
             )
+            from omni.foundation.config.dirs import get_vector_db_path
 
             base = self._storage_path or get_vector_db_path()
             path = get_relationship_graph_path(str(base) if base else None)
@@ -745,9 +743,8 @@ class HybridSearch:
         """
         _t_search_start = time.perf_counter() if record_timings is not None else None
         # Optional: translate non-English query to English (SKILL.md is English-only)
-        from omni.core.router.translate import translate_query_to_english
-
         from omni.core.router.query_normalizer import normalize_for_routing
+        from omni.core.router.translate import translate_query_to_english
 
         effective_query = await translate_query_to_english(query, enabled=not skip_translation)
         if effective_query != query:
@@ -817,7 +814,7 @@ class HybridSearch:
                     "Hybrid search embedding unavailable; falling back to keyword-only routing",
                     error=str(exc),
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 # Defensive fallback: configuration or runtime embedding errors
                 # must not take down routing in keyword-capable environments.
                 keyword_only = True
@@ -840,12 +837,11 @@ class HybridSearch:
         _t_embed_end = time.perf_counter() if record_timings is not None else None
 
         # Use agentic search when available (intent + category_filter from rule-based or optional LLM).
-        from omni.foundation.config.settings import get_setting
-
         from omni.core.router.query_intent import (
             classify_tool_search_intent_full,
             classify_tool_search_intent_with_llm,
         )
+        from omni.foundation.config.settings import get_setting
 
         if intent_override is not None:
             resolved_intent, category_filter = intent_override, None
@@ -1124,4 +1120,4 @@ class HybridSearch:
         return self._store.get_search_profile()
 
 
-__all__ = ["HybridSearch", "HybridMatch"]
+__all__ = ["HybridMatch", "HybridSearch"]

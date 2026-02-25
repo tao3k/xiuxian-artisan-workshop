@@ -10,7 +10,8 @@ Key classes:
 
 from __future__ import annotations
 
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from omni.foundation.config.logging import get_logger
 
@@ -227,7 +228,7 @@ async def stream_with_trace(
     initial_state: dict[str, Any],
     tracer: ExecutionTracer,
     thread_id: str,
-) -> AsyncGenerator[dict[str, Any], None]:
+) -> AsyncGenerator[dict[str, Any]]:
     """Stream events from LangGraph while capturing trace.
 
     Args:

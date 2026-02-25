@@ -24,21 +24,21 @@ Example:
 from __future__ import annotations
 
 from .layers import (
-    # Markers
-    unit,
-    integration,
-    cloud,
     benchmark,
-    stress,
+    cloud,
     e2e,
-    # Utilities
-    skip_if_cloud,
-    only_cloud,
     get_test_layer,
+    integration,
+    only_cloud,
     # Configuration
     pytest_addoption,
-    pytest_configure,
     pytest_collection_modifyitems,
+    pytest_configure,
+    # Utilities
+    skip_if_cloud,
+    stress,
+    # Markers
+    unit,
 )
 
 __all__ = [

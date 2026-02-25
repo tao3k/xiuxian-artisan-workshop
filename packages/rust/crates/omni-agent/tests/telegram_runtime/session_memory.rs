@@ -8,6 +8,7 @@
     clippy::uninlined_format_args,
     clippy::float_cmp,
     clippy::field_reassign_with_default,
+    clippy::cast_lossless,
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -21,6 +22,8 @@
     clippy::needless_raw_string_hashes,
     clippy::manual_async_fn,
     clippy::manual_let_else,
+    clippy::manual_assert,
+    clippy::manual_string_new,
     clippy::too_many_lines,
     clippy::too_many_arguments,
     clippy::unnecessary_literal_bound,
@@ -29,6 +32,7 @@
     clippy::single_match_else,
     clippy::similar_names,
     clippy::format_collect,
+    clippy::async_yields_async,
     clippy::assigning_clones
 )]
 
@@ -110,6 +114,7 @@ async fn runtime_handle_inbound_session_memory_without_snapshot() -> Result<()> 
     );
     assert!(sent[0].0.contains("- Session scope: `telegram:-200:888`"));
     assert!(sent[0].0.contains("### Persistence"));
+    assert!(sent[0].0.contains("### Admission"));
     assert!(sent[0].0.contains("`startup_load_status=not_configured`"));
     assert!(sent[0].0.contains("`backend_ready=no`"));
     assert!(sent[0].0.contains("`gate_promote_threshold=-`"));
@@ -153,6 +158,11 @@ async fn runtime_handle_inbound_session_memory_without_snapshot_reports_json() -
     assert_eq!(payload["runtime"]["backend_ready"], false);
     assert!(payload["runtime"]["gate_promote_threshold"].is_null());
     assert!(payload["runtime"]["gate_obsolete_threshold"].is_null());
+    assert!(payload["admission"].is_object());
+    assert!(payload["admission"]["enabled"].is_boolean());
+    assert!(payload["admission"]["metrics"].is_object());
+    assert_eq!(payload["admission"]["metrics"]["total"], 0);
+    assert_eq!(payload["admission"]["metrics"]["rejected"], 0);
     assert!(payload["metrics"].is_object());
     assert_eq!(payload["metrics"]["planned_total"], 0);
     assert_eq!(payload["metrics"]["embedding_success_total"], 0);
@@ -229,6 +239,7 @@ async fn runtime_handle_inbound_session_memory_reports_latest_snapshot() -> Resu
     assert!(sent[0].0.contains("- `context_chars_injected=512`"));
     assert!(sent[0].0.contains("- `recalled_injected=3`"));
     assert!(sent[0].0.contains("### Persistence"));
+    assert!(sent[0].0.contains("### Admission"));
     assert!(sent[0].0.contains("`memory_enabled=no`"));
     assert!(sent[0].0.contains("`gate_promote_threshold=-`"));
     assert!(sent[0].0.contains("### Process Metrics"));
@@ -314,6 +325,11 @@ async fn runtime_handle_inbound_session_memory_reports_latest_snapshot_json() ->
     assert_eq!(payload["runtime"]["backend_ready"], false);
     assert!(payload["runtime"]["gate_promote_min_usage"].is_null());
     assert!(payload["runtime"]["gate_obsolete_min_usage"].is_null());
+    assert!(payload["admission"].is_object());
+    assert!(payload["admission"]["enabled"].is_boolean());
+    assert!(payload["admission"]["metrics"].is_object());
+    assert_eq!(payload["admission"]["metrics"]["total"], 0);
+    assert_eq!(payload["admission"]["metrics"]["rejected"], 0);
     assert!(payload["metrics"].is_object());
     assert_eq!(payload["metrics"]["planned_total"], 0);
     assert_eq!(payload["metrics"]["completed_total"], 0);
@@ -356,6 +372,7 @@ async fn runtime_handle_inbound_session_memory_telegram_uses_compact_not_found_v
         )
     );
     assert!(sent[0].0.contains("`promote(threshold=-,min_usage=-"));
+    assert!(sent[0].0.contains("`admission(enabled="));
     assert!(
         sent[0]
             .0
@@ -432,6 +449,7 @@ async fn runtime_handle_inbound_session_memory_telegram_uses_compact_snapshot_vi
     );
     assert!(sent[0].0.contains("### Adaptive Metrics"));
     assert!(sent[0].0.contains("`promote(threshold=-,min_usage=-"));
+    assert!(sent[0].0.contains("`admission(enabled="));
     assert!(
         sent[0]
             .0

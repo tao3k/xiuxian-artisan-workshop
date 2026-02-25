@@ -8,6 +8,7 @@
     clippy::uninlined_format_args,
     clippy::float_cmp,
     clippy::field_reassign_with_default,
+    clippy::cast_lossless,
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -21,6 +22,8 @@
     clippy::needless_raw_string_hashes,
     clippy::manual_async_fn,
     clippy::manual_let_else,
+    clippy::manual_assert,
+    clippy::manual_string_new,
     clippy::too_many_lines,
     clippy::too_many_arguments,
     clippy::unnecessary_literal_bound,
@@ -29,6 +32,7 @@
     clippy::single_match_else,
     clippy::similar_names,
     clippy::format_collect,
+    clippy::async_yields_async,
     clippy::assigning_clones
 )]
 
@@ -183,7 +187,10 @@ embedding:
   dimension: 1024
   client_url: "http://127.0.0.1:3002"
 memory:
+  embedding_timeout_ms: 7000
+  embedding_timeout_cooldown_ms: 18000
   persistence_backend: "local"
+  persistence_valkey_url: "redis://127.0.0.1:6379/0"
   persistence_strict_startup: true
   recall_credit_enabled: false
   recall_credit_max_candidates: 2
@@ -310,6 +317,9 @@ embedding:
   litellm_api_base: "http://localhost:11434"
   dimension: 768
 memory:
+  embedding_timeout_ms: 12000
+  embedding_timeout_cooldown_ms: 25000
+  persistence_valkey_url: "redis://127.0.0.1:6380/0"
   persistence_strict_startup: false
   recall_credit_enabled: true
   recall_credit_max_candidates: 5
@@ -505,6 +515,12 @@ memory:
         Some("http://127.0.0.1:3002")
     );
     assert_eq!(merged.memory.persistence_backend.as_deref(), Some("local"));
+    assert_eq!(merged.memory.embedding_timeout_ms, Some(12000));
+    assert_eq!(merged.memory.embedding_timeout_cooldown_ms, Some(25000));
+    assert_eq!(
+        merged.memory.persistence_valkey_url.as_deref(),
+        Some("redis://127.0.0.1:6380/0")
+    );
     assert_eq!(merged.memory.persistence_strict_startup, Some(false));
     assert_eq!(merged.memory.recall_credit_enabled, Some(true));
     assert_eq!(merged.memory.recall_credit_max_candidates, Some(5));

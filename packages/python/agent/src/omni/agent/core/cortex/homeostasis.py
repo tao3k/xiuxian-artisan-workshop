@@ -13,7 +13,6 @@ Integration: CortexOrchestrator → Homeostasis → TransactionShield/ConflictDe
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -21,14 +20,14 @@ from typing import Any
 from omni.foundation.config.logging import get_logger
 
 from .nodes import TaskGraph, TaskNode, TaskStatus
-from .orchestrator import CortexOrchestrator, ExecutionConfig
+from .orchestrator import CortexOrchestrator
 from .transaction import (
-    TransactionShield,
-    Transaction,
     ConflictDetector,
     ConflictReport,
-    TransactionStatus,
     ConflictSeverity,
+    Transaction,
+    TransactionShield,
+    TransactionStatus,
 )
 
 logger = get_logger("omni.cortex.homeostasis")

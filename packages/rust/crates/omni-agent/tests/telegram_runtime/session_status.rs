@@ -8,6 +8,7 @@
     clippy::uninlined_format_args,
     clippy::float_cmp,
     clippy::field_reassign_with_default,
+    clippy::cast_lossless,
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -21,6 +22,8 @@
     clippy::needless_raw_string_hashes,
     clippy::manual_async_fn,
     clippy::manual_let_else,
+    clippy::manual_assert,
+    clippy::manual_string_new,
     clippy::too_many_lines,
     clippy::too_many_arguments,
     clippy::unnecessary_literal_bound,
@@ -29,6 +32,7 @@
     clippy::single_match_else,
     clippy::similar_names,
     clippy::format_collect,
+    clippy::async_yields_async,
     clippy::assigning_clones
 )]
 
@@ -105,6 +109,8 @@ async fn runtime_handle_inbound_session_status_reports_active_and_saved_snapshot
     assert!(sent[0].0.contains("mode=unbounded"));
     assert!(sent[0].0.contains("messages=4"));
     assert!(sent[0].0.contains("status=none"));
+    assert!(sent[0].0.contains("Admission:"));
+    assert!(sent[0].0.contains("reject_rate_pct=0"));
     assert!(sent[1].0.contains("Session context reset."));
     assert!(sent[2].0.contains("session-context dashboard"));
     assert!(sent[2].0.contains("Overview:"));
@@ -118,6 +124,8 @@ async fn runtime_handle_inbound_session_status_reports_active_and_saved_snapshot
     assert!(sent[2].0.contains("status=available"));
     assert!(sent[2].0.contains("saved_messages=4"));
     assert!(sent[2].0.contains("restore_hint=/resume"));
+    assert!(sent[2].0.contains("Admission:"));
+    assert!(sent[2].0.contains("reject_rate_pct=0"));
     Ok(())
 }
 
@@ -158,5 +166,10 @@ async fn runtime_handle_inbound_session_status_reports_json() -> Result<()> {
     assert_eq!(payload["mode"], "unbounded");
     assert_eq!(payload["active"]["messages"], 2);
     assert_eq!(payload["saved_snapshot"]["status"], "none");
+    assert!(payload["admission"].is_object());
+    assert!(payload["admission"]["enabled"].is_boolean());
+    assert!(payload["admission"]["metrics"].is_object());
+    assert_eq!(payload["admission"]["metrics"]["total"], 0);
+    assert_eq!(payload["admission"]["metrics"]["rejected"], 0);
     Ok(())
 }

@@ -16,12 +16,12 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 from omni.foundation.config.logging import get_logger
 
-from .nodes import TaskGraph, TaskGroup, TaskNode, TaskStatus, TaskPriority
-from .planner import TaskDecomposer, DecompositionResult
+from .nodes import TaskGraph, TaskGroup, TaskNode, TaskStatus
+from .planner import TaskDecomposer
 
 logger = get_logger("omni.cortex.orchestrator")
 
@@ -88,7 +88,7 @@ class CortexOrchestrator:
     def __init__(
         self,
         config: ExecutionConfig | None = None,
-        tui_bridge: Optional[TUIBridgeProtocol] = None,
+        tui_bridge: TUIBridgeProtocol | None = None,
     ):
         self.config = config or ExecutionConfig()
         self.decomposer = TaskDecomposer()
@@ -572,8 +572,8 @@ class ConflictDetector:
 
 
 __all__ = [
+    "ConflictDetector",
     "CortexOrchestrator",
     "ExecutionConfig",
     "ExecutionResult",
-    "ConflictDetector",
 ]

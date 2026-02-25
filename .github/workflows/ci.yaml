@@ -183,6 +183,9 @@ jobs:
       - name: Rust gate - omni-agent dependency graph assertions
         run: secretspec run --provider env --profile default -- devenv tasks run ci:rust-omni-agent-dependency-assertions
 
+      - name: Rust gate - omni-agent backend role contracts
+        run: secretspec run --provider env --profile default -- devenv tasks run ci:rust-omni-agent-backend-role-contracts
+
       - name: Rust gate - snapshot contracts
         run: secretspec run --provider env --profile default -- devenv tasks run ci:rust-fusion-snapshots
 

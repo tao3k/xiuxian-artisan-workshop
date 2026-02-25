@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from jsonschema import Draft202012Validator
+
 from .pipeline_tool_contracts import load_builtin_tool_contracts
 
 PIPELINE_JSON_SCHEMA: dict[str, Any] = {

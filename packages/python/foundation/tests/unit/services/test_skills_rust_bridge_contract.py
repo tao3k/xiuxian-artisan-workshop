@@ -22,7 +22,6 @@ import pytest
 from omni.foundation.bridge.rust_vector import RUST_AVAILABLE, RustVectorStore
 from omni.foundation.bridge.tool_record_validation import (
     ToolRecordValidationError,
-    validate_tool_record,
     validate_tool_records,
 )
 

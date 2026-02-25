@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from omni.core.testing.layers import unit, integration, cloud, benchmark, stress, e2e
-from omni.core.responses import ToolResponse, ResponseStatus
-
+from omni.core.responses import ResponseStatus, ToolResponse
+from omni.core.testing.layers import benchmark, cloud, e2e, integration, stress, unit
 
 # =============================================================================
 # Unit Tests (< 100ms, mocked dependencies)
@@ -118,9 +117,8 @@ def test_response_creation_benchmark() -> None:
 @stress
 async def test_high_volume_skill_loading() -> None:
     """Stress test: Load thousands of skills."""
-    import asyncio
-    from pathlib import Path
     import tempfile
+    from pathlib import Path
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create many skill directories

@@ -18,11 +18,12 @@ As installed script:
 
 import argparse
 import json
-import structlog
 import sys
 
-from omni.foundation.utils.asyncio import run_async_blocking
+import structlog
+
 from omni.core.kernel import get_kernel
+from omni.foundation.utils.asyncio import run_async_blocking
 
 logger = structlog.get_logger("omni.agent.main")
 
@@ -101,9 +102,9 @@ From Claude Code CLI:
                 final_state = await app.ainvoke(initial_state)
                 # print(f"✅ Workflow Completed.\nResult: {final_state.get('validation_result')}")
                 if final_state.get("validation_result", {}).get("is_valid"):
-                    print(f"✅ Workflow Completed Successfully")
+                    print("✅ Workflow Completed Successfully")
                 else:
-                    print(f"❌ Workflow Failed")
+                    print("❌ Workflow Failed")
 
             except Exception as e:
                 logger.error("Graph execution error", error=str(e))

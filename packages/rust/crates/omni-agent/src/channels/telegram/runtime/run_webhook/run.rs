@@ -70,6 +70,7 @@ pub async fn run_telegram_webhook_with_control_command_policy(
     let secret_token = secret::normalize_secret_token(secret_token)?;
     let runtime_config = TelegramRuntimeConfig::from_env();
     let (tx, mut inbound_rx) = tokio::sync::mpsc::channel(runtime_config.inbound_queue_capacity);
+    let inbound_snapshot_tx = tx.clone();
     let webhook = build_telegram_webhook_app_with_control_command_policy(
         bot_token,
         allowed_users,
@@ -112,12 +113,14 @@ pub async fn run_telegram_webhook_with_control_command_policy(
     loop_control::run_webhook_event_loop(
         &mut inbound_rx,
         &mut completion_rx,
+        &inbound_snapshot_tx,
         &channel_for_send,
         &foreground_tx,
         &interrupt_controller,
         &job_manager,
         &agent,
         &mut webhook_server.task,
+        runtime_config,
     )
     .await;
 

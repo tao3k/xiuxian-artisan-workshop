@@ -135,4 +135,4 @@ def _clean_code(code: str) -> str:
     return code.strip()
 
 
-__all__ = ["verify_skill_code", "fix_skill_code", "generate_fix_prompt"]
+__all__ = ["fix_skill_code", "generate_fix_prompt", "verify_skill_code"]

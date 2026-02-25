@@ -7,10 +7,8 @@ Supports bash, zsh, and fish shells.
 
 from __future__ import annotations
 
-import platform
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -122,7 +120,7 @@ complete -c omni -l conf -d "Custom configuration directory"
 
 def _completions_command(
     shell: str,
-    output: Optional[str],
+    output: str | None,
 ) -> None:
     """Generate shell completion script for omni CLI.
 
@@ -148,16 +146,16 @@ def _completions_command(
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(script)
         console.print(f"[green]Completion script written to: {output_path}[/green]")
-        console.print(f"\nAdd to your shell config:")
+        console.print("\nAdd to your shell config:")
         if shell == "bash":
             console.print(f"  echo 'source {output}' >> ~/.bashrc")
         elif shell == "zsh":
-            console.print(f"  # For zsh, add to your fpath:")
+            console.print("  # For zsh, add to your fpath:")
             console.print(f"  fpath=( {output_path.parent} $fpath )")
-            console.print(f"  autoload -Uz compinit")
-            console.print(f"  compinit")
-            console.print(f"  ")
-            console.print(f"  # Or source directly:")
+            console.print("  autoload -Uz compinit")
+            console.print("  compinit")
+            console.print("  ")
+            console.print("  # Or source directly:")
             console.print(f"  echo 'source {output}' >> ~/.zshrc")
         elif shell == "fish":
             console.print(f"  echo 'source {output}' >> ~/.config/fish/config.fish")
@@ -184,7 +182,7 @@ def _commands_list() -> None:
         typer.echo(cmd)
 
 
-def register_completions_command(app: "Typer") -> None:
+def register_completions_command(app: Typer) -> None:
     """Register completions command with the main app."""
     from omni.agent.cli.load_requirements import register_requirements
 
@@ -198,7 +196,7 @@ def register_completions_command(app: "Typer") -> None:
             help="Shell type: bash, zsh, or fish",
             case_sensitive=False,
         ),
-        output: Optional[str] = typer.Option(
+        output: str | None = typer.Option(
             None,
             "--output",
             "-o",

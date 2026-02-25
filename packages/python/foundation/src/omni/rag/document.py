@@ -12,10 +12,11 @@ from __future__ import annotations
 import asyncio
 import os
 import re
-import structlog
 import tempfile
 from pathlib import Path
 from typing import Any
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 

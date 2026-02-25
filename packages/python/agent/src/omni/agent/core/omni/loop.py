@@ -22,7 +22,7 @@ import json
 import re
 import time
 import uuid
-from typing import Any, List, Dict, Optional
+from typing import Any
 
 from omni.agent.core.context.manager import ContextManager
 from omni.agent.core.context.pruner import ContextPruner, PruningConfig
@@ -41,10 +41,10 @@ except ImportError:
     EVENT_BUS_AVAILABLE = False
     logger.warning("Rust Event Bus not available, checkpoint events disabled")
 
+from ..memory.archiver import MemoryArchiver
 from .config import OmniLoopConfig
 from .react import ResilientReAct
 from .schemas import extract_tool_schemas
-from ..memory.archiver import MemoryArchiver
 
 logger = get_logger("omni.agent.loop")
 
@@ -129,7 +129,7 @@ class OmniLoop:
     - Harvester Integration: Background learning from successful sessions.
     """
 
-    def __init__(self, config: Optional[OmniLoopConfig] = None, kernel: Any = None):
+    def __init__(self, config: OmniLoopConfig | None = None, kernel: Any = None):
         self.config = config or OmniLoopConfig()
         self.session_id = str(uuid.uuid4())[:8]
         self.kernel = kernel
@@ -151,7 +151,7 @@ class OmniLoop:
         self.engine = InferenceClient()
         # Rust omni-agent owns authoritative system prompt injection.
         self.orchestrator = create_omni_loop_context()
-        self.history: List[Dict[str, Any]] = []
+        self.history: list[dict[str, Any]] = []
         self._initialized = False
 
         # [NEW] Initialize Memory Archiver for long-term storage
@@ -203,7 +203,7 @@ class OmniLoop:
 
         self._initialized = True
 
-    def _publish_step_complete(self, state: Dict[str, Any]) -> None:
+    def _publish_step_complete(self, state: dict[str, Any]) -> None:
         """Fire-and-forget checkpoint event to Rust Event Bus (Step 4).
 
         Replaces blocking checkpoint.save() with async event publishing.
@@ -232,7 +232,7 @@ class OmniLoop:
         except Exception as e:
             logger.warning(f"Failed to publish step event: {e}")
 
-    async def _get_adaptive_tool_schemas(self) -> List[Dict[str, Any]]:
+    async def _get_adaptive_tool_schemas(self) -> list[dict[str, Any]]:
         """
         Implements Adaptive Skill Projection.
         Filters out 'Atomic' tools if 'Molecular' skills are available.
@@ -300,7 +300,7 @@ class OmniLoop:
 
         return schemas
 
-    async def _execute_tool_proxy(self, name: str, args: Dict[str, Any]) -> Any:
+    async def _execute_tool_proxy(self, name: str, args: dict[str, Any]) -> Any:
         """Secure Proxy for Tool Execution."""
         # [NEW] Resolve Alias back to Canonical Name before execution
         # e.g. 'web_fetch' -> 'crawl4ai.crawl_url'
@@ -314,13 +314,13 @@ class OmniLoop:
             return await self.kernel.execute_tool(real_name, args, caller=None)
 
         # Fallback for standalone testing
-        from omni.core.skills.runtime import run_command, get_skill_context
+        from omni.core.skills.runtime import get_skill_context, run_command
         from omni.foundation.config.skills import SKILLS_DIR
 
         get_skill_context(SKILLS_DIR())
         return await run_command(name, **args)
 
-    def _has_high_level_skill(self, tool_names: List[str]) -> bool:
+    def _has_high_level_skill(self, tool_names: list[str]) -> bool:
         """Check if any high-level skill is present in tool names."""
         for tool_name in tool_names:
             for keyword in HIGH_LEVEL_KEYWORDS:
@@ -328,11 +328,11 @@ class OmniLoop:
                     return True
         return False
 
-    def _filter_tier_1_atomic(self, tool_names: List[str]) -> List[str]:
+    def _filter_tier_1_atomic(self, tool_names: list[str]) -> list[str]:
         """Filter out TIER_1_ATOMIC tools from the list."""
         return [name for name in tool_names if name not in TIER_1_ATOMIC]
 
-    async def run(self, task: str, max_steps: Optional[int] = None) -> str:
+    async def run(self, task: str, max_steps: int | None = None) -> str:
         import time
 
         _start = time.time()
@@ -516,8 +516,8 @@ class OmniLoop:
 
         try:
             # Lazy import to avoid startup dependencies
-            from omni.agent.core.evolution.harvester import Harvester
             from omni.agent.core.evolution.factory import SkillFactory
+            from omni.agent.core.evolution.harvester import Harvester
             from omni.foundation.config.skills import SKILLS_DIR
             from omni.foundation.services.vector import get_vector_store
 
@@ -549,7 +549,7 @@ class OmniLoop:
         except Exception as e:
             logger.error(f"Evolution cycle failed: {e}")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get session statistics."""
         return {
             "session_id": self.session_id,
@@ -558,7 +558,7 @@ class OmniLoop:
             "context_stats": self.context.stats(),
         }
 
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         """Create a serializable snapshot of the current session."""
         return {
             "session_id": self.session_id,

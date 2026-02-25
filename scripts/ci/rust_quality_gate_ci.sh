@@ -9,5 +9,6 @@ just rust-clippy
 just rust-nextest
 just rust-xiuxian-llm-mcp
 just rust-omni-agent-mcp-facade-smoke
+just rust-omni-agent-backend-role-contracts
 just rust-test-omni-core-rs
 just rust-security-gate

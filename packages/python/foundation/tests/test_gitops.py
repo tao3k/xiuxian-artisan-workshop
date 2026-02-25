@@ -5,7 +5,6 @@ Tests for omni.foundation.runtime.gitops module - project root detection.
 GitOps rule: project root is PRJ_ROOT or git toplevel only; no non-git fallback.
 """
 
-import os
 from pathlib import Path
 
 import pytest

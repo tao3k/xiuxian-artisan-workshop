@@ -45,7 +45,7 @@ class TestLoadKgRustCache:
 
     def test_load_kg_after_save_returns_graph(self, tmp_path):
         """Create graph, save via _save_kg, load via _load_kg returns same data."""
-        from omni_core_rs import PyEntity, PyKnowledgeGraph, PyRelation
+        from omni_core_rs import PyEntity, PyKnowledgeGraph
 
         from omni.rag.fusion._config import _load_kg, _save_kg
 

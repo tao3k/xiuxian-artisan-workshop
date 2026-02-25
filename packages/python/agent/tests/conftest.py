@@ -6,9 +6,10 @@ Leverages omni-test-kit for common fixtures.
 
 from __future__ import annotations
 
-import pytest
-from typing import Any
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 # Common fixtures like project_root, skills_root, git_test_env are
 # automatically loaded from omni-test-kit.

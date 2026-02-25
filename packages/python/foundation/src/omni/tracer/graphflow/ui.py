@@ -86,7 +86,7 @@ def ultra_summary(
     duration_ms: float,
     steps: int,
     memory: dict,
-    tracer: "LangGraphTracer | None" = None,
+    tracer: LangGraphTracer | None = None,
 ) -> Columns:
     """UltraRAG execution summary with detailed memory pool."""
     summary_table = Table(box=rich_box.HEAVY, show_header=False)

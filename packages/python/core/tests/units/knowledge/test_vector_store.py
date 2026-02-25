@@ -7,7 +7,7 @@ Note: Tests use mocking to avoid depending on actual embedding backends
 (FastEmbed, OpenAI) which may have different dimensions.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 

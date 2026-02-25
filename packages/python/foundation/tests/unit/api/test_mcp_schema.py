@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from omni.foundation.api.schema_provider import get_schema
 from omni.foundation.api.mcp_schema import (
     CONTENT_KEY,
     IS_ERROR_KEY,
@@ -16,6 +15,7 @@ from omni.foundation.api.mcp_schema import (
     parse_result_payload,
     validate,
 )
+from omni.foundation.api.schema_provider import get_schema
 
 
 def test_enforce_result_shape_strips_extra_keys():

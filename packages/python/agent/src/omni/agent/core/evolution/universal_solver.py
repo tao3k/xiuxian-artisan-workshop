@@ -66,7 +66,7 @@ class UniversalSolver:
 
     def __init__(
         self,
-        trace_collector: "TraceCollector | None" = None,
+        trace_collector: TraceCollector | None = None,
         hippocampus=None,
     ):
         """Initialize the universal solver.
@@ -77,10 +77,10 @@ class UniversalSolver:
             hippocampus: Optional Hippocampus instance for experience memory.
         """
         self._trace_collector = trace_collector
-        self._omni_cell: "OmniCellRunner | None" = None
+        self._omni_cell: OmniCellRunner | None = None
         self._hippocampus = hippocampus
 
-    async def _get_trace_collector(self) -> "TraceCollector":
+    async def _get_trace_collector(self) -> TraceCollector:
         """Lazy load TraceCollector if not provided."""
         if self._trace_collector is None:
             from omni.agent.core.evolution.tracer import TraceCollector
@@ -88,7 +88,7 @@ class UniversalSolver:
             self._trace_collector = TraceCollector()
         return self._trace_collector
 
-    async def _get_omni_cell(self) -> "OmniCellRunner":
+    async def _get_omni_cell(self) -> OmniCellRunner:
         """Lazy load OmniCellRunner from Core."""
         if self._omni_cell is None:
             # Import from Core to avoid circular dependency at module level
@@ -305,7 +305,6 @@ class UniversalSolver:
 
     def _calculate_duration(self, start: datetime) -> float:
         """Calculate execution duration in milliseconds."""
-        from datetime import timedelta
 
         delta = datetime.now() - start
         return delta.total_seconds() * 1000
@@ -383,7 +382,7 @@ class UniversalSolver:
 from omni.agent.core.evolution.tracer import TraceCollector
 
 __all__ = [
-    "UniversalSolver",
     "SolverResult",
     "SolverStatus",
+    "UniversalSolver",
 ]

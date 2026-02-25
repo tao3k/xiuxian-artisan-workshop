@@ -67,7 +67,7 @@ class SecurityError(Exception):
                 "\nPlease re-align your strategy with these rules."
             )
         else:
-            message += f"Add this permission to SKILL.md frontmatter to enable."
+            message += "Add this permission to SKILL.md frontmatter to enable."
 
         super().__init__(message)
 

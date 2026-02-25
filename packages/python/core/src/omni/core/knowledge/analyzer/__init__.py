@@ -142,8 +142,8 @@ def analyze_knowledge(collection: str = "knowledge", limit: int | None = None) -
 
 
 __all__ = [
-    "get_knowledge_dataframe",
-    "get_type_distribution",
-    "get_source_distribution",
     "analyze_knowledge",
+    "get_knowledge_dataframe",
+    "get_source_distribution",
+    "get_type_distribution",
 ]

@@ -10,9 +10,10 @@ mod traits;
 
 pub use discord::{
     DISCORD_MAX_MESSAGE_LENGTH, DiscordAclOverrides, DiscordChannel, DiscordCommandAdminRule,
-    DiscordControlCommandPolicy, DiscordIngressApp, DiscordRuntimeConfig, DiscordSessionPartition,
-    DiscordSlashCommandPolicy, build_discord_acl_overrides, build_discord_command_admin_rule,
-    build_discord_ingress_app, build_discord_ingress_app_with_control_command_policy,
+    DiscordControlCommandPolicy, DiscordIngressApp, DiscordIngressRunRequest, DiscordRuntimeConfig,
+    DiscordSessionPartition, DiscordSlashCommandPolicy, build_discord_acl_overrides,
+    build_discord_command_admin_rule, build_discord_ingress_app,
+    build_discord_ingress_app_with_control_command_policy,
     build_discord_ingress_app_with_partition_and_control_command_policy, run_discord_gateway,
     run_discord_ingress, split_message_for_discord,
 };

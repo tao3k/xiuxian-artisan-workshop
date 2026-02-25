@@ -8,6 +8,7 @@
     clippy::uninlined_format_args,
     clippy::float_cmp,
     clippy::field_reassign_with_default,
+    clippy::cast_lossless,
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -21,6 +22,8 @@
     clippy::needless_raw_string_hashes,
     clippy::manual_async_fn,
     clippy::manual_let_else,
+    clippy::manual_assert,
+    clippy::manual_string_new,
     clippy::too_many_lines,
     clippy::too_many_arguments,
     clippy::unnecessary_literal_bound,
@@ -29,6 +32,7 @@
     clippy::single_match_else,
     clippy::similar_names,
     clippy::format_collect,
+    clippy::async_yields_async,
     clippy::assigning_clones
 )]
 
@@ -220,6 +224,52 @@ async fn process_discord_message_resume_status_is_allowed_for_non_admin() -> Res
 }
 
 #[tokio::test]
+async fn process_discord_message_session_status_includes_admission_in_text() -> Result<()> {
+    let agent = build_agent().await?;
+    let job_manager = start_job_manager(agent.clone());
+    let channel = Arc::new(MockChannel::with_acl(true, std::iter::empty::<&str>()));
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+
+    process_discord_message(agent, channel_dyn, inbound("/session"), &job_manager, 10).await;
+
+    let sent = channel.sent_messages().await;
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0].0.contains("session-context dashboard"));
+    assert!(sent[0].0.contains("Admission:"));
+    assert!(sent[0].0.contains("reject_rate_pct=0"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn process_discord_message_session_status_json_includes_admission() -> Result<()> {
+    let agent = build_agent().await?;
+    let job_manager = start_job_manager(agent.clone());
+    let channel = Arc::new(MockChannel::with_acl(true, std::iter::empty::<&str>()));
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+
+    process_discord_message(
+        agent,
+        channel_dyn,
+        inbound("/session json"),
+        &job_manager,
+        10,
+    )
+    .await;
+
+    let sent = channel.sent_messages().await;
+    assert_eq!(sent.len(), 1);
+    let payload: serde_json::Value = serde_json::from_str(&sent[0].0)?;
+    assert_eq!(payload["kind"], "session_context");
+    assert_eq!(payload["logical_session_id"], "discord:3001:2001:1001");
+    assert!(payload["admission"].is_object());
+    assert!(payload["admission"]["enabled"].is_boolean());
+    assert!(payload["admission"]["metrics"].is_object());
+    assert_eq!(payload["admission"]["metrics"]["total"], 0);
+    assert_eq!(payload["admission"]["metrics"]["rejected"], 0);
+    Ok(())
+}
+
+#[tokio::test]
 async fn process_discord_message_handles_background_submit_ack() -> Result<()> {
     let agent = build_agent().await?;
     let job_manager = start_job_manager(agent.clone());
@@ -265,6 +315,7 @@ async fn process_discord_message_session_memory_includes_gate_policy_in_text() -
             .0
             .contains("- Session scope: `discord:3001:2001:1001`")
     );
+    assert!(sent[0].0.contains("### Admission"));
     assert!(sent[0].0.contains("`gate_promote_threshold=-`"));
     assert!(sent[0].0.contains("`gate_obsolete_threshold=-`"));
     Ok(())
@@ -295,6 +346,11 @@ async fn process_discord_message_session_memory_json_includes_gate_policy_fields
     assert!(payload["runtime"]["gate_obsolete_threshold"].is_null());
     assert!(payload["runtime"]["gate_promote_min_usage"].is_null());
     assert!(payload["runtime"]["gate_obsolete_min_usage"].is_null());
+    assert!(payload["admission"].is_object());
+    assert!(payload["admission"]["enabled"].is_boolean());
+    assert!(payload["admission"]["metrics"].is_object());
+    assert_eq!(payload["admission"]["metrics"]["total"], 0);
+    assert_eq!(payload["admission"]["metrics"]["rejected"], 0);
     assert_eq!(payload["metrics"]["embedding_success_total"], 0);
     assert_eq!(payload["metrics"]["embedding_timeout_total"], 0);
     assert_eq!(payload["metrics"]["embedding_cooldown_reject_total"], 0);

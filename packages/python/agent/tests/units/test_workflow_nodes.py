@@ -19,7 +19,7 @@ class TestHippocampusExperienceFormatting:
 
     def test_format_experience_with_pydantic_steps(self):
         """Test formatting experiences with Pydantic ExecutionStep models."""
-        from omni.agent.core.memory.schemas import ExperienceRecallResult, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, ExperienceRecallResult
 
         # Create mock experiences with Pydantic ExecutionStep
         experiences = [
@@ -141,7 +141,7 @@ class TestHippocampusExperienceFormatting:
 
     def test_format_multiple_experiences(self):
         """Test formatting multiple experiences."""
-        from omni.agent.core.memory.schemas import ExperienceRecallResult, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, ExperienceRecallResult
 
         # Create 3 experiences
         experiences = [
@@ -258,7 +258,7 @@ class TestClarifyNodeIntegration:
     @pytest.mark.asyncio
     async def test_clarify_node_with_mocked_hippocampus(self):
         """Test clarify_node behavior when hippocampus is mocked at import source."""
-        from omni.agent.core.memory.schemas import ExperienceRecallResult, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, ExperienceRecallResult
 
         # Create mock experiences
         mock_experiences = [
@@ -348,7 +348,7 @@ class TestPlanNodeIntegration:
     @pytest.mark.asyncio
     async def test_plan_node_with_mocked_hippocampus(self):
         """Test plan_node behavior when hippocampus is mocked."""
-        from omni.agent.core.memory.schemas import ExperienceRecallResult, ExecutionStep
+        from omni.agent.core.memory.schemas import ExecutionStep, ExperienceRecallResult
 
         mock_experiences = [
             ExperienceRecallResult(

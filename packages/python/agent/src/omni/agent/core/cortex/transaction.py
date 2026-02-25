@@ -14,9 +14,7 @@ Integration: CortexOrchestrator → TransactionShield → Git/ImmuneSystem
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
-import os
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -761,10 +759,10 @@ class ConflictDetector:
 
 
 __all__ = [
-    "TransactionShield",
-    "Transaction",
-    "TransactionStatus",
     "ConflictDetector",
     "ConflictReport",
     "ConflictSeverity",
+    "Transaction",
+    "TransactionShield",
+    "TransactionStatus",
 ]

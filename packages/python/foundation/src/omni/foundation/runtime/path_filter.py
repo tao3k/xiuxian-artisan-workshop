@@ -17,8 +17,6 @@ Usage:
 """
 
 from pathlib import Path
-from typing import Set
-
 
 # Standard directories to skip in all sync operations
 SKIP_DIRS: frozenset[str] = frozenset(
@@ -69,7 +67,7 @@ def should_skip_path(
     path: Path,
     *,
     skip_hidden: bool = True,
-    skip_dirs: Set[str] | frozenset[str] | None = None,
+    skip_dirs: set[str] | frozenset[str] | None = None,
 ) -> bool:
     """Check if a path should be skipped based on hidden files/dirs and skip names.
 
@@ -96,6 +94,6 @@ def should_skip_path(
 
 
 __all__ = [
-    "should_skip_path",
     "SKIP_DIRS",
+    "should_skip_path",
 ]

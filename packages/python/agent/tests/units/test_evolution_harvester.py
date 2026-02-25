@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from omni.agent.core.evolution.harvester import (
-    process_trace_for_skill,
     _heuristic_extract,
+    process_trace_for_skill,
 )
 from omni.agent.core.evolution.schemas import CandidateSkill
 from omni.agent.core.evolution.tracer import ExecutionTrace
@@ -249,7 +249,7 @@ class TestHarvesterInterface:
 
         harvester = Harvester()
         assert hasattr(harvester, "analyze_session")
-        assert callable(getattr(harvester, "analyze_session"))
+        assert callable(harvester.analyze_session)
 
     def test_harvester_has_extract_lessons(self):
         """Harvester must have extract_lessons method for OmniLoop evolution cycle."""
@@ -257,7 +257,7 @@ class TestHarvesterInterface:
 
         harvester = Harvester()
         assert hasattr(harvester, "extract_lessons")
-        assert callable(getattr(harvester, "extract_lessons"))
+        assert callable(harvester.extract_lessons)
 
     @pytest.mark.asyncio
     async def test_analyze_session_callable_with_history(self):

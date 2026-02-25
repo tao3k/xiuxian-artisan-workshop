@@ -8,6 +8,7 @@
     clippy::uninlined_format_args,
     clippy::float_cmp,
     clippy::field_reassign_with_default,
+    clippy::cast_lossless,
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
@@ -21,6 +22,8 @@
     clippy::needless_raw_string_hashes,
     clippy::manual_async_fn,
     clippy::manual_let_else,
+    clippy::manual_assert,
+    clippy::manual_string_new,
     clippy::too_many_lines,
     clippy::too_many_arguments,
     clippy::unnecessary_literal_bound,
@@ -29,6 +32,7 @@
     clippy::single_match_else,
     clippy::similar_names,
     clippy::format_collect,
+    clippy::async_yields_async,
     clippy::assigning_clones
 )]
 
@@ -42,11 +46,11 @@ fn parse_backend_mode_supports_openai_and_mistral_aliases() {
     );
     assert_eq!(
         parse_backend_mode(Some("mistral_rs")),
-        EmbeddingBackendMode::OpenAiHttp
+        EmbeddingBackendMode::MistralLocal
     );
     assert_eq!(
         parse_backend_mode(Some("mistral-http")),
-        EmbeddingBackendMode::OpenAiHttp
+        EmbeddingBackendMode::MistralLocal
     );
 }
 

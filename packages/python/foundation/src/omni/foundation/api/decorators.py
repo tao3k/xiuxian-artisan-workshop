@@ -37,12 +37,12 @@ from .execution import (
     trace_execution,
 )
 from .handlers import (
+    ErrorStrategy,
     ExecutionResult,
     LoggerConfig,
     ResultConfig,
     SkillCommandHandler,
     create_handler,
-    ErrorStrategy,
 )
 from .schema import _generate_tool_schema
 from .types import CommandResult
@@ -92,12 +92,26 @@ __all__ = [
 
 from .mcp_schema import (
     CONTENT_KEY as MCP_RESULT_CONTENT_KEY,
+)
+from .mcp_schema import (
     IS_ERROR_KEY as MCP_RESULT_IS_ERROR_KEY,
+)
+from .mcp_schema import (
     SCHEMA_NAME as MCP_TOOL_RESULT_SCHEMA_V1,
+)
+from .mcp_schema import (
     build_result as _mcp_build_result,
+)
+from .mcp_schema import (
     enforce_result_shape as _mcp_enforce_result_shape,
-    parse_result_payload as _mcp_parse_result_payload,
+)
+from .mcp_schema import (
     is_canonical as is_mcp_canonical_result,
+)
+from .mcp_schema import (
+    parse_result_payload as _mcp_parse_result_payload,
+)
+from .mcp_schema import (
     validate as _mcp_validate,
 )
 
@@ -273,11 +287,11 @@ def skill_command(
         )
         if has_explicit_handler_params:
             from .handlers import (
-                SkillCommandHandler,
                 ErrorStrategy,
                 LoggerConfig,
-                ResultConfig,
                 LogLevel,
+                ResultConfig,
+                SkillCommandHandler,
             )
 
             # Determine command name for logging

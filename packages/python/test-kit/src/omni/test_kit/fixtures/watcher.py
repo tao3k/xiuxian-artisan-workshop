@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 
@@ -135,11 +136,11 @@ def watcher_test_helper(mock_watcher_indexer):
 
 # Re-export for convenience
 __all__ = [
+    "WatcherTestHelper",
     "mock_watcher_indexer",
     "mock_watcher_indexer_with_count",
-    "temp_skill_dir",
     "sample_skill_script",
     "sample_skill_with_tools",
-    "WatcherTestHelper",
+    "temp_skill_dir",
     "watcher_test_helper",
 ]

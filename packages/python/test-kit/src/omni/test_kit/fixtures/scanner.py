@@ -2,10 +2,11 @@
 
 import shutil
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator
-import pytest
+from typing import Any
 
+import pytest
 from omni.test_kit.fixtures.skill_builder import SkillTestBuilder
 
 
@@ -115,7 +116,7 @@ class SkillTestSuite:
 
 
 @pytest.fixture
-def skill_test_suite() -> Generator[SkillTestSuite, None, None]:
+def skill_test_suite() -> Generator[SkillTestSuite]:
     """Fixture providing SkillTestSuite for scanner tests.
 
     Creates a temporary directory that is cleaned up after the test.
@@ -126,7 +127,7 @@ def skill_test_suite() -> Generator[SkillTestSuite, None, None]:
 
 
 @pytest.fixture
-def skill_directory() -> Generator[str, None, None]:
+def skill_directory() -> Generator[str]:
     """Create a temporary skill directory with SKILL.md.
 
     Creates a single skill named 'test_skill' with standard metadata
@@ -157,7 +158,7 @@ def example_tool(input_data: str) -> dict:
 
 
 @pytest.fixture
-def multi_skill_directory() -> Generator[str, None, None]:
+def multi_skill_directory() -> Generator[str]:
     """Create a temporary directory with multiple skills."""
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create skill 1

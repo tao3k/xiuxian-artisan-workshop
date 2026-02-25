@@ -30,5 +30,5 @@ pub(in crate::channels::telegram::runtime::jobs) async fn handle_inbound_message
     }
 
     preempt::interrupt_active_turn_for_new_message(interrupt_controller, &session_id, &msg);
-    foreground::forward(msg, foreground_tx).await
+    foreground::forward(msg, channel, agent, foreground_tx).await
 }

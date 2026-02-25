@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import textwrap
 
-
 # =============================================================================
 # Harvester Prompts (XML-Enhanced)
 # =============================================================================
@@ -243,10 +242,10 @@ def render_xml_guide(
 
 
 __all__ = [
-    "SKILL_EXTRACTION_PROMPT",
     "COMPLEX_TASK_EXTRACTION_PROMPT",
     "SKILL_CODE_GENERATION_PROMPT",
     "SKILL_DOC_GENERATION_PROMPT",
+    "SKILL_EXTRACTION_PROMPT",
     "SKILL_QUALITY_ASSESSMENT_PROMPT",
     "XML_GUIDE_TEMPLATE",
     "render_xml_guide",

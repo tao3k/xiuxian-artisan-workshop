@@ -37,8 +37,14 @@ class _FallbackKnowledgeCategory(str, Enum):
 try:
     from xiuxian_wendao import (
         KnowledgeCategory as _KnowledgeCategory,
+    )
+    from xiuxian_wendao import (
         KnowledgeEntry as _KnowledgeEntry,
+    )
+    from xiuxian_wendao import (
         KnowledgeSearchQuery as _KnowledgeSearchQuery,
+    )
+    from xiuxian_wendao import (
         KnowledgeStats as _KnowledgeStats,
     )
 
@@ -61,9 +67,9 @@ except ImportError:
 
 
 __all__ = [
+    "_HAS_RUST_BINDINGS",
     "KnowledgeCategory",
     "KnowledgeEntry",
     "KnowledgeSearchQuery",
     "KnowledgeStats",
-    "_HAS_RUST_BINDINGS",
 ]

@@ -32,19 +32,18 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import structlog
 
 from omni.foundation.config.dirs import PRJ_CACHE
-from omni.foundation.services.vector import get_vector_store, SearchResult
+from omni.foundation.services.vector import get_vector_store
 
 from .schemas import (
-    HippocampusTrace,
+    ExecutionStep,
     ExperienceMetadata,
     ExperienceRecallResult,
-    ExecutionStep,
+    HippocampusTrace,
 )
 
 logger = structlog.get_logger("memory.hippocampus")
@@ -72,10 +71,10 @@ class Hippocampus:
     - Graceful degradation if vector store unavailable
     """
 
-    _instance: "Hippocampus | None" = None
+    _instance: Hippocampus | None = None
     _initialized: bool = False
 
-    def __new__(cls) -> "Hippocampus":
+    def __new__(cls) -> Hippocampus:
         """Singleton pattern for memory efficiency."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -539,8 +538,8 @@ async def create_hippocampus_trace(
 
 
 __all__ = [
-    "Hippocampus",
-    "get_hippocampus",
-    "create_hippocampus_trace",
     "HIPPOCAMPUS_COLLECTION",
+    "Hippocampus",
+    "create_hippocampus_trace",
+    "get_hippocampus",
 ]

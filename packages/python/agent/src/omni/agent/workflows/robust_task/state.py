@@ -1,5 +1,5 @@
-from typing import Annotated, TypedDict, Union, List, Dict, Any
 import operator
+from typing import Annotated, Any, TypedDict
 
 
 class Step(TypedDict):
@@ -7,11 +7,11 @@ class Step(TypedDict):
     description: str
     status: str  # "pending", "in_progress", "completed", "failed"
     result: str
-    tool_calls: List[Dict[str, Any]]
+    tool_calls: list[dict[str, Any]]
 
 
 class Plan(TypedDict):
-    steps: List[Step]
+    steps: list[Step]
     current_step_index: int
 
 
@@ -26,11 +26,11 @@ class RobustTaskState(TypedDict):
 
     # Context
     clarified_goal: str
-    context_files: List[str]
-    discovered_tools: List[Dict[str, Any]]  # Tool definitions from skill.discover
+    context_files: list[str]
+    discovered_tools: list[dict[str, Any]]  # Tool definitions from skill.discover
     memory_context: str  # Retrieved knowledge from Memory Subgraph
     last_thought: str  # LLM reasoning from the latest step
-    trace: Annotated[List[Dict[str, Any]], operator.add]  # Internal events trace
+    trace: Annotated[list[dict[str, Any]], operator.add]  # Internal events trace
 
     # Human Interaction
     user_feedback: str  # Feedback provided by user during review
@@ -38,12 +38,12 @@ class RobustTaskState(TypedDict):
 
     # Execution
     plan: Plan
-    execution_history: Annotated[List[str], operator.add]
+    execution_history: Annotated[list[str], operator.add]
 
     # State
     status: str  # "clarifying", "planning", "executing", "validating", "completed", "failed"
     retry_count: int
     # Results
-    validation_result: Dict[str, Any]
+    validation_result: dict[str, Any]
     final_summary: str  # Markdown summary of the entire session
     error: str  # Error message if task failed

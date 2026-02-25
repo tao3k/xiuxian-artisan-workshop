@@ -10,12 +10,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
-from omni.foundation.utils.asyncio import run_async_blocking
 from omni.test_kit.fixtures.arrow import (
     assert_table_health_ipc_table,
     decode_table_health_ipc_bytes,
 )
+
+from omni.foundation.utils.asyncio import run_async_blocking
 
 
 @pytest.fixture

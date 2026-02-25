@@ -9,6 +9,15 @@ use std::time::Duration;
 const L2_DISTANCE_BENCH_ITERATIONS: usize = 1000;
 const L2_DISTANCE_BENCH_MAX_DURATION_MS: u64 = 2500;
 
+fn benchmark_budget_ms(local_ms: u64, ci_ms: u64) -> Duration {
+    let budget_ms = if std::env::var_os("CI").is_some() {
+        ci_ms
+    } else {
+        local_ms
+    };
+    Duration::from_millis(budget_ms)
+}
+
 /// Generate a random vector for benchmarking.
 fn generate_vector(dim: usize) -> Vec<f32> {
     let mut rng = rand::thread_rng();
@@ -62,13 +71,13 @@ fn test_l2_distance_performance() {
     let elapsed = start.elapsed();
 
     // Keep benchmark guard tolerant to debug-profile and shared CI runner variance.
-    let max_duration = Duration::from_millis(L2_DISTANCE_BENCH_MAX_DURATION_MS);
+    let max_duration = benchmark_budget_ms(L2_DISTANCE_BENCH_MAX_DURATION_MS, 3500);
     assert!(
         elapsed < max_duration,
-        "L2 distance calculation took {:.2}ms for {} iterations (expected < {}ms)",
+        "L2 distance calculation took {:.2}ms for {} iterations (expected < {:.2}ms)",
         elapsed.as_secs_f64() * 1000.0,
         L2_DISTANCE_BENCH_ITERATIONS,
-        L2_DISTANCE_BENCH_MAX_DURATION_MS
+        max_duration.as_secs_f64() * 1000.0
     );
 
     println!(
@@ -270,13 +279,14 @@ fn test_batch_l2_distance_performance() {
     let elapsed = start.elapsed();
     let total_distances = QUERY_COUNT * BATCH_SIZE;
 
-    // Should compute 1000 distances in under 10ms
-    let max_duration = Duration::from_millis(10);
+    // Shared runners and debug builds can exceed strict local latency for CPU-bound loops.
+    let max_duration = benchmark_budget_ms(15, 30);
     assert!(
         elapsed < max_duration,
-        "Batch L2 took {:.2}ms for {} distances",
+        "Batch L2 took {:.2}ms for {} distances (expected < {:.2}ms)",
         elapsed.as_secs_f64() * 1000.0,
-        total_distances
+        total_distances,
+        max_duration.as_secs_f64() * 1000.0
     );
 
     println!(

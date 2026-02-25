@@ -41,25 +41,9 @@ pub(crate) fn resolve_backend_settings(
     } else if let Some(raw) = settings_backend.as_deref() {
         (parse_backend_mode(Some(raw)), "settings")
     } else if let Some(raw) = non_empty_env("OMNI_AGENT_LLM_BACKEND") {
-        let lower = raw.to_ascii_lowercase();
-        if lower == "litellm_rs" || lower == "litellm-rs" {
-            #[cfg(feature = "agent-provider-litellm")]
-            {
-                (EmbeddingBackendMode::LiteLlmRs, "llm_env")
-            }
-            #[cfg(not(feature = "agent-provider-litellm"))]
-            {
-                tracing::warn!(
-                    llm_backend = %raw,
-                    "llm backend suggests litellm-rs but embedding litellm feature is disabled; using http backend"
-                );
-                (EmbeddingBackendMode::Http, "default")
-            }
-        } else {
-            (EmbeddingBackendMode::Http, "default")
-        }
+        (parse_backend_mode(Some(raw.as_str())), "llm_env")
     } else {
-        (EmbeddingBackendMode::Http, "default")
+        (default_backend_mode(), "default")
     };
 
     let timeout_secs = non_empty_env("OMNI_AGENT_EMBED_TIMEOUT_SECS")
@@ -109,6 +93,7 @@ fn parse_backend_mode(raw: Option<&str>) -> EmbeddingBackendMode {
     match parse_embedding_backend_kind(trimmed) {
         Some(EmbeddingBackendKind::Http) => EmbeddingBackendMode::Http,
         Some(EmbeddingBackendKind::OpenAiHttp) => EmbeddingBackendMode::OpenAiHttp,
+        Some(EmbeddingBackendKind::MistralLocal) => EmbeddingBackendMode::MistralLocal,
         Some(EmbeddingBackendKind::LiteLlmRs) => {
             #[cfg(feature = "agent-provider-litellm")]
             {
@@ -125,13 +110,26 @@ fn parse_backend_mode(raw: Option<&str>) -> EmbeddingBackendMode {
         }
         None => {
             if let Some(value) = trimmed {
+                let fallback = default_backend_mode();
                 tracing::warn!(
                     invalid_value = %value,
-                    "invalid embedding backend; defaulting to http backend"
+                    fallback_backend = fallback.as_str(),
+                    "invalid embedding backend; defaulting to runtime backend"
                 );
             }
-            EmbeddingBackendMode::Http
+            default_backend_mode()
         }
+    }
+}
+
+fn default_backend_mode() -> EmbeddingBackendMode {
+    #[cfg(feature = "agent-provider-litellm")]
+    {
+        EmbeddingBackendMode::LiteLlmRs
+    }
+    #[cfg(not(feature = "agent-provider-litellm"))]
+    {
+        EmbeddingBackendMode::Http
     }
 }
 

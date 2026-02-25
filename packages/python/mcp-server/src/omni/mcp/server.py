@@ -14,7 +14,6 @@ import asyncio
 from typing import Any
 
 from mcp.types import JSONRPCMessage, JSONRPCResponse
-
 from omni.foundation.config.logging import get_logger
 
 from .interfaces import MCPRequestHandler, MCPTransport

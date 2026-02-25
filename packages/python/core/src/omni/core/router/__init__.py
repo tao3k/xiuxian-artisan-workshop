@@ -36,6 +36,12 @@ from .hive import HiveRouter, MultiHiveRouter
 from .hybrid_search import HybridMatch, HybridSearch
 from .indexer import IndexedSkill, SkillIndexer
 from .main import OmniRouter, RouterRegistry, get_router
+from .query_intent import (
+    ToolSearchIntentResult,
+    classify_tool_search_intent,
+    classify_tool_search_intent_full,
+    classify_tool_search_intent_with_llm,
+)
 from .router import (
     ExplicitCommandRouter,
     RouteResult,
@@ -43,12 +49,6 @@ from .router import (
     UnifiedRouter,
 )
 from .sniffer import ActivationRule, ContextualSniffer, IntentSniffer
-from .query_intent import (
-    ToolSearchIntentResult,
-    classify_tool_search_intent,
-    classify_tool_search_intent_full,
-    classify_tool_search_intent_with_llm,
-)
 from .translate import enrich_routing_keywords, translate_query_to_english
 
 __all__ = [

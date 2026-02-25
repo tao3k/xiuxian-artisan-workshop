@@ -38,6 +38,8 @@ from omni.foundation.utils.asyncio import run_async_blocking
 if TYPE_CHECKING:
     from omni_core_rs import PyVectorStore
 
+from datetime import UTC
+
 from .config import get_knowledge_config
 from .ingestion import FileIngestor
 from .knowledge_types import KnowledgeCategory, KnowledgeEntry
@@ -56,7 +58,7 @@ class ChunkMode(Enum):
 class KnowledgeStorage:
     """Storage wrapper for knowledge chunks."""
 
-    def __init__(self, store: "PyVectorStore", table_name: str = "knowledge_chunks"):
+    def __init__(self, store: PyVectorStore, table_name: str = "knowledge_chunks"):
         self._store = store
         self.table_name = table_name
         # Ensure table exists
@@ -209,6 +211,7 @@ class Librarian:
         """Initialize the Librarian."""
         from omni_core_rs import PySyncEngine
         from omni_core_rs import PyVectorStore as RustStore
+
         from omni.foundation.config.database import get_database_path, get_vector_db_path
         from omni.foundation.services.embedding import get_embedding_service
 
@@ -875,7 +878,7 @@ class Librarian:
                 if not any(tag in entry_tags for tag in tags):
                     continue
 
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             entry = KnowledgeEntry(
                 id=res.get("id", ""),
@@ -884,16 +887,12 @@ class Librarian:
                 category=KnowledgeCategory(meta.get("category", "notes")),
                 tags=meta.get("tags", []),
                 source=meta.get("source"),
-                created_at=datetime.fromisoformat(meta.get("created_at", "")).replace(
-                    tzinfo=timezone.utc
-                )
+                created_at=datetime.fromisoformat(meta.get("created_at", "")).replace(tzinfo=UTC)
                 if meta.get("created_at")
-                else datetime.now(timezone.utc),
-                updated_at=datetime.fromisoformat(meta.get("updated_at", "")).replace(
-                    tzinfo=timezone.utc
-                )
+                else datetime.now(UTC),
+                updated_at=datetime.fromisoformat(meta.get("updated_at", "")).replace(tzinfo=UTC)
                 if meta.get("updated_at")
-                else datetime.now(timezone.utc),
+                else datetime.now(UTC),
                 version=meta.get("entry_version", 1),
                 metadata={
                     k: v
@@ -918,6 +917,6 @@ class Librarian:
 
 # Re-exports
 __all__ = [
-    "Librarian",
     "ChunkMode",
+    "Librarian",
 ]

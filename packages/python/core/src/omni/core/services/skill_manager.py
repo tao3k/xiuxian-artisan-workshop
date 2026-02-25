@@ -40,18 +40,18 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import structlog
-
 from omni_core_rs import PyVectorStore
-from omni.foundation.services.embedding import EmbeddingService, get_embedding_service
+
+from omni.core.kernel.watcher import ReactiveSkillWatcher
 from omni.core.skills.indexer import SkillIndexer
 from omni.core.skills.registry.holographic import HolographicRegistry
-from omni.core.kernel.watcher import ReactiveSkillWatcher
+from omni.foundation.services.embedding import EmbeddingService, get_embedding_service
 
 logger = structlog.get_logger(__name__)
 
@@ -146,7 +146,7 @@ class SkillManager:
         self._watcher_patterns = watcher_patterns
         self._watcher_debounce = watcher_debounce_seconds
         self.watcher: ReactiveSkillWatcher | None = None
-        self._kernel: "Kernel | None" = None  # Kernel reference for Live-Wire integration
+        self._kernel: Kernel | None = None  # Kernel reference for Live-Wire integration
 
         # Callbacks for skill changes (used by MCP Gateway for notifications)
         self._on_update_callbacks: list[Callable[[], None]] = []
@@ -158,7 +158,7 @@ class SkillManager:
         self._pending_notify = False  # Flag for coalesced notifications
 
         # Librarian (initialized in startup to avoid circular imports)
-        self.librarian: "Librarian | None" = None
+        self.librarian: Librarian | None = None
 
     def on_registry_update(self, callback: Callable[[], None] | Callable[[], Any]) -> None:
         """Register a callback to be fired when skills change.
@@ -244,8 +244,8 @@ class SkillManager:
             initial_scan: Whether to scan all skill files on startup
             ingest_knowledge: Whether to ingest project knowledge on startup
         """
-        from omni.core.runtime.services import ServiceRegistry
         from omni.core.knowledge.librarian import Librarian
+        from omni.core.runtime.services import ServiceRegistry
 
         logger.info(
             "Starting SkillManager",
@@ -413,7 +413,7 @@ class SkillManager:
 
         return stats
 
-    def set_kernel(self, kernel: "Kernel") -> None:
+    def set_kernel(self, kernel: Kernel) -> None:
         """Set the kernel reference for Live-Wire skill reload integration.
 
         This enables the full automatic refresh chain:

@@ -1,15 +1,17 @@
-from typing import Any, Dict, List
-from .state import AgentState
-from omni.foundation.services.llm import InferenceClient
-from omni.agent.core.omni.react import ArgumentValidator, OutputCompressor
-import json
 import hashlib
+import json
+from typing import Any
+
+from omni.agent.core.omni.react import OutputCompressor
+from omni.foundation.services.llm import InferenceClient
+
+from .state import AgentState
 
 # Singleton for now, should be injected
 engine = InferenceClient()
 
 
-async def think_node(state: AgentState) -> Dict[str, Any]:
+async def think_node(state: AgentState) -> dict[str, Any]:
     print("🧠 Thinking...")
 
     response = await engine.complete(
@@ -36,7 +38,7 @@ async def think_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-async def act_node(state: AgentState) -> Dict[str, Any]:
+async def act_node(state: AgentState) -> dict[str, Any]:
     print("⚙️ Acting...")
     tool_results = []
     messages = []
@@ -77,7 +79,7 @@ async def act_node(state: AgentState) -> Dict[str, Any]:
                 is_error = False
                 consecutive_errors = 0  # Reset
             except Exception as e:
-                result = f"Runtime Error: {str(e)}"
+                result = f"Runtime Error: {e!s}"
                 is_error = True
                 consecutive_errors += 1
 
@@ -98,7 +100,7 @@ async def act_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-async def reflect_node(state: AgentState) -> Dict[str, Any]:
+async def reflect_node(state: AgentState) -> dict[str, Any]:
     # Simple check for stagnation
     if state["consecutive_errors"] >= 3:
         print("🛑 Max errors reached")

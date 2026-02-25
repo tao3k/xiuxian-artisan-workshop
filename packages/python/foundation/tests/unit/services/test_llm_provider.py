@@ -14,14 +14,13 @@ import pytest
 
 from omni.foundation.config.settings import get_setting
 from omni.foundation.services.llm.provider import (
-    LLMConfig,
     LiteLLMProvider,
+    LLMConfig,
     NoOpProvider,
+    _minimax_model_casing,
     get_llm_provider,
     reset_provider,
-    _minimax_model_casing,
 )
-
 
 # Get the default model from settings for use in tests
 DEFAULT_MODEL = get_setting("inference.model", "MiniMax-M2.1")

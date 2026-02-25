@@ -1,8 +1,10 @@
 //! Advanced Hybrid PPR Kernel for Wendao.
 //! Implements `HippoRAG` 2 mixed directed graph (P-E topology).
 
-use petgraph::stable_graph::StableGraph;
-use petgraph::visit::EdgeRef;
+use petgraph::Direction;
+use petgraph::stable_graph::{NodeIndex, StableGraph};
+use petgraph::visit::{EdgeRef, NodeIndexable};
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// Types of nodes in the `HippoRAG` 2 mixed graph.
@@ -71,8 +73,20 @@ impl HybridPprKernel {
         }
     }
 
-    /// Run non-uniform PPR.
-    pub fn run(&mut self, seeds: &HashMap<String, f64>, alpha: f64, iterations: usize) {
+    /// Run non-uniform PPR with parallel computation and early stopping.
+    pub fn run(
+        &mut self,
+        seeds: &HashMap<String, f64>,
+        alpha: f64,
+        iterations: usize,
+        tol: Option<f64>,
+    ) {
+        let tolerance = tol.unwrap_or(1e-6);
+        let node_count = self.graph.node_bound();
+        if node_count == 0 {
+            return;
+        }
+
         // 1. Initialize ranks from seeds
         for (id, &val) in seeds {
             if let Some(&idx) = self.id_to_idx.get(id) {
@@ -80,35 +94,51 @@ impl HybridPprKernel {
             }
         }
 
+        // Pre-compute out-weight sums for all nodes (for fast O(1) division during gather)
+        let mut out_weights = vec![0.0; node_count];
+        for idx in self.graph.node_indices() {
+            let total: f32 = self.graph.edges(idx).map(|e| *e.weight()).sum();
+            out_weights[idx.index()] = f64::from(total);
+        }
+
+        // Collect indices for parallel iteration
+        let indices: Vec<NodeIndex> = self.graph.node_indices().collect();
+
         // 2. Power iteration
         for _ in 0..iterations {
-            let mut next_ranks = vec![0.0; self.graph.node_count()];
-
-            // Collect next ranks (immutable phase)
-            for idx in self.graph.node_indices() {
-                let current_rank = self.graph[idx].rank;
-                let out_edges: Vec<_> = self.graph.edges(idx).collect();
-
-                if !out_edges.is_empty() {
-                    let total_weight: f32 = out_edges.iter().map(|e| *e.weight()).sum();
-                    for edge in out_edges {
-                        let target = edge.target();
-                        let weight = *edge.weight();
-                        next_ranks[target.index()] +=
-                            current_rank * (f64::from(weight) / f64::from(total_weight));
+            // Gather phase (Parallel)
+            let new_ranks: Vec<(NodeIndex, f64)> = indices
+                .par_iter()
+                .map(|&v| {
+                    let mut incoming_sum = 0.0;
+                    for edge in self.graph.edges_directed(v, Direction::Incoming) {
+                        let u = edge.source();
+                        let w = f64::from(*edge.weight());
+                        let out_w = out_weights[u.index()];
+                        if out_w > 0.0 {
+                            incoming_sum += self.graph[u].rank * (w / out_w);
+                        }
                     }
-                }
+
+                    let seed_prob = seeds.get(&self.graph[v].id).copied().unwrap_or(0.0);
+                    let current_saliency = self.graph[v].saliency;
+                    let teleport_prob = (seed_prob + current_saliency / 10.0).min(1.0);
+
+                    let next_rank = (1.0 - alpha) * incoming_sum + alpha * teleport_prob;
+                    (v, next_rank)
+                })
+                .collect();
+
+            // Convergence check & Apply updates
+            let mut diff = 0.0;
+            for (idx, new_rank) in new_ranks {
+                let old_rank = self.graph[idx].rank;
+                diff += (new_rank - old_rank).abs();
+                self.graph[idx].rank = new_rank;
             }
 
-            // Apply damping and seed teleportation (mutable phase)
-            let indices: Vec<_> = self.graph.node_indices().collect();
-            for idx in indices {
-                let seed_prob = seeds.get(&self.graph[idx].id).copied().unwrap_or(0.0);
-                let current_saliency = self.graph[idx].saliency;
-                let teleport_prob = (seed_prob + current_saliency / 10.0).min(1.0);
-
-                self.graph[idx].rank =
-                    (1.0 - alpha) * next_ranks[idx.index()] + alpha * teleport_prob;
+            if diff < tolerance {
+                break; // Early stopping
             }
         }
     }

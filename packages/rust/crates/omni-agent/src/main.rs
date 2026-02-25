@@ -4,15 +4,17 @@
 //!
 //! Logging: set `RUST_LOG=omni_agent=info` (or `warn`, `debug`) to see agent logs on stderr.
 
-mod agent_builder;
+#![recursion_limit = "256"]
+
 mod cli;
 mod nodes;
 mod resolve;
+mod runtime_agent_factory;
 
 use clap::Parser;
 use tracing_subscriber::EnvFilter;
 
-use omni_agent::{load_runtime_settings, set_config_home_override};
+use omni_agent::{RuntimeSettings, load_runtime_settings, set_config_home_override};
 
 use crate::cli::{Cli, Command};
 use crate::nodes::{
@@ -21,14 +23,17 @@ use crate::nodes::{
 };
 
 #[tokio::main]
-#[allow(clippy::too_many_lines)]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     if let Some(conf_dir) = cli.conf.clone() {
         set_config_home_override(conf_dir);
     }
     let runtime_settings = load_runtime_settings();
+    init_tracing(&cli);
+    dispatch_command(cli.command, &runtime_settings).await
+}
 
+fn init_tracing(cli: &Cli) {
     // Initialize tracing: RUST_LOG overrides; --verbose on channel => debug; else info
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         let verbose = matches!(&cli.command, Command::Channel { verbose: true, .. });
@@ -42,8 +47,13 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(filter)
         .with_writer(std::io::stderr)
         .try_init();
+}
 
-    match cli.command {
+async fn dispatch_command(
+    command: Command,
+    runtime_settings: &RuntimeSettings,
+) -> anyhow::Result<()> {
+    match command {
         Command::Gateway {
             bind,
             turn_timeout,
@@ -55,19 +65,19 @@ async fn main() -> anyhow::Result<()> {
                 turn_timeout,
                 max_concurrent,
                 mcp_config,
-                &runtime_settings,
+                runtime_settings,
             )
             .await
         }
         Command::Stdio {
             session_id,
             mcp_config,
-        } => run_stdio_mode(session_id, mcp_config, &runtime_settings).await,
+        } => run_stdio_mode(session_id, mcp_config, runtime_settings).await,
         Command::Repl {
             query,
             session_id,
             mcp_config,
-        } => run_repl_mode(query, session_id, mcp_config, &runtime_settings).await,
+        } => run_repl_mode(query, session_id, mcp_config, runtime_settings).await,
         Command::Schedule {
             prompt,
             interval_secs,
@@ -87,7 +97,7 @@ async fn main() -> anyhow::Result<()> {
                 recipient,
                 wait_for_completion_secs,
                 mcp_config,
-                &runtime_settings,
+                runtime_settings,
             )
             .await
         }
@@ -127,7 +137,7 @@ async fn main() -> anyhow::Result<()> {
                     webhook_dedup_ttl_secs,
                     webhook_dedup_key_prefix,
                 },
-                &runtime_settings,
+                runtime_settings,
             )
             .await
         }

@@ -114,8 +114,10 @@ inference:
 # =============================================================================
 agent:
   # LLM backend for omni-agent runtime:
-  # - "litellm_rs" (default): Rust litellm-rs provider path
-  # - "http": direct OpenAI-compatible HTTP client
+  # - "litellm_rs" (default): provider routing path via Rust litellm-rs.
+  #   This mode does not manage local model lifecycle.
+  # - "mistral_local": local runtime mode (OpenAI-compatible) backed by `mistral.*` settings.
+  # - "http": direct OpenAI-compatible HTTP client.
   llm_backend: "litellm_rs"
 
 # =============================================================================
@@ -178,10 +180,12 @@ mcp:
   # - embed_max_concurrency: max concurrent embedding calls accepted by SSE endpoint.
   # - embed_queue_wait_timeout_secs: max wait to enter embedding queue before fail-fast 503.
   # - embed_request_timeout_secs: max runtime of one embedding call before timeout 503.
+  # - embed_client_timeout_secs: CLI/client timeout for each MCP embed request before keyword-only fallback.
   # Tune these together based on observed p95 and upstream model throughput.
   embed_max_concurrency: 24
   embed_queue_wait_timeout_secs: 1.0
   embed_request_timeout_secs: 15.0
+  embed_client_timeout_secs: 5.0
 
   # tools/list payload tuning:
   # cap per-tool description length (chars) to improve high-frequency polling throughput.
@@ -301,12 +305,19 @@ memory:
   # Custom memory path (leave empty to use default prj-spec)
   # path: "/custom/path/.memory"
   path: ""
+  # Per-attempt timeout (ms) for memory embedding operations (recall/store).
+  # Increase when local embedding backends (for example ollama) need longer warm-up.
+  embedding_timeout_ms: 15000
+  # Cooldown window (ms) after one embedding timeout before retrying semantic memory.
+  embedding_timeout_cooldown_ms: 20000
   # Memory state persistence backend:
   # - valkey: require Valkey (startup fails if unavailable)
   # - auto/local are intentionally disabled for production defaults.
   persistence_backend: "valkey"
   # Dedicated Valkey URL for memory state snapshots.
-  # URL resolution: session.valkey_url first, then VALKEY_URL fallback.
+  # URL resolution: memory.persistence_valkey_url -> session.valkey_url -> VALKEY_URL.
+  # Set this when memory should use a dedicated Valkey endpoint.
+  persistence_valkey_url: null
   persistence_key_prefix: "omni-agent:memory"
   # Strict startup for Valkey memory backend:
   # - true: fail startup if initial Valkey load fails
@@ -481,6 +492,14 @@ telegram:
   max_tool_rounds: 30 # Max tool-call rounds per user message. Env: OMNI_AGENT_MAX_TOOL_ROUNDS.
 
 # =============================================================================
+# Gateway Sidecar (optional for local webhook workflow)
+# =============================================================================
+# Used by `scripts/channel/agent-channel-webhook.sh` when you want webhook + gateway
+# started together. Use user settings override to change/disable this default.
+gateway:
+  bind: "127.0.0.1:38082"
+
+# =============================================================================
 # Discord Channel (omni-agent channel --provider discord)
 # =============================================================================
 discord:
@@ -545,7 +564,7 @@ discord:
   #       roles: ["maintainers"]
 
   # Ingress endpoint (Discord events forwarded by gateway/adapter).
-  ingress_bind: "0.0.0.0:8082"
+  ingress_bind: "0.0.0.0:18082"
   ingress_path: "/discord/ingress"
   # ingress_secret_token: "replace-with-shared-secret"
 
@@ -598,9 +617,12 @@ session:
 # and use client if server is healthy; otherwise it may start a server.
 embedding:
   # Rust embedding backend in omni-agent:
-  # - "http": call /embed/batch endpoint (legacy client mode, optional MCP fallback).
-  # - "openai_http" / "mistral_rs": call OpenAI-compatible /v1/embeddings endpoint.
-  # - "litellm_rs": call embedding provider directly via Rust LiteLLM SDK.
+  # - "http": call legacy /embed/batch endpoint.
+  # - "openai_http": call generic OpenAI-compatible /v1/embeddings endpoint.
+  # - "mistral_local" (aliases: mistral_rs/mistral_server): local runtime mode
+  #   over /v1/embeddings, using `mistral.*` lifecycle/base_url settings.
+  # - "litellm_rs": provider routing via Rust litellm-rs (API-provider path).
+  #   This mode is not a local runtime lifecycle manager.
   backend: "http"
 
   # Optional embedding timeout (seconds) and in-flight concurrency gate.
@@ -619,7 +641,7 @@ embedding:
   provider: "ollama"
 
   # LiteLLM model and API. Qwen 0.6: ollama pull qwen3-embedding:0.6b → ollama/qwen3-embedding:0.6b, dimension 1024
-  # To store Ollama models under project: export OLLAMA_MODELS="${PRJ_DATA_HOME:-.data}/ollama/models" before ollama pull/serve
+  # To store Ollama models under project: export OLLAMA_MODELS="${PRJ_DATA_HOME:-.data}/models" before ollama pull/serve
   litellm_model: "ollama/qwen3-embedding:0.6b"
   litellm_api_base: "http://127.0.0.1:11434"
 
@@ -648,6 +670,24 @@ embedding:
   # When MCP provides embedding (omni mcp --transport sse --port 3002), client connects here.
   # MCP exposes /embed/batch and /embed/single for embedding_client compatibility.
   client_url: "http://127.0.0.1:3002"
+
+# Optional local Mistral runtime management for Rust gateway startup.
+# This section is used when backend resolves to `mistral_local`.
+# It is ignored for provider-routing mode (`litellm_rs`).
+mistral:
+  # Feature switch for mistral runtime integration in Rust gateway.
+  enabled: false
+  # Auto-start `mistralrs-server` when embedding backend resolves to mistral.
+  auto_start: false
+  # Command and args used to start `mistralrs-server`.
+  # command: "mistralrs-server"
+  # args: ["--port", "11500"]
+  # OpenAI-compatible base URL for readiness probe and embedding requests.
+  base_url: "http://127.0.0.1:11500"
+  # Startup/readiness probe tuning.
+  startup_timeout_secs: 45
+  probe_timeout_ms: 1500
+  probe_interval_ms: 250
 
 # =============================================================================
 # RAG Module Configuration

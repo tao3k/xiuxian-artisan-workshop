@@ -9,11 +9,11 @@ from dataclasses import dataclass
 import pytest
 
 from omni.rag import (
-    RetrievalConfig,
-    RetrievalResult,
-    LanceRetrievalBackend,
     HybridRetrievalBackend,
     HybridRetrievalUnavailableError,
+    LanceRetrievalBackend,
+    RetrievalConfig,
+    RetrievalResult,
 )
 
 

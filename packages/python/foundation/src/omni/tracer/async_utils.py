@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from enum import Enum
 from collections.abc import Coroutine
+from enum import Enum
 from typing import Any
 
 from omni.foundation.utils import run_async_blocking

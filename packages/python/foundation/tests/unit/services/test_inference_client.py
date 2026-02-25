@@ -291,12 +291,10 @@ class TestErrorHandlingLiteLLM:
             }.get(key, default)
             mock_key.return_value = "test-api-key"
 
-            import asyncio
-
             client = InferenceClient()
             # Simulate timeout
             mock_litellm = AsyncMock()
-            mock_litellm.acompletion = AsyncMock(side_effect=asyncio.TimeoutError())
+            mock_litellm.acompletion = AsyncMock(side_effect=TimeoutError())
             client._litellm = mock_litellm
 
             result = await client.complete(

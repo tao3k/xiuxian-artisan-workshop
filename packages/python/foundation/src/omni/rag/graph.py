@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
+from typing import Any
+
 import structlog
-from typing import Any, Callable
 
 from omni.rag.config import get_rag_config, is_knowledge_graph_enabled
-from omni.rag.entities import Entity, Relation, ExtractedChunk
+from omni.rag.entities import Entity, ExtractedChunk, Relation
 
 logger = structlog.get_logger(__name__)
 
@@ -382,7 +384,7 @@ class KnowledgeGraphExtractor:
 
         if isinstance(document, str):
             # Raw text - treat as single chunk
-            chunk = await self.extract_chunk(document, f"chunk-0", source, 0)
+            chunk = await self.extract_chunk(document, "chunk-0", source, 0)
             chunks.append(chunk)
         else:
             # List of content blocks
@@ -765,11 +767,11 @@ def get_graph_store() -> KnowledgeGraphStore:
 
 
 __all__ = [
-    "KnowledgeGraphExtractor",
-    "KnowledgeGraphStore",
     "EXTRACT_ENTITIES_PROMPT",
     "EXTRACT_ENTITIES_PROMPT_EN",
     "EXTRACT_ENTITIES_PROMPT_ZH",
+    "KnowledgeGraphExtractor",
+    "KnowledgeGraphStore",
     "get_graph_extractor",
     "get_graph_store",
 ]

@@ -1,6 +1,8 @@
 use serde_json::json;
 
-use crate::agent::{SessionContextSnapshotInfo, SessionContextWindowInfo};
+use crate::agent::{
+    DownstreamAdmissionRuntimeSnapshot, SessionContextSnapshotInfo, SessionContextWindowInfo,
+};
 
 use super::mode::format_context_mode;
 
@@ -10,6 +12,7 @@ pub(in super::super::super) fn format_session_context_snapshot_json(
     partition_mode: &str,
     active: SessionContextWindowInfo,
     snapshot: Option<SessionContextSnapshotInfo>,
+    admission: DownstreamAdmissionRuntimeSnapshot,
 ) -> String {
     let snapshot_json = match snapshot {
         Some(info) => json!({
@@ -39,6 +42,19 @@ pub(in super::super::super) fn format_session_context_snapshot_json(
             "window_tool_calls": active.total_tool_calls,
         },
         "saved_snapshot": snapshot_json,
+        "admission": {
+            "enabled": admission.enabled,
+            "llm_reject_threshold_pct": admission.llm_reject_threshold_pct,
+            "embedding_reject_threshold_pct": admission.embedding_reject_threshold_pct,
+            "metrics": {
+                "total": admission.metrics.total,
+                "admitted": admission.metrics.admitted,
+                "rejected": admission.metrics.rejected,
+                "rejected_llm_saturated": admission.metrics.rejected_llm_saturated,
+                "rejected_embedding_saturated": admission.metrics.rejected_embedding_saturated,
+                "reject_rate_pct": admission.metrics.reject_rate_pct,
+            },
+        },
     })
     .to_string()
 }

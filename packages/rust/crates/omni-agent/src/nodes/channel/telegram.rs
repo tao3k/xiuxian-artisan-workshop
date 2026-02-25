@@ -7,11 +7,11 @@ use omni_agent::{
     run_telegram_webhook_with_control_command_policy, run_telegram_with_control_command_policy,
 };
 
-use crate::agent_builder::build_agent;
 use crate::cli::{TelegramChannelMode, WebhookDedupBackendMode};
 use crate::resolve::{
     resolve_channel_mode, resolve_dedup_backend, resolve_positive_u64, resolve_string,
 };
+use crate::runtime_agent_factory::build_agent;
 
 use super::ChannelCommandRequest;
 use super::common::{log_control_command_allow_override, log_slash_command_allow_override};

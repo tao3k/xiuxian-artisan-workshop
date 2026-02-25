@@ -2,8 +2,6 @@
 Tests for omni.rag.entities module.
 """
 
-import pytest
-
 
 class TestEntity:
     """Test Entity dataclass."""
@@ -256,7 +254,7 @@ class TestExtractedChunk:
 
     def test_extracted_chunk_creation(self):
         """Test extracted chunk creation."""
-        from omni.rag.entities import Entity, Relation, ExtractedChunk
+        from omni.rag.entities import Entity, ExtractedChunk, Relation
 
         entities = [
             Entity(

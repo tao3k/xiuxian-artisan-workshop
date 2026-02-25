@@ -192,7 +192,7 @@ class HarvesterAnalysisResult(BaseModel):
 
 __all__ = [
     "CandidateSkill",
-    "SkillTemplateContext",
     "CrystallizationResult",
     "HarvesterAnalysisResult",
+    "SkillTemplateContext",
 ]

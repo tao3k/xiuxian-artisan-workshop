@@ -19,16 +19,17 @@ Skill usage entrypoint:
 """
 
 from datetime import datetime
-from .ui import console, ultra_header, ultra_memory_pool, ultra_summary
-from .llm_service import get_llm_service
-from .tracer import LangGraphTracer
-from .types import DemoState
+
 from .builders import (
     apply_parameter_overrides,
     create_initial_state,
     default_parameters_for_scenario,
     register_scenario_graph,
 )
+from .llm_service import get_llm_service
+from .tracer import LangGraphTracer
+from .types import DemoState
+from .ui import console, ultra_header, ultra_memory_pool, ultra_summary
 
 
 async def run_graphflow_pipeline(
@@ -56,9 +57,10 @@ async def run_graphflow_pipeline(
     """
     import time
 
+    from langgraph.checkpoint.memory import MemorySaver
+
     # Lazy import langgraph to avoid triggering embedding during skill loading
     from langgraph.graph import END, StateGraph
-    from langgraph.checkpoint.memory import MemorySaver
 
     timestamp = datetime.now().strftime("%H%M%S")
     trace_id = f"ultrarag_{scenario}_{timestamp}"

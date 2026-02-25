@@ -2,9 +2,10 @@
 
 mod console;
 mod dispatch;
-mod jobs;
+pub(crate) mod jobs;
 mod run_polling;
 mod run_webhook;
+mod telemetry;
 #[cfg(test)]
 #[path = "../../../../tests/telegram_runtime/mod.rs"]
 mod tests;

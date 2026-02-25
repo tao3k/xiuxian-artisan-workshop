@@ -13,7 +13,6 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any
 
@@ -25,7 +24,7 @@ from omni.foundation.api.mcp_schema import extract_text_content
 DEFAULT_MCP_URL = "http://127.0.0.1:3000"
 
 # Global client instance
-_mcp_client: "MCPClient | None" = None
+_mcp_client: MCPClient | None = None
 
 
 class MCPClient:
@@ -196,7 +195,7 @@ async def embed_via_mcp(texts: list[str]) -> list[list[float]]:
 
 __all__ = [
     "MCPClient",
-    "get_mcp_client",
     "close_mcp_client",
     "embed_via_mcp",
+    "get_mcp_client",
 ]

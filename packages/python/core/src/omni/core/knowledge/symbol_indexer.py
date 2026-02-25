@@ -34,8 +34,9 @@ try:
 except ImportError:
     omni_rs = None
 
+from omni.foundation.runtime.path_filter import SKIP_DIRS, should_skip_path
+
 from .config import KnowledgeConfig
-from omni.foundation.runtime.path_filter import should_skip_path, SKIP_DIRS
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ class Symbol:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], file_path: str) -> "Symbol":
+    def from_dict(cls, data: dict[str, Any], file_path: str) -> Symbol:
         return cls(
             name=data.get("name", ""),
             kind=data.get("kind", ""),
@@ -363,12 +364,11 @@ class SymbolIndexer:
         result = omni_rs.get_files_outline(abs_paths)
 
         # Parse JSON result
-        import json
 
         try:
             outlines = json.loads(result)
         except json.JSONDecodeError:
-            logger.warning(f"Failed to parse batch outline result")
+            logger.warning("Failed to parse batch outline result")
             return {}
 
         # Parse outlines into symbols
@@ -422,7 +422,6 @@ class SymbolIndexer:
         Returns:
             Dictionary with indexed_files and unique_symbols count.
         """
-        import json
 
         if omni_rs is None:
             logger.error("omni_core_rs not available")
@@ -507,7 +506,6 @@ class SymbolIndexer:
         """Save the manifest to disk."""
         manifest_dir = self._manifest_file.parent
         manifest_dir.mkdir(parents=True, exist_ok=True)
-        import json
 
         self._manifest_file.write_text(json.dumps(self._manifest, indent=2))
 

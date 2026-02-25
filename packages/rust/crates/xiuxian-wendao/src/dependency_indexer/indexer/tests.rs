@@ -87,13 +87,19 @@ fn test_build_performance() {
 
     // Performance assertions
     // With parallel processing and pre-compiled regex:
-    // - Should process all manifests in under 2 seconds
+    // - Should process all manifests in under 2 seconds locally, or 4 seconds on CI
     // - Should index at least 10 crates
     // - Should extract at least 100 symbols
+    let max_duration = if std::env::var_os("CI").is_some() {
+        std::time::Duration::from_secs(4)
+    } else {
+        std::time::Duration::from_secs(2)
+    };
     assert!(
-        elapsed.as_secs() < 2,
-        "Build should complete in under 2 seconds, took: {:?}",
-        elapsed
+        elapsed < max_duration,
+        "Build should complete in under {:.2}s, took: {:?}",
+        max_duration.as_secs_f64(),
+        elapsed,
     );
     assert!(
         result.crates_indexed >= 10,

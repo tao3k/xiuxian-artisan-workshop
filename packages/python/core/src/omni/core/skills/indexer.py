@@ -14,8 +14,6 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import structlog
-
 from omni.foundation.services.embedding import EmbeddingService, get_embedding_service
 
 logger = logging.getLogger(__name__)
@@ -127,10 +125,9 @@ class SkillIndexer:
                 vector_serialized = vector
                 if hasattr(vector, "tolist"):
                     vector_serialized = vector.tolist()
-                elif isinstance(vector, list):
-                    if len(vector) > 0 and hasattr(vector[0], "tolist"):
-                        # Nested list (e.g., [[0.1, 0.2], [0.3, 0.4]])
-                        vector_serialized = [
+                elif isinstance(vector, list) and len(vector) > 0 and hasattr(vector[0], "tolist"):
+                    # Nested list (e.g., [[0.1, 0.2], [0.3, 0.4]])
+                    vector_serialized = [
                             v.tolist() if hasattr(v, "tolist") else v for v in vector
                         ]
 
@@ -226,8 +223,8 @@ class SkillIndexer:
         Returns:
             Dict mapping file paths to count of indexed functions
         """
-        from pathlib import Path as P
         from fnmatch import fnmatch
+        from pathlib import Path as P
 
         base = P(directory)
         results: dict[str, int] = {}

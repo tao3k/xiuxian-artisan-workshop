@@ -44,10 +44,10 @@ in
             };
             # Use nixpkgs version of nvidia-cufile-cu12 instead of building from source
             # This avoids RDMA dependency issues in CI
-            nvidia-cufile-cu12 = hacks.nixpkgsPrebuilt {
-              from = pkgs.python3Packages.nvidia-cufile-cu12;
-              prev = prev.nvidia-cufile-cu12;
-            };
+            # nvidia-cufile-cu12 = hacks.nixpkgsPrebuilt {
+            #   from = pkgs.python3Packages.nvidia-cufile-cu12;
+            #   prev = prev.nvidia-cufile-cu12;
+            # };
           };
         in
         (pkgs.callPackage pyproject-nix.build.packages {

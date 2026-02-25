@@ -38,24 +38,24 @@ if sys.version_info >= (3, 13):
     if "TORCH_DISTRIBUTED_DETECTION" not in os.environ:
         os.environ["TORCH_DISTRIBUTED_DETECTION"] = "1"
 
-import typer
-from mcp import types
-from rich.panel import Panel
+# =============================================================================
+# Lightweight HTTP Server for Embedding (STDIO mode only)
+# =============================================================================
+import json as _json
 from typing import Any
+
+import typer
+from aiohttp import web as _web
+from rich.panel import Panel
 
 from omni.agent.mcp_server.startup import (
     initialize_handler_on_server_loop as _initialize_handler_on_server_loop,
+)
+from omni.agent.mcp_server.startup import (
     wait_for_sse_server_readiness as _wait_for_sse_server_readiness,
 )
 from omni.foundation.config.logging import configure_logging, get_logger
 from omni.foundation.utils.asyncio import run_async_blocking
-
-# =============================================================================
-# Lightweight HTTP Server for Embedding (STDIO mode only)
-# =============================================================================
-
-import json as _json
-from aiohttp import web as _web
 
 _embedding_http_app = None
 _embedding_http_runner = None
@@ -234,7 +234,7 @@ async def _warm_embedding_after_startup(
                     max(1, max_attempts),
                 )
                 return
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "Embedding warm timed out after %.1fs; continue startup", timeout_seconds
                 )
@@ -262,7 +262,7 @@ async def _warm_embedding_after_startup(
                 attempts,
                 last_error,
             )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("Embedding warm timed out after %.1fs; continue startup", timeout_seconds)
     except Exception as e:
         logger.warning("Embedding warm skipped: %s", e)
@@ -344,7 +344,7 @@ _i_started_server = False
 
 
 async def _run_mcp_session(
-    handler: "AgentMCPHandler",
+    handler: AgentMCPHandler,
     read_stream: Any,
     write_stream: Any,
 ) -> None:
@@ -353,7 +353,6 @@ async def _run_mcp_session(
     This bridges the SSE transport streams with the AgentMCPHandler.
     """
     import anyio
-    from mcp.types import JSONRPCRequest, JSONRPCResponse
 
     logger = get_logger("omni.mcp.session")
 
@@ -446,8 +445,8 @@ def _setup_signal_handler(handler_ref=None, transport_ref=None, stdio_mode=False
 
         if stdio_mode:
             # In stdio mode: first Ctrl-C = graceful exit, second = force exit
-            import sys as _sys
             import os as _os
+            import sys as _sys
 
             try:
                 if _shutdown_count == 1:
@@ -665,11 +664,11 @@ def register_mcp_command(app_instance: typer.Typer) -> None:
                 _handler_ref = handler
 
                 # Import SSE server
-                from omni.agent.mcp_server.sse import run_sse
-
                 # Start SSE server FIRST (so MCP clients can connect immediately)
                 # Use threading to run server in background while we initialize services
                 import threading
+
+                from omni.agent.mcp_server.sse import run_sse
 
                 server_loop_ready = threading.Event()
                 server_loop_holder: dict[str, asyncio.AbstractEventLoop] = {}

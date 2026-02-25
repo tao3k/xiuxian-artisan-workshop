@@ -6,9 +6,7 @@ without requiring actual filesystem operations.
 
 from __future__ import annotations
 
-import pytest
-
-from omni_core_rs import scan_paths, parse_script_content
+from omni_core_rs import parse_script_content, scan_paths
 
 
 class TestScanPathsVirtualFiles:
