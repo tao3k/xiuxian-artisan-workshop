@@ -1,11 +1,11 @@
+use crate::agenda::priority::Priority;
+use crate::agenda::status::Status;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::agenda::status::Status;
-use crate::agenda::priority::Priority;
 
 /// A task in the Xiuxian-Zhixing agenda.
-/// 
+///
 /// Represents a "Vow" (愿) that must be manifested in reality.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgendaEntry {
@@ -21,7 +21,7 @@ pub struct AgendaEntry {
     pub priority: Priority,
     /// Categorization tags for grouping.
     pub tags: Vec<String>,
-    
+
     /// Timestamp when the task was created.
     pub created_at: DateTime<Utc>,
     /// When the task is intended to be worked on.
@@ -30,12 +30,12 @@ pub struct AgendaEntry {
     pub deadline: Option<DateTime<Utc>>,
     /// Timestamp when the task reached a terminal state.
     pub completed_at: Option<DateTime<Utc>>,
-    
+
     /// Time-To-Live (hours) before the task is considered "stale" (Heart-Demon).
     pub ttl_hours: i32,
     /// Last interaction timestamp for heat calculation.
     pub last_active_at: DateTime<Utc>,
-    
+
     /// Related entity IDs in the Knowledge Graph (Wendao).
     pub related_entities: Vec<String>,
 }
@@ -69,12 +69,14 @@ impl AgendaEntry {
         if self.status.is_terminal() {
             return 1.0;
         }
-        
-        let elapsed = Utc::now().signed_duration_since(self.last_active_at).num_hours();
+
+        let elapsed = Utc::now()
+            .signed_duration_since(self.last_active_at)
+            .num_hours();
         if elapsed <= 0 {
             return 1.0;
         }
-        
+
         #[allow(clippy::cast_precision_loss)]
         let heat = 1.0 - (elapsed as f32 / self.ttl_hours as f32);
         heat.clamp(0.0, 1.0)
@@ -104,9 +106,12 @@ mod tests {
         entry.ttl_hours = 10;
         // Mock 5 hours ago
         entry.last_active_at = Utc::now() - Duration::hours(5);
-        
+
         let heat = entry.calculate_heat();
-        assert!(heat > 0.4 && heat < 0.6, "Heat should be around 0.5, got {heat}");
+        assert!(
+            heat > 0.4 && heat < 0.6,
+            "Heat should be around 0.5, got {heat}"
+        );
     }
 
     #[test]
@@ -115,7 +120,7 @@ mod tests {
         entry.ttl_hours = 24;
         // Mock 25 hours ago
         entry.last_active_at = Utc::now() - Duration::hours(25);
-        
+
         assert_eq!(entry.calculate_heat(), 0.0);
     }
 }

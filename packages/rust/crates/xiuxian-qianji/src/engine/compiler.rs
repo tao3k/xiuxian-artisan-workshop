@@ -148,7 +148,7 @@ impl QianjiCompiler {
                         .collect()
                 })
                 .unwrap_or_else(|| vec!["annotated_prompt".to_string()]);
-            
+
             let client = self.llm_client.clone().ok_or(QianjiError::TopologyError(
                 "LLM client not provided to compiler".to_string(),
             ))?;

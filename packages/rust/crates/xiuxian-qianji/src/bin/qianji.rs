@@ -29,7 +29,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_key = env::var("OPENAI_API_KEY").unwrap_or_else(|_| "dummy_key".to_string());
     let base_url =
         env::var("OPENAI_API_BASE").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
-    let redis_url = env::var("VALKEY_URL").ok().unwrap_or_else(|| "redis://127.0.0.1:6379/0".to_string());
+    let redis_url = env::var("VALKEY_URL")
+        .ok()
+        .unwrap_or_else(|| "redis://127.0.0.1:6379/0".to_string());
 
     println!("Initializing Qianji Engine on: {}", repo_path);
 

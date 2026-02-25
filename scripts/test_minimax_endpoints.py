@@ -19,18 +19,16 @@ models = [
 
 for url in endpoints:
     for model in models:
-        data = json.dumps({
-            "model": model,
-            "messages": [{"role": "user", "content": "hi"}],
-            "max_tokens": 10
-        }).encode("utf-8")
-        
+        data = json.dumps(
+            {"model": model, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 10}
+        ).encode("utf-8")
+
         req = urllib.request.Request(
-            url, 
-            data=data, 
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            url,
+            data=data,
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         )
-        
+
         try:
             res = urllib.request.urlopen(req)
             print(f"✅ {url} | {model} -> SUCCESS: {res.read().decode()[:50]}")
@@ -39,4 +37,3 @@ for url in endpoints:
             print(f"❌ {url} | {model} -> {e.code}: {err}")
         except Exception as e:
             print(f"❌ {url} | {model} -> Error: {e}")
-

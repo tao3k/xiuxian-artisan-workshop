@@ -34,18 +34,23 @@ pub fn get_xiuxian_config_path() -> PathBuf {
     path.push("packages");
     path.push("conf");
     path.push("xiuxian.toml");
-    
+
     // Check if the user has overridden it in XDG_CONFIG_HOME
     if let Ok(config_home) = std::env::var("XDG_CONFIG_HOME") {
-        let user_path = PathBuf::from(config_home).join("omni-dev-fusion").join("xiuxian.toml");
+        let user_path = PathBuf::from(config_home)
+            .join("omni-dev-fusion")
+            .join("xiuxian.toml");
         if user_path.exists() {
             return user_path;
         }
     }
-    
+
     // Check ~/.config/omni-dev-fusion/xiuxian.toml
     if let Some(home) = dirs::home_dir() {
-        let user_path = home.join(".config").join("omni-dev-fusion").join("xiuxian.toml");
+        let user_path = home
+            .join(".config")
+            .join("omni-dev-fusion")
+            .join("xiuxian.toml");
         if user_path.exists() {
             return user_path;
         }
@@ -65,7 +70,10 @@ pub fn load_xiuxian_config() -> XiuxianConfig {
             }
         }
     } else {
-        tracing::warn!("xiuxian.toml not found at {}. Using defaults.", path.display());
+        tracing::warn!(
+            "xiuxian.toml not found at {}. Using defaults.",
+            path.display()
+        );
         XiuxianConfig::default()
     }
 }

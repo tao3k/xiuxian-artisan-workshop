@@ -18,12 +18,14 @@ mod tests {
         let dir = tempdir().unwrap();
         let template_path = dir.path().join("test.md.j2");
         fs::write(&template_path, "Hello {{ name }}!").unwrap();
-        
+
         // Tera needs a glob pattern
         let glob = format!("{}/*.j2", dir.path().to_str().unwrap());
         let manager = ManifestationManager::new(&glob).unwrap();
-        
-        let result = manager.render_template("test.md.j2", json!({"name": "Daoist"})).unwrap();
+
+        let result = manager
+            .render_template("test.md.j2", json!({"name": "Daoist"}))
+            .unwrap();
         assert_eq!(result, "Hello Daoist!");
     }
 }

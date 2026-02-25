@@ -6,13 +6,15 @@
 
 ## Philosophy / 哲学理念
 
-Inspired by Wang Yangming's **"Unity of Knowledge and Action" (知行合一)**, this package focuses on the realization of intentions. 
+Inspired by Wang Yangming's **"Unity of Knowledge and Action" (知行合一)**, this package focuses on the realization of intentions.
+
 - **Zhi (Knowledge/知)**: Insights, plans, and cultivation techniques stored in the Knowledge Graph (`xiuxian-wendao`).
 - **Xing (Action/行)**: The actual completion of tasks and the application of learned wisdom.
 
 In this system, a schedule is not just a list of strings; it is a **Vow (愿)**. To learn a technique is to practice it; to set an agenda is to manifest it.
 
 本项目深受王阳明**“知行合一”**心学启发，是修仙生态中的执行与显化引擎。它连接了结构化的“学识”（知）与现实世界的“落地”（行）。
+
 - **知**：存储在知识图谱（`xiuxian-wendao`）中的见解、计划和修炼法门。
 - **行**：任务的实际完成以及所学智慧的实践应用。
 

@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// A daily journal entry for Xiuxian-Zhixing.
-/// 
+///
 /// Captures the "Stream of Consciousness" for later alchemy/structuring.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JournalEntry {

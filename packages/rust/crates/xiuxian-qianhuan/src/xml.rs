@@ -1,5 +1,5 @@
-use crate::error::InjectionError;
 use crate::entry::QaEntry;
+use crate::error::InjectionError;
 
 /// Root XML tag for system prompt injection payloads.
 pub const SYSTEM_PROMPT_INJECTION_TAG: &str = "system_prompt_injection";
@@ -10,7 +10,7 @@ const ANSWER_TAG: &str = "a";
 const SOURCE_TAG: &str = "source";
 
 /// Parses raw XML into a list of Q&A entries.
-/// 
+///
 /// # Errors
 /// Returns an error if the payload is empty or if no Q&A blocks are found.
 pub(crate) fn parse_qa_entries(raw: &str) -> Result<Vec<QaEntry>, InjectionError> {
@@ -44,8 +44,13 @@ pub(crate) fn render_xml(entries: impl Iterator<Item = QaEntry>) -> String {
         lines.push("  <qa>".to_string());
         lines.push(format!("    <q>{}</q>", escape_xml(entry.question.trim())));
         lines.push(format!("    <a>{}</a>", escape_xml(entry.answer.trim())));
-        if let Some(ref source) = entry.source && !source.trim().is_empty() {
-            lines.push(format!("    <source>{}</source>", escape_xml(source.trim())));
+        if let Some(ref source) = entry.source
+            && !source.trim().is_empty()
+        {
+            lines.push(format!(
+                "    <source>{}</source>",
+                escape_xml(source.trim())
+            ));
         }
         lines.push("  </qa>".to_string());
     }

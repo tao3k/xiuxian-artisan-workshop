@@ -127,9 +127,7 @@ class SkillIndexer:
                     vector_serialized = vector.tolist()
                 elif isinstance(vector, list) and len(vector) > 0 and hasattr(vector[0], "tolist"):
                     # Nested list (e.g., [[0.1, 0.2], [0.3, 0.4]])
-                    vector_serialized = [
-                            v.tolist() if hasattr(v, "tolist") else v for v in vector
-                        ]
+                    vector_serialized = [v.tolist() if hasattr(v, "tolist") else v for v in vector]
 
                 # Construct unique tool ID: module_path:function_name
                 module_path = str(path)

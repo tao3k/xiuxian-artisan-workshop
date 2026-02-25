@@ -211,8 +211,9 @@ async def run_qianji_engine(
 ) -> tuple[bool, dict[str, Any], str]:
     """Execute the Qianji engine with smart_commit.toml."""
     from omni.foundation.config.skills import SKILLS_DIR
+
     manifest_path = str(SKILLS_DIR("git") / "workflows" / "smart_commit.toml")
-    
+
     cmd = [
         "cargo",
         "run",

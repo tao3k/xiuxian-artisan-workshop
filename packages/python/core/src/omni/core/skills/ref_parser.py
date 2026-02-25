@@ -35,11 +35,13 @@ class RefParser:
         # Rust metadata is the only source of truth
         refs = self._extract_from_metadata(metadata)
 
-        if refs is None and (not metadata or all(v is None for v in metadata.values() if v != "name")):
+        if refs is None and (
+            not metadata or all(v is None for v in metadata.values() if v != "name")
+        ):
             logger.warning(
                 "Rust metadata unavailable - required_refs cannot be resolved. "
-                    "Ensure Rust scanner is properly initialized."
-                )
+                "Ensure Rust scanner is properly initialized."
+            )
 
         return refs if refs else []
 

@@ -237,6 +237,44 @@ pub struct ToolRecord {
     pub resource_uri: String,
 }
 
+/// Enrichment payload applied to a base `ToolRecord`.
+///
+/// This groups optional/computed metadata so tool construction remains
+/// explicit without relying on a long argument list.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ToolEnrichment {
+    /// Execution mode (e.g., "sync", "async", "script").
+    pub execution_mode: String,
+    /// Keywords for tool discovery and routing.
+    pub keywords: Vec<String>,
+    /// Intents this tool can fulfill (inherited from skill).
+    #[serde(default)]
+    pub intents: Vec<String>,
+    /// Hash of the source file for change detection.
+    pub file_hash: String,
+    /// Documentation string from the function docstring.
+    #[serde(default)]
+    pub docstring: String,
+    /// Category inferred from decorator or function signature.
+    #[serde(default)]
+    pub category: String,
+    /// MCP protocol safety annotations.
+    #[serde(default)]
+    pub annotations: ToolAnnotations,
+    /// Parameter names inferred from function signature.
+    #[serde(default)]
+    pub parameters: Vec<String>,
+    /// JSON schema for tool input validation.
+    #[serde(default)]
+    pub input_schema: String,
+    /// Full tool names (skill.tool) this skill tool refers to for docs (`SkillToolsRefers`).
+    #[serde(default)]
+    pub skill_tools_refers: Vec<String>,
+    /// MCP Resource URI. Non-empty means this tool is also an MCP Resource.
+    #[serde(default)]
+    pub resource_uri: String,
+}
+
 impl ToolRecord {
     /// Creates a new `ToolRecord` with required fields.
     #[must_use]
@@ -267,46 +305,33 @@ impl ToolRecord {
         }
     }
 
-    /// Creates a fully populated `ToolRecord` with all enrichment data.
+    /// Creates a fully populated `ToolRecord` by applying enrichment fields.
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
     pub fn with_enrichment(
         tool_name: String,
         description: String,
         skill_name: String,
         file_path: String,
         function_name: String,
-        execution_mode: String,
-        keywords: Vec<String>,
-        intents: Vec<String>,
-        file_hash: String,
-        docstring: String,
-        category: String,
-        annotations: ToolAnnotations,
-        parameters: &[crate::skills::skill_command::parser::ParsedParameter],
-        input_schema: String,
-        skill_tools_refers: Vec<String>,
-        resource_uri: String,
+        enrichment: ToolEnrichment,
     ) -> Self {
-        // Extract parameter names from ParsedParameter vector
-        let param_names: Vec<String> = parameters.iter().map(|p| p.name.clone()).collect();
         Self {
             tool_name,
             description,
             skill_name,
             file_path,
             function_name,
-            execution_mode,
-            keywords,
-            intents,
-            file_hash,
-            input_schema,
-            docstring,
-            category,
-            annotations,
-            parameters: param_names,
-            skill_tools_refers,
-            resource_uri,
+            execution_mode: enrichment.execution_mode,
+            keywords: enrichment.keywords,
+            intents: enrichment.intents,
+            file_hash: enrichment.file_hash,
+            input_schema: enrichment.input_schema,
+            docstring: enrichment.docstring,
+            category: enrichment.category,
+            annotations: enrichment.annotations,
+            parameters: enrichment.parameters,
+            skill_tools_refers: enrichment.skill_tools_refers,
+            resource_uri: enrichment.resource_uri,
         }
     }
 }

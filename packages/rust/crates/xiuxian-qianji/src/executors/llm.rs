@@ -23,7 +23,7 @@ pub struct LlmAnalyzer {
 impl QianjiMechanism for LlmAnalyzer {
     async fn execute(&self, context: &serde_json::Value) -> Result<QianjiOutput, String> {
         let mut final_prompt = self.prompt_template.clone();
-        
+
         // Very basic interpolation from context keys or fallback to appending
         for key in &self.context_keys {
             if let Some(val) = context.get(key) {
@@ -32,7 +32,7 @@ impl QianjiMechanism for LlmAnalyzer {
                 } else {
                     val.to_string()
                 };
-                
+
                 let placeholder = format!("{{{{{}}}}}", key);
                 if final_prompt.contains(&placeholder) {
                     final_prompt = final_prompt.replace(&placeholder, &val_str);
@@ -41,7 +41,7 @@ impl QianjiMechanism for LlmAnalyzer {
                 }
             }
         }
-        
+
         let user_query = context
             .get("request")
             .or_else(|| context.get("query"))
@@ -70,7 +70,10 @@ impl QianjiMechanism for LlmAnalyzer {
             .map_err(|e| format!("LLM execution failed: {}", e))?;
 
         let mut data = serde_json::Map::new();
-        data.insert(self.output_key.clone(), serde_json::Value::String(conclusion));
+        data.insert(
+            self.output_key.clone(),
+            serde_json::Value::String(conclusion),
+        );
 
         Ok(QianjiOutput {
             data: serde_json::Value::Object(data),

@@ -1,10 +1,10 @@
 /// Task entry and core logic.
 pub mod entry;
-/// Task status state machine.
-pub mod status;
 /// Task priority levels.
 pub mod priority;
+/// Task status state machine.
+pub mod status;
 
 pub use entry::AgendaEntry;
-pub use status::Status;
 pub use priority::Priority;
+pub use status::Status;

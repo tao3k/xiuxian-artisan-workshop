@@ -51,8 +51,10 @@ pub(crate) fn proxy_routes<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    Router::new()
-        .route("/v1/chat/completions", post(llm_proxy::handle_chat_completions))
+    Router::new().route(
+        "/v1/chat/completions",
+        post(llm_proxy::handle_chat_completions),
+    )
 }
 
 /// Build the gateway router (POST /message).

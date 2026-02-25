@@ -41,16 +41,25 @@ async def _run_subprocess(
     )
 
 
-async def run_qianji_engine(project_root: str, context: dict[str, Any], session_id: str) -> tuple[bool, dict[str, Any], str]:
+async def run_qianji_engine(
+    project_root: str, context: dict[str, Any], session_id: str
+) -> tuple[bool, dict[str, Any], str]:
     """Execute the Qianji engine with repo_analyzer.toml."""
     from omni.foundation.config.skills import SKILLS_DIR
+
     manifest_path = str(SKILLS_DIR("researcher") / "workflows" / "repo_analyzer.toml")
-    
+
     cmd = [
-        "cargo", "run", "--release", "--quiet",
-        "-p", "xiuxian-qianji",
-        "--features", "llm",
-        "--bin", "qianji",
+        "cargo",
+        "run",
+        "--release",
+        "--quiet",
+        "-p",
+        "xiuxian-qianji",
+        "--features",
+        "llm",
+        "--bin",
+        "qianji",
         "--",
         project_root,
         manifest_path,
@@ -115,7 +124,12 @@ async def run_research_graph(
     approved_shards: str = "",
 ) -> dict[str, Any]:
     """Execute the Sharded Deep Research workflow using Qianji Engine."""
-    logger.info("Sharded research workflow invoked via Qianji", repo_url=repo_url, request=request, action=action)
+    logger.info(
+        "Sharded research workflow invoked via Qianji",
+        repo_url=repo_url,
+        request=request,
+        action=action,
+    )
 
     repo_name = urllib.parse.urlparse(repo_url).path.strip("/").split("/")[-1]
     if repo_name.endswith(".git"):
@@ -138,7 +152,9 @@ async def run_research_graph(
             return {"success": False, "error": f"Workflow Failed: {err}"}
 
         suspend_prompt = result_json.get("suspend_prompt", "")
-        proposed_plan = result_json.get("analysis_trace", []) # Example output key from Architect node
+        proposed_plan = result_json.get(
+            "analysis_trace", []
+        )  # Example output key from Architect node
 
         return {
             "success": True,
@@ -153,7 +169,10 @@ async def run_research_graph(
         if not session_id:
             return {"success": False, "error": "session_id is required for approve action"}
         if not approved_shards:
-            return {"success": False, "error": "approved_shards JSON is required for approve action"}
+            return {
+                "success": False,
+                "error": "approved_shards JSON is required for approve action",
+            }
 
         context = {
             "approved_shards": approved_shards,
@@ -172,5 +191,6 @@ async def run_research_graph(
         }
 
     return {"success": False, "error": f"Unknown action: {action}"}
+
 
 __all__ = ["run_research_graph"]

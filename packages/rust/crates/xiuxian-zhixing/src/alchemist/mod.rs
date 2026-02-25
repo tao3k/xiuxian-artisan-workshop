@@ -6,8 +6,8 @@ pub use processor::Alchemist;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::interface::{SecureAction, ZhixingLlmInterface};
     use crate::Result;
+    use crate::interface::{SecureAction, ZhixingLlmInterface};
     use std::sync::Arc;
 
     // Mock LLM Implementation for testing
@@ -28,13 +28,13 @@ mod tests {
     async fn test_alchemist_processing() {
         let llm = Arc::new(MockLlm);
         let alchemist = Alchemist::new(llm);
-        
+
         let action = alchemist.process_input("I finished the task").unwrap();
-        
+
         match action {
             SecureAction::UpdateTaskStatus { status, .. } => {
                 assert_eq!(status, crate::agenda::Status::Done);
-            },
+            }
             _ => panic!("Expected UpdateTaskStatus action"),
         }
     }
