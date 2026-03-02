@@ -14,12 +14,7 @@ pub struct ProbabilisticRouter {
 #[async_trait]
 impl QianjiMechanism for ProbabilisticRouter {
     async fn execute(&self, context: &serde_json::Value) -> Result<QianjiOutput, String> {
-        let confidence_bias = to_f32(
-            context
-                .get("omega_confidence")
-                .and_then(serde_json::Value::as_f64)
-                .unwrap_or(1.0),
-        );
+        let confidence_bias = context_f32(context, "omega_confidence", 1.0);
 
         let total_weight: f32 = self
             .branches
@@ -53,7 +48,10 @@ impl QianjiMechanism for ProbabilisticRouter {
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
-fn to_f32(value: f64) -> f32 {
-    value as f32
+fn context_f32(context: &serde_json::Value, key: &str, default: f32) -> f32 {
+    context
+        .get(key)
+        .cloned()
+        .and_then(|value| serde_json::from_value::<f32>(value).ok())
+        .unwrap_or(default)
 }

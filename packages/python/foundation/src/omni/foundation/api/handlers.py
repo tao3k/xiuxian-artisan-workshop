@@ -25,12 +25,14 @@ from __future__ import annotations
 import asyncio
 import functools
 import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..config.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger("omni.api.handler")
 
@@ -341,13 +343,13 @@ SILENT_HANDLER = SkillCommandHandler(
 
 
 class GraphNodeHandler:
-    """Handler for LangGraph node execution.
+    """Handler for workflow node execution.
 
     Features:
     - Structured logging with node name
     - Automatic error logging and re-raise
     - Execution timing tracking
-    - Seamless integration with LangGraph error handling
+    - Seamless integration with workflow error handling
 
     Usage:
         @graph_node(name="setup")
@@ -379,12 +381,11 @@ class GraphNodeHandler:
         log_method(message, extra=extra)
 
     def __call__(self, func: Callable) -> Callable:
-        """Decorate a LangGraph node function."""
+        """Decorate a workflow node function."""
 
         @functools.wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.perf_counter()
-            node_name = getattr(func, "__name__", self.name)
 
             try:
                 result = func(*args, **kwargs)
@@ -403,13 +404,12 @@ class GraphNodeHandler:
                     f"Node failed: {error_type}: {e!s}",
                     timing_ms=round(timing_ms, 2),
                 )
-                # Re-raise for LangGraph error handling
+                # Re-raise for workflow-level error handling
                 raise
 
         @functools.wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.perf_counter()
-            node_name = getattr(func, "__name__", self.name)
 
             try:
                 result = await func(*args, **kwargs)

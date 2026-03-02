@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Template Skill Guide"
+---
+
 # Template Skill Guide
 
 ## Overview

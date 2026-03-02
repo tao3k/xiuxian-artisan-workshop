@@ -1,6 +1,7 @@
 ---
-for_skill: _template
-title: Template Skill Workflow
+type: workflow
+metadata:
+  title: "Template Skill Workflow"
 ---
 
 # Template Skill Workflow

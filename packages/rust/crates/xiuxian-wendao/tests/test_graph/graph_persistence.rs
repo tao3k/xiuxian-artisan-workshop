@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -30,16 +11,19 @@ fn test_entity_from_dict() {
         "confidence": 0.95
     });
 
-    let entity = entity_from_dict(&data).unwrap();
+    let Some(entity) = entity_from_dict(&data) else {
+        panic!("entity_from_dict should return an entity");
+    };
     assert_eq!(entity.name, "Claude Code");
     assert!(matches!(entity.entity_type, EntityType::Tool));
     assert_eq!(entity.aliases.len(), 2);
 }
 
 #[test]
-fn test_save_and_load_graph() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_save_and_load_graph() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
     let graph_path = temp_dir.path().join("test_graph.json");
+    let graph_path_str = graph_path.to_string_lossy().into_owned();
 
     {
         let graph = KnowledgeGraph::new();
@@ -57,8 +41,8 @@ fn test_save_and_load_graph() {
             "AI coding assistant".to_string(),
         );
 
-        graph.add_entity(entity1).unwrap();
-        graph.add_entity(entity2).unwrap();
+        assert!(graph.add_entity(entity1).is_ok());
+        assert!(graph.add_entity(entity2).is_ok());
 
         let relation = Relation::new(
             "Claude Code".to_string(),
@@ -66,30 +50,33 @@ fn test_save_and_load_graph() {
             RelationType::Uses,
             "Claude Code uses Python".to_string(),
         );
-        graph.add_relation(relation).unwrap();
-        graph.save_to_file(graph_path.to_str().unwrap()).unwrap();
+        assert!(graph.add_relation(&relation).is_ok());
+        graph.save_to_file(&graph_path_str)?;
     }
 
     {
         let mut graph = KnowledgeGraph::new();
-        graph.load_from_file(graph_path.to_str().unwrap()).unwrap();
+        graph.load_from_file(&graph_path_str)?;
 
         let stats = graph.get_stats();
         assert_eq!(stats.total_entities, 2);
         assert_eq!(stats.total_relations, 1);
 
         let python = graph.get_entity_by_name("Python");
-        assert!(python.is_some());
-        assert_eq!(python.unwrap().entity_type, EntityType::Skill);
+        let Some(python) = python else {
+            panic!("Python entity should exist after load");
+        };
+        assert_eq!(python.entity_type, EntityType::Skill);
 
         let relations = graph.get_relations(None, None);
         assert_eq!(relations.len(), 1);
         assert_eq!(relations[0].source, "Claude Code");
     }
+    Ok(())
 }
 
 #[test]
-fn test_export_as_json() {
+fn test_export_as_json() -> Result<(), Box<dyn std::error::Error>> {
     let graph = KnowledgeGraph::new();
 
     let entity = Entity::new(
@@ -99,18 +86,20 @@ fn test_export_as_json() {
         "Development environment".to_string(),
     );
 
-    graph.add_entity(entity).unwrap();
+    assert!(graph.add_entity(entity).is_ok());
 
-    let json = graph.export_as_json().unwrap();
+    let json = graph.export_as_json()?;
     assert!(json.contains("Omni Dev Fusion"));
     assert!(json.contains("entities"));
     assert!(json.contains("relations"));
+    Ok(())
 }
 
 #[test]
-fn test_export_import_roundtrip() {
-    let temp_dir = TempDir::new().unwrap();
+fn test_export_import_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
     let graph_path = temp_dir.path().join("roundtrip.json");
+    let graph_path_str = graph_path.to_string_lossy().into_owned();
 
     let graph1 = KnowledgeGraph::new();
 
@@ -130,9 +119,9 @@ fn test_export_import_roundtrip() {
             ),
             name.to_string(),
             etype.clone(),
-            format!("Description of {}", name),
+            format!("Description of {name}"),
         );
-        graph1.add_entity(entity).unwrap();
+        assert!(graph1.add_entity(entity).is_ok());
     }
 
     let relations = vec![
@@ -146,18 +135,19 @@ fn test_export_import_roundtrip() {
             source.to_string(),
             target.to_string(),
             rtype.clone(),
-            format!("{} -> {}", source, target),
+            format!("{source} -> {target}"),
         );
-        graph1.add_relation(relation).unwrap();
+        assert!(graph1.add_relation(&relation).is_ok());
     }
 
-    graph1.save_to_file(graph_path.to_str().unwrap()).unwrap();
+    graph1.save_to_file(&graph_path_str)?;
 
     let mut graph2 = KnowledgeGraph::new();
-    graph2.load_from_file(graph_path.to_str().unwrap()).unwrap();
+    graph2.load_from_file(&graph_path_str)?;
 
     let stats1 = graph1.get_stats();
     let stats2 = graph2.get_stats();
     assert_eq!(stats1.total_entities, stats2.total_entities);
     assert_eq!(stats1.total_relations, stats2.total_relations);
+    Ok(())
 }

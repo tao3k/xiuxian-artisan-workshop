@@ -1,6 +1,7 @@
 ---
+type: skill
 name: demo
-description: Demonstrates UltraRAG-style execution tracing with LangGraph + YAML pipelines. Includes simple hello command, hot reload test, and comprehensive YAML pipeline tests.
+description: Demonstrates UltraRAG-style execution tracing with native workflows + YAML pipelines. Includes simple hello command, hot reload test, and comprehensive YAML pipeline tests.
 metadata:
   author: omni-dev-fusion
   version: "1.1.0"
@@ -8,21 +9,21 @@ metadata:
   routing_keywords:
     - "demo"
     - "tracing"
-    - "langgraph"
+    - "graphflow"
     - "yaml"
     - "pipeline"
     - "example"
     - "demo"
   intents:
     - "Demonstrate UltraRAG tracing"
-    - "Run LangGraph pipeline example"
+    - "Run graphflow pipeline example"
     - "Show execution with thinking"
     - "Test YAML pipeline"
 ---
 
 # Demo Skill
 
-Demonstrates UltraRAG-style execution tracing with LangGraph + YAML pipelines.
+Demonstrates UltraRAG-style execution tracing with native workflows + YAML pipelines.
 
 ## Tools
 
@@ -54,7 +55,7 @@ Test YAML pipeline compilation and execution with omni.tracer.
   - `"branch"`: Pipeline with conditional branching
   - `"rag"`: Full RAG pipeline with retrieval
 
-### `run_langgraph`
+### `run_graphflow`
 
 Execute packaged graphflow runtime with trace output and quality gates.
 
@@ -138,5 +139,5 @@ omni skill run demo.test_yaml_pipeline --pipeline_type "branch"
 omni skill run demo.test_yaml_pipeline --pipeline_type "rag"
 
 # Run packaged graphflow runtime
-omni skill run demo.run_langgraph --scenario "complex"
+omni skill run demo.run_graphflow --scenario "complex"
 ```

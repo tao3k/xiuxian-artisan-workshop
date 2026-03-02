@@ -14,7 +14,3 @@ pub(crate) async fn embed_openai_http(
     xiuxian_llm::embedding::openai_compat::embed_openai_compatible(client, base_url, texts, model)
         .await
 }
-
-#[cfg(test)]
-#[path = "../../tests/embedding/transport_openai.rs"]
-mod tests;

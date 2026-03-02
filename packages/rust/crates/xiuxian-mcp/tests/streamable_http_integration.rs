@@ -4,29 +4,30 @@
 //!   `OMNI_MCP_URL=http://127.0.0.1:3002/sse cargo test -p xiuxian-mcp --test streamable_http_integration -- --ignored`
 //!   or rely on auto-detect (if port 3002 responds, use it).
 //! - **Mock**: When real server is not available, `test_connect_with_mock_server` runs an
-//!   in-process MCP server (rmcp StreamableHttpService) and tests the client against it.
+//!   in-process MCP server (rmcp `StreamableHttpService`) and tests the client against it.
 
+use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use std::time::Duration;
 use xiuxian_mcp::{OmniMcpClient, init_params_omni_server};
 
 const HANDSHAKE_TIMEOUT_SECS: u64 = 30;
-#[allow(dead_code)]
 const REAL_PORT: u16 = 3002;
 const REAL_URL: &str = "http://127.0.0.1:3002/sse";
 
-async fn run_client_assertions(url: &str, handshake_timeout_secs: u64) {
+async fn run_client_assertions(url: &str, handshake_timeout_secs: u64) -> Result<()> {
     let params = init_params_omni_server();
     let client = OmniMcpClient::connect_streamable_http(
         url,
         params,
         Some(Duration::from_secs(handshake_timeout_secs)),
     )
-    .await
-    .unwrap_or_else(|e| panic!("connect to MCP server at {}: {}", url, e));
+    .await?;
 
-    let list = client.list_tools(None).await.expect("list_tools");
-    assert!(!list.tools.is_empty(), "expected at least one tool");
+    let list = client.list_tools(None).await?;
+    if list.tools.is_empty() {
+        return Err(anyhow!("expected at least one tool"));
+    }
 
     let name = list.tools[0].name.to_string();
     let args = if name.contains("echo") || name.contains("mock") {
@@ -35,8 +36,9 @@ async fn run_client_assertions(url: &str, handshake_timeout_secs: u64) {
         Some(serde_json::json!({ "name": "integration" }))
     };
 
-    let result = client.call_tool(name, args).await.expect("call_tool");
+    let result = client.call_tool(name, args).await?;
     assert!(!result.content.is_empty(), "expected non-empty tool result");
+    Ok(())
 }
 
 fn real_server_url() -> String {
@@ -44,9 +46,8 @@ fn real_server_url() -> String {
 }
 
 /// Returns true if something is listening on the given port (TCP connect).
-#[allow(dead_code)]
 async fn port_open(port: u16) -> bool {
-    tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port))
+    tokio::net::TcpStream::connect(format!("127.0.0.1:{port}"))
         .await
         .is_ok()
 }
@@ -55,9 +56,13 @@ async fn port_open(port: u16) -> bool {
 
 #[tokio::test]
 #[ignore = "run with --ignored when MCP server is on 3002; or use test_connect_with_mock_server"]
-async fn test_connect_real_server() {
+async fn test_connect_real_server() -> Result<()> {
+    if !port_open(REAL_PORT).await {
+        eprintln!("skipping real-server test: no listener on 127.0.0.1:{REAL_PORT}");
+        return Ok(());
+    }
     let url = real_server_url();
-    run_client_assertions(&url, HANDSHAKE_TIMEOUT_SECS).await;
+    run_client_assertions(&url, HANDSHAKE_TIMEOUT_SECS).await
 }
 
 // ========== Test 2: Mock server (always runnable) ==========
@@ -124,14 +129,14 @@ mod mock {
                 .and_then(|m| m.get("message"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("ok");
-            let content = CallToolResult::success(vec![Content::text(format!("echo: {}", msg))]);
+            let content = CallToolResult::success(vec![Content::text(format!("echo: {msg}"))]);
             std::future::ready(Ok(content))
         }
     }
 }
 
 #[tokio::test]
-async fn test_connect_with_mock_server() {
+async fn test_connect_with_mock_server() -> Result<()> {
     use axum::Router;
     use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
     use rmcp::transport::streamable_http_server::{
@@ -152,10 +157,8 @@ async fn test_connect_with_mock_server() {
             },
         );
     let router = Router::new().nest_service("/mcp", service);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let addr = listener.local_addr().expect("local_addr");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
 
     let handle = tokio::spawn({
         let ct = ct.clone();
@@ -166,9 +169,12 @@ async fn test_connect_with_mock_server() {
         }
     });
 
-    let url = format!("http://{}/mcp", addr);
-    run_client_assertions(&url, 10).await;
+    let url = format!("http://{addr}/mcp");
+    run_client_assertions(&url, 10).await?;
 
     ct.cancel();
-    let _ = handle.await;
+    handle
+        .await
+        .map_err(|error| anyhow!("mock server join failed: {error}"))?;
+    Ok(())
 }

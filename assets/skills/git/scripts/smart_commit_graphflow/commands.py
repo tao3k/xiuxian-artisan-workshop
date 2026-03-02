@@ -24,6 +24,7 @@ from git.scripts.rendering import render_commit_message, render_template
 from omni.foundation.api.decorators import skill_command
 from omni.foundation.api.response_payloads import build_status_message_response
 from omni.foundation.config.logging import get_logger
+from omni.foundation.runtime.cargo_subprocess_env import prepare_cargo_subprocess_env
 from omni.foundation.runtime.gitops import get_git_toplevel
 
 from ._enums import SmartCommitAction, SmartCommitStatus
@@ -52,11 +53,11 @@ async def _run_subprocess(
     text: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     """Run subprocess in a worker thread to avoid blocking the event loop."""
-    import os
-
-    env = os.environ.copy()
-    # Remove uv/python specific vars that might break nested cargo runs on macOS
-    env.pop("DYLD_LIBRARY_PATH", None)
+    env = prepare_cargo_subprocess_env()
+    logger.debug(
+        "Prepared cargo subprocess env",
+        pyo3_python=env.get("PYO3_PYTHON", "<unset>"),
+    )
 
     return await asyncio.to_thread(
         subprocess.run,
@@ -232,7 +233,12 @@ async def run_qianji_engine(
         session_id,
     ]
 
-    proc = await _run_subprocess(cmd, cwd=".")
+    try:
+        engine_root = str(get_git_toplevel(Path(__file__).resolve()))
+    except RuntimeError:
+        engine_root = "."
+
+    proc = await _run_subprocess(cmd, cwd=engine_root)
 
     if proc.returncode != 0:
         logger.error(f"Qianji Engine Failed: {proc.stderr}")
@@ -325,10 +331,17 @@ async def smart_commit(
     project_root: str = "",
 ) -> str:
     """Execute the Smart Commit workflow via Qianji."""
+    normalized_action: SmartCommitAction
+    try:
+        normalized_action = SmartCommitAction(str(action).strip().lower())
+    except ValueError:
+        allowed_actions = ", ".join(item.value for item in SmartCommitAction)
+        return f"action must be one of: {allowed_actions}"
+
     project_root = _resolve_git_repo_root(project_root)
 
     try:
-        if action == SmartCommitAction.START:
+        if normalized_action == SmartCommitAction.START:
             session_id = str(uuid.uuid4())[:8]
 
             # 1. Handle submodules (Python Wrapper logic)
@@ -346,7 +359,7 @@ async def smart_commit(
                 result_json, project_root, session_id, submodules_committed
             )
             return rendered
-        elif action == SmartCommitAction.APPROVE:
+        elif normalized_action == SmartCommitAction.APPROVE:
             if not workflow_id:
                 return "workflow_id required for approve action"
             if not message:
@@ -388,20 +401,20 @@ async def smart_commit(
                 submodule_section="",
             )
 
-        elif action == SmartCommitAction.REJECT:
+        elif normalized_action == SmartCommitAction.REJECT:
             if not workflow_id:
                 return "workflow_id required for reject action"
             # Since Valkey manages state natively, we don't strictly need to delete immediately if TTL is fine,
             # but we can optionally send an Abort. Here we just acknowledge cancellation.
             return f"Commit Cancelled\n\nWorkflow `{workflow_id}` has been dropped from current session."
 
-        elif action == SmartCommitAction.STATUS:
+        elif normalized_action == SmartCommitAction.STATUS:
             return "Status checks natively supported via Valkey keys (xq:qianji:checkpoint:<session_id>)."
 
-        elif action == SmartCommitAction.VISUALIZE:
+        elif normalized_action == SmartCommitAction.VISUALIZE:
             return "Smart Commit Workflow is now powered by Qianji Engine (smart_commit.toml).\nCheck assets/skills/git/workflows/smart_commit.toml for topology."
 
-        return f"Unknown action: {action}"
+        return f"Unknown action: {normalized_action.value}"
 
     except Exception as e:
         import traceback

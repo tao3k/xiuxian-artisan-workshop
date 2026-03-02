@@ -22,5 +22,5 @@ pub use retrieval_plan::{
     LINK_GRAPH_REASON_GRAPH_SUFFICIENT, LINK_GRAPH_REASON_HYBRID_SELECTED,
     LINK_GRAPH_REASON_VECTOR_ONLY_REQUESTED, LINK_GRAPH_RETRIEVAL_PLAN_SCHEMA_VERSION,
     LinkGraphConfidenceLevel, LinkGraphRetrievalBudget, LinkGraphRetrievalMode,
-    LinkGraphRetrievalPlanRecord,
+    LinkGraphRetrievalPlanInput, LinkGraphRetrievalPlanRecord,
 };

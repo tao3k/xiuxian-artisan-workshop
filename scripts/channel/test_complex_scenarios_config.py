@@ -12,6 +12,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 module = importlib.import_module("complex_scenarios_config")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_env_int_handles_unset_and_blank(monkeypatch) -> None:
@@ -41,7 +42,7 @@ def test_parse_args_uses_injected_env_defaults(monkeypatch, tmp_path: Path) -> N
 
     args = module.parse_args(
         script_dir=tmp_path,
-        webhook_url_default="http://127.0.0.1/webhook",
+        webhook_url_default=endpoints.http_url(80, "/webhook"),
         default_log_file="runtime.log",
         default_max_wait=30,
         default_max_idle_secs=20,

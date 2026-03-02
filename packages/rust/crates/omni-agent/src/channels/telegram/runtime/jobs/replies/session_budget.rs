@@ -1,8 +1,7 @@
 use serde_json::json;
 
-#[allow(clippy::large_types_passed_by_value)]
 pub(in super::super) fn format_context_budget_snapshot(
-    snapshot: crate::agent::SessionContextBudgetSnapshot,
+    snapshot: &crate::agent::SessionContextBudgetSnapshot,
 ) -> String {
     let classes = [
         ("non_system", snapshot.non_system),
@@ -72,9 +71,8 @@ pub(in super::super) fn format_context_budget_snapshot(
     lines.join("\n")
 }
 
-#[allow(clippy::large_types_passed_by_value)]
 pub(in super::super) fn format_context_budget_snapshot_json(
-    snapshot: crate::agent::SessionContextBudgetSnapshot,
+    snapshot: &crate::agent::SessionContextBudgetSnapshot,
 ) -> String {
     let classes = [
         ("non_system", snapshot.non_system),
@@ -111,9 +109,9 @@ pub(in super::super) fn format_context_budget_snapshot_json(
             "dropped": snapshot.dropped_tokens,
         },
         "classes": {
-            "non_system": format_context_budget_class_json(snapshot.non_system),
-            "regular_system": format_context_budget_class_json(snapshot.regular_system),
-            "summary_system": format_context_budget_class_json(snapshot.summary_system),
+            "non_system": format_context_budget_class_json(&snapshot.non_system),
+            "regular_system": format_context_budget_class_json(&snapshot.regular_system),
+            "summary_system": format_context_budget_class_json(&snapshot.summary_system),
         },
         "bottlenecks": {
             "largest_dropped_tokens": {"class": largest_drop.0, "tokens": largest_drop.1},
@@ -134,7 +132,7 @@ pub(in super::super) fn format_context_budget_not_found_json() -> String {
 }
 
 pub(in super::super) fn format_context_budget_class_json(
-    stats: crate::agent::SessionContextBudgetClassSnapshot,
+    stats: &crate::agent::SessionContextBudgetClassSnapshot,
 ) -> serde_json::Value {
     json!({
         "input_messages": stats.input_messages,

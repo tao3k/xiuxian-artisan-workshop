@@ -1,0 +1,34 @@
+{
+  "entity_refs": [
+    {
+      "entity_type": "knowledge",
+      "name": "rules",
+      "original": "[[rules#knowledge]]"
+    },
+    {
+      "entity_type": "qianji-flow",
+      "name": "agenda_flow.toml",
+      "original": "[[agenda_flow.toml#qianji-flow]]"
+    }
+  ],
+  "inferred_relations": [
+    {
+      "description": "rules documented in Snapshot Persona",
+      "relation_type": "DOCUMENTED_IN",
+      "source": "rules",
+      "target": "Snapshot Persona"
+    },
+    {
+      "description": "agenda_flow.toml documented in Snapshot Persona",
+      "relation_type": "DOCUMENTED_IN",
+      "source": "agenda_flow.toml",
+      "target": "Snapshot Persona"
+    },
+    {
+      "description": "Snapshot Persona tagged with agenda",
+      "relation_type": "RELATED_TO",
+      "source": "Snapshot Persona",
+      "target": "tag:agenda"
+    }
+  ]
+}

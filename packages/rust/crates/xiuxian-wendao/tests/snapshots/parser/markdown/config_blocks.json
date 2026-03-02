@@ -1,0 +1,18 @@
+[
+  {
+    "id": "steward",
+    "config_type": "persona",
+    "target": "steward.md",
+    "heading": "Steward Persona",
+    "language": "toml",
+    "content": "name = \"steward\"\n"
+  },
+  {
+    "id": "draft",
+    "config_type": "template",
+    "target": "draft_agenda.j2",
+    "heading": "Draft Template",
+    "language": "jinja2",
+    "content": "<agenda_draft>{{ user_input }}</agenda_draft>\n"
+  }
+]

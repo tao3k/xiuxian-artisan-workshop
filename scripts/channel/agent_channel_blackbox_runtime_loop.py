@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import importlib
-import os
 from typing import Any
 
 _helpers_module = importlib.import_module("agent_channel_blackbox_runtime_helpers")
 _outcome_module = importlib.import_module("agent_channel_blackbox_runtime_outcome")
 _poll_module = importlib.import_module("agent_channel_blackbox_runtime_loop_poll")
 _http_loop_module = importlib.import_module("agent_channel_blackbox_runtime_loop_http")
+_prepare_module = importlib.import_module("agent_channel_blackbox_runtime_loop_prepare")
+_finalize_module = importlib.import_module("agent_channel_blackbox_runtime_loop_finalize")
 
 
 def run_probe(
@@ -41,37 +42,25 @@ def run_probe(
     target_session_scope_placeholder: str,
 ) -> int:
     """Run one blackbox probe end-to-end."""
-    cfg.log_file.parent.mkdir(parents=True, exist_ok=True)
-    cursor = count_lines_fn(cfg.log_file)
-
-    update_id = next_update_id_fn(cfg.strong_update_id)
-    trace_id = f"bbx-{update_id}-{os.getpid()}"
-    message_text = build_probe_message_fn(cfg.prompt, trace_id)
-
-    post_error = _http_loop_module.handle_webhook_post(
+    prepared, prepare_error = _prepare_module.prepare_probe(
         cfg,
-        update_id=update_id,
-        message_text=message_text,
+        count_lines_fn=count_lines_fn,
+        next_update_id_fn=next_update_id_fn,
+        build_probe_message_fn=build_probe_message_fn,
         build_update_payload_fn=build_update_payload_fn,
         post_webhook_update_fn=post_webhook_update_fn,
-    )
-    if post_error is not None:
-        return post_error
-
-    _helpers_module.print_probe_intro(
-        cfg,
-        update_id=update_id,
-        trace_id=trace_id,
-        message_text=message_text,
-    )
-    state = _helpers_module.build_probe_runtime_state(
-        cfg,
         expected_session_keys_fn=expected_session_keys_fn,
         expected_session_scope_values_fn=expected_session_scope_values_fn,
         expected_session_scope_prefixes_fn=expected_session_scope_prefixes_fn,
         expected_session_key_fn=expected_session_key_fn,
         expected_recipient_key_fn=expected_recipient_key_fn,
+        helpers_module=_helpers_module,
+        http_loop_module=_http_loop_module,
     )
+    if prepare_error is not None:
+        return prepare_error
+    assert prepared is not None
+    state = prepared.state
 
     def finish(code: int) -> int:
         _helpers_module.emit_mcp_diagnostics(
@@ -80,14 +69,13 @@ def run_probe(
         )
         return code
 
-    trace_mode = trace_id in message_text
     loop_outcome = _poll_module.poll_probe_logs(
         cfg,
         state=state,
-        cursor=cursor,
-        update_id=update_id,
-        trace_mode=trace_mode,
-        trace_id=trace_id,
+        cursor=prepared.cursor,
+        update_id=prepared.update_id,
+        trace_mode=prepared.trace_mode,
+        trace_id=prepared.trace_id,
         read_new_lines_fn=read_new_lines_fn,
         strip_ansi_fn=strip_ansi_fn,
         extract_event_token_fn=extract_event_token_fn,
@@ -103,25 +91,13 @@ def run_probe(
         helpers_module=_helpers_module,
     )
 
-    if loop_outcome.exit_code is not None:
-        return finish(loop_outcome.exit_code)
-    if loop_outcome.allow_no_bot_success:
-        return finish(0)
-
-    return _outcome_module.handle_post_loop_outcome(
+    return _finalize_module.finalize_probe_outcome(
         cfg=cfg,
         state=state,
+        loop_outcome=loop_outcome,
+        trace_id=prepared.trace_id,
         finish_fn=finish,
         tail_lines_fn=tail_lines_fn,
         helpers_module=_helpers_module,
-        trace_mode=loop_outcome.trace_mode,
-        seen_trace=loop_outcome.seen_trace,
-        seen_user_dispatch=loop_outcome.seen_user_dispatch,
-        seen_bot=loop_outcome.seen_bot,
-        bot_line=loop_outcome.bot_line,
-        error_line=loop_outcome.error_line,
-        dedup_duplicate_line=loop_outcome.dedup_duplicate_line,
-        dispatch_session_mismatch_line=loop_outcome.dispatch_session_mismatch_line,
-        webhook_seen=loop_outcome.webhook_seen,
-        trace_id=trace_id,
+        outcome_module=_outcome_module,
     )

@@ -1,26 +1,7 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 //! Integration tests for dependency indexer.
 //!
 //! Note: These tests verify the integration points. Full parsing/fetching
-//! is implemented incrementally. See indexer.rs build() for progress.
+//! is implemented incrementally. See `indexer.rs` `build()` for progress.
 
 use std::fs;
 use tempfile::TempDir;
@@ -28,10 +9,10 @@ use xiuxian_wendao::DependencyIndexer;
 
 /// Integration test for creating indexer with temp project
 #[test]
-fn test_indexer_with_temp_project() {
+fn test_indexer_with_temp_project() -> Result<(), Box<dyn std::error::Error>> {
     // Create a temp directory
-    let temp_dir = TempDir::new().unwrap();
-    let temp_root = temp_dir.path().to_str().unwrap();
+    let temp_dir = TempDir::new()?;
+    let temp_root = temp_dir.path().to_string_lossy().into_owned();
 
     // Create a minimal Cargo.toml with a realistic dependency
     let cargo_content = r#"[package]
@@ -41,12 +22,12 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1.0.100"
 "#;
-    let cargo_path = format!("{}/Cargo.toml", temp_root);
-    fs::write(&cargo_path, cargo_content).unwrap();
+    let cargo_path = format!("{temp_root}/Cargo.toml");
+    fs::write(&cargo_path, cargo_content)?;
 
     // Create src directory with a Rust file containing symbols
-    fs::create_dir_all(format!("{}/src", temp_root)).unwrap();
-    let lib_content = r#"
+    fs::create_dir_all(format!("{temp_root}/src"))?;
+    let lib_content = r"
 pub struct TestStruct {
     pub field: String,
 }
@@ -63,21 +44,20 @@ pub fn test_function() -> bool {
 trait TestTrait {
     fn method(&self);
 }
-"#;
-    fs::write(format!("{}/src/lib.rs", temp_root), lib_content).unwrap();
+";
+    fs::write(format!("{temp_root}/src/lib.rs"), lib_content)?;
 
     // Create a config file with manifest patterns
-    let config_path = format!("{}/references.yaml", temp_root);
+    let config_path = format!("{temp_root}/xiuxian.toml");
     let config_content = r#"
-ast_symbols_external:
-  - type: rust
-    manifests:
-      - "**/Cargo.toml"
+[[ast_symbols_external]]
+type = "rust"
+manifests = ["**/Cargo.toml"]
 "#;
-    fs::write(&config_path, config_content).unwrap();
+    fs::write(&config_path, config_content)?;
 
     // Create indexer with config - should not panic
-    let mut indexer = DependencyIndexer::new(temp_root, Some(&config_path));
+    let mut indexer = DependencyIndexer::new(&temp_root, Some(&config_path));
 
     // Test build returns valid structure
     let result = indexer.build(true);
@@ -106,4 +86,5 @@ ast_symbols_external:
 
     let search_results = indexer.search("test_function", 10);
     assert!(!search_results.is_empty(), "Should find test_function");
+    Ok(())
 }

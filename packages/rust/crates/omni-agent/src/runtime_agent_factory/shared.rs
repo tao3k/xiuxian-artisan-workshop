@@ -1,8 +1,7 @@
+use xiuxian_macros::env_non_empty;
+
 pub(super) fn non_empty_env(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
+    env_non_empty!(name)
 }
 
 pub(super) fn normalize_unit_f32(value: f32, source: &str) -> Option<f32> {

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Testing Workflows & Standards"
+---
+
 # Testing Workflows & Standards
 
 > **Rule #1**: Fast tests first. Fail fast.

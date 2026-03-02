@@ -11,12 +11,17 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import resource
 import sys
 import time
 from typing import Any
 
 from omni.foundation.runtime.skill_optimization import is_low_signal_query
+
+_DEFAULT_LOCAL_HOST = (
+    os.environ.get("XIUXIAN_WENDAO_LOCAL_HOST", "localhost").strip() or "localhost"
+)
 
 
 def _rss_mb() -> float:
@@ -89,7 +94,7 @@ async def main() -> int:
         from omni.foundation.embedding_client import get_embedding_client
 
         base_url = get_setting("embedding.client_url") or (
-            f"http://127.0.0.1:{int(get_setting('embedding.http_port', 18501))}"
+            f"http://{_DEFAULT_LOCAL_HOST}:{int(get_setting('embedding.http_port', 18501))}"
         )
         emb_client = get_embedding_client(base_url)
         vectors = await emb_client.embed_batch([query], timeout_seconds=5)

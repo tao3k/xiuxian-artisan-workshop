@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Python Language Standards"
+---
+
 # Python Language Standards
 
 > **Philosophy**: Readable, explicit, with type hints. Use `uv` for dependency management.

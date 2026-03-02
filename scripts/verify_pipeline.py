@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""
-scripts/verify_pipeline.py - Integration Test for Rust-Powered Context Pipeline
-
-Verifies that the Cognitive Pipeline correctly uses Rust ContextAssembler
-for parallel I/O, template rendering, and token counting.
+"""Verify native context pipeline integration.
 
 Usage:
     uv run python scripts/verify_pipeline.py
@@ -12,131 +8,92 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import sys
 from pathlib import Path
 
-# Add packages to path for imports (uv manages dependencies)
-AGENT_SRC = Path(__file__).parent.parent / "packages/python/agent/src"
-CORE_SRC = Path(__file__).parent.parent / "packages/python/core/src"
-FOUNDATION_SRC = Path(__file__).parent.parent / "packages/python/foundation/src"
-
-sys.path.insert(0, str(AGENT_SRC))
-sys.path.insert(0, str(CORE_SRC))
-sys.path.insert(0, str(FOUNDATION_SRC))
-
-from omni.foundation.config.logging import get_logger
-from omni.foundation.config.settings import get_settings
 from omni.core.context import create_planner_orchestrator
-from omni.core.skills.memory import get_skill_memory
-
-logger = get_logger("verify_pipeline")
+from omni.foundation.config.settings import get_settings
 
 
-async def verify_pipeline():
-    """Verify the Rust-powered cognitive pipeline."""
+def _print_section(title: str) -> None:
+    print("\n" + "=" * 60)
+    print(title)
     print("=" * 60)
-    print("🚀 Rust-Powered Cognitive Pipeline Verification")
-    print("=" * 60)
+
+
+async def verify_pipeline() -> bool:
+    """Run pipeline checks against the native context orchestrator."""
+    _print_section("NATIVE CONTEXT PIPELINE VERIFICATION")
 
     settings = get_settings()
     project_root = Path(settings.get("general.project_root", "."))
-    print(f"📂 Project Root: {project_root}")
+    print(f"Project root: {project_root}")
 
-    # 1. Check that Rust ContextAssembler is available
+    # 1) Rust bridge surface check
     try:
-        from omni_core_rs import ContextAssembler
-
-        print("✅ Rust ContextAssembler imported successfully")
-    except ImportError as e:
-        print(f"❌ Failed to import Rust ContextAssembler: {e}")
+        import omni_core_rs as rust
+    except ImportError as exc:
+        print(f"[FAIL] Failed to import omni_core_rs: {exc}")
         return False
 
-    # 2. Create a fake state (simulating LangGraph state)
+    if not hasattr(rust, "ContextAssembler"):
+        print("[FAIL] omni_core_rs.ContextAssembler is not available")
+        return False
+    print("[PASS] Rust ContextAssembler is available")
+
+    # 2) Build context through orchestrator
     fake_state = {
         "active_skill": "researcher",
         "request": "Analyze the omni-io crate architecture",
         "project_root": str(project_root),
         "messages": [],
     }
-
-    # 3. Initialize the Orchestrator (uses Rust internally via ActiveSkillProvider)
-    print("\n📦 Initializing Context Orchestrator...")
     orchestrator = create_planner_orchestrator()
-    print("✅ Orchestrator initialized")
 
-    # 4. Build Context (triggers Rust ContextAssembler)
-    print("\n🧠 Building Context (calling Rust ContextAssembler)...")
     try:
-        start_time = asyncio.get_running_loop().time()
-
+        start = asyncio.get_running_loop().time()
         system_prompt = await orchestrator.build_context(fake_state)
-
-        end_time = asyncio.get_running_loop().time()
-        duration_ms = (end_time - start_time) * 1000
-
-        print(f"⚡ Context built in {duration_ms:.2f}ms")
-    except Exception as e:
-        print(f"❌ Error building context: {e}")
-        import traceback
-
-        traceback.print_exc()
+        elapsed_ms = (asyncio.get_running_loop().time() - start) * 1000.0
+    except Exception as exc:
+        print(f"[FAIL] Failed to build context: {exc}")
         return False
 
-    # 5. Verify content
-    print("\n🔍 Verification Results:")
-    print("-" * 60)
+    print(f"[PASS] Context built in {elapsed_ms:.2f} ms")
 
+    # 3) Validate output content
     checks = [
-        ("<active_protocol>", "Active Protocol tag", system_prompt),
-        ("</active_protocol>", "Active Protocol closing tag", system_prompt),
-        ("researcher", "SKILL.md content (researcher)", system_prompt),
+        ("<active_protocol>", "contains opening active protocol tag"),
+        ("</active_protocol>", "contains closing active protocol tag"),
+        ("researcher", "contains researcher context"),
     ]
-
     all_passed = True
-    for pattern, name, content in checks:
-        if pattern in content:
-            print(f"✅ PASS: {name} found")
+    for token, label in checks:
+        if token in system_prompt:
+            print(f"[PASS] Output {label}")
         else:
-            print(f"❌ FAIL: {name} missing")
+            print(f"[FAIL] Output missing: {label}")
             all_passed = False
 
-    # 6. Token estimate
-    token_estimate = len(system_prompt) // 4
-    print(f"\n📝 Token Estimate: ~{token_estimate} tokens")
-    print(f"📏 Content Length: {len(system_prompt)} chars")
-
-    # 7. Show a preview
-    print("\n" + "-" * 60)
-    print("📄 Content Preview (first 500 chars):")
-    print("-" * 60)
-    print(system_prompt[:500])
-    print("...")
-
-    print("\n" + "=" * 60)
-    if all_passed:
-        print("✅ ALL CHECKS PASSED - Rust Pipeline is working!")
-    else:
-        print("❌ SOME CHECKS FAILED - Review the output above")
-    print("=" * 60)
-
+    print(f"Prompt length: {len(system_prompt)} chars (~{len(system_prompt) // 4} tokens)")
     return all_passed
 
 
-def main():
-    """Entry point."""
+def main() -> int:
+    """Script entry point."""
     try:
-        result = asyncio.run(verify_pipeline())
-        sys.exit(0 if result else 1)
+        ok = asyncio.run(verify_pipeline())
     except KeyboardInterrupt:
-        print("\n⚠️ Interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n❌ Critical error: {e}")
-        import traceback
+        print("Interrupted.")
+        return 1
+    except Exception as exc:
+        print(f"[FAIL] Unhandled error: {exc}")
+        return 1
 
-        traceback.print_exc()
-        sys.exit(1)
+    if ok:
+        print("\nAll pipeline checks passed.")
+        return 0
+    print("\nPipeline verification failed.")
+    return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

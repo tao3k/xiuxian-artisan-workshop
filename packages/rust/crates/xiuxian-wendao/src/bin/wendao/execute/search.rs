@@ -47,7 +47,7 @@ pub(super) fn handle(cli: &Cli, index: Option<&LinkGraphIndex>) -> Result<()> {
         reason_validated,
     );
     let mut payload = build_payload(&planned, effective_limit);
-    if args.verbose
+    if args.verbosity.verbose
         && let Some(map) = payload.as_object_mut()
     {
         map.insert("phases".to_string(), json!(phases));
@@ -82,27 +82,27 @@ fn build_base_options(args: &SearchArgs) -> LinkGraphSearchOptions {
         tags: build_optional_tag_filter(&args.tags_all, &args.tags_any, &args.tags_not),
         link_to: build_optional_link_filter(
             &args.link_to,
-            args.link_to_negate,
-            args.link_to_recursive,
+            args.link_to_options.link_to_negate,
+            args.link_to_options.link_to_recursive,
             args.link_to_max_distance,
         ),
         linked_by: build_optional_link_filter(
             &args.linked_by,
-            args.linked_by_negate,
-            args.linked_by_recursive,
+            args.linked_by_options.linked_by_negate,
+            args.linked_by_options.linked_by_recursive,
             args.linked_by_max_distance,
         ),
         related: build_optional_related_filter(&args.related, args.max_distance, related_ppr),
         mentions_of: args.mentions_of.clone(),
         mentioned_by_notes: args.mentioned_by_notes.clone(),
-        orphan: args.orphan,
-        tagless: args.tagless,
-        missing_backlink: args.missing_backlink,
+        orphan: args.filter_flags.orphan,
+        tagless: args.filter_flags.tagless,
+        missing_backlink: args.filter_flags.missing_backlink,
         ..LinkGraphSearchFilters::default()
     };
     LinkGraphSearchOptions {
         match_strategy: LinkGraphMatchStrategy::from_alias(&args.match_strategy),
-        case_sensitive: args.case_sensitive,
+        case_sensitive: args.case_options.case_sensitive,
         sort_terms: normalized_sort_terms,
         filters,
         created_after: args.created_after,

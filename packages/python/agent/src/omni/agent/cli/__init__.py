@@ -5,7 +5,7 @@ Modular CLI structure:
 - app.py: Typer application and configuration
 - console.py: Console and output formatting
 - runner.py: Skill execution logic
-- omni_loop.py: CCA Runtime Integration
+- omni_loop.py: Legacy decommissioned compatibility shim
 - commands/: Command submodules
 
 Usage:

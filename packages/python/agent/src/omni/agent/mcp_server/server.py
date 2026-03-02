@@ -101,9 +101,54 @@ class AgentMCPServer:
         # [NEW] Routing Tables for Alias Resolution
         self._alias_to_real: dict[str, str] = {}  # alias -> real_name (Incoming calls)
         self._real_to_display: dict[str, dict] = {}  # real_name -> {name, append_doc} (Outgoing)
+        self._standard_tools_cache: list[Tool] | None = None
 
         self._build_routing_table()
         self._register_handlers()
+
+    @staticmethod
+    def _base_tools() -> list[Tool]:
+        """Build static MCP tools that are independent of skill registry state."""
+        omni_info = get_omni_tool_info()
+        return [
+            Tool(
+                name="omni",
+                description=omni_info["description"],
+                inputSchema=omni_info["inputSchema"],
+            ),
+            Tool(
+                name="sys_query",
+                description="[READ-ONLY] Execute a system query via OmniCell. Returns structured JSON data for file listing, reading, and searching.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Nushell command to execute (read-only: ls, cat, grep, etc.)",
+                        }
+                    },
+                    "required": ["query"],
+                },
+            ),
+            Tool(
+                name="sys_exec",
+                description="[WRITE/ACTION] Execute a system command via OmniCell. Use for mutations: save, rm, mv, cp, mkdir. All mutations are safety-validated.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "script": {
+                            "type": "string",
+                            "description": "Nushell command to execute (mutations: save, rm, mv, cp, etc.)",
+                        }
+                    },
+                    "required": ["script"],
+                },
+            ),
+        ]
+
+    def _invalidate_standard_tools_cache(self) -> None:
+        """Invalidate cached standard list_tools payload."""
+        self._standard_tools_cache = None
 
     def _init_holographic_mode(self) -> None:
         """Initialize Holographic Registry and Adapter for dynamic tool discovery."""
@@ -349,6 +394,8 @@ class AgentMCPServer:
 
         Called by lifespan._notify_tools_changed() when skill registry updates.
         """
+        self._invalidate_standard_tools_cache()
+
         notification = {
             "jsonrpc": "2.0",
             "method": "notifications/tools/listChanged",
@@ -369,28 +416,39 @@ class AgentMCPServer:
 
         # Fallback: Try to send notification through MCP SDK Server
         app = getattr(self, "_app", None)
-        if app and hasattr(app, "request_context"):
+        if app:
             try:
-                # MCP SDK way to send notification
-                from mcp.types import Notification
-
-                # Get the current session context if available
-                ctx = getattr(app, "request_context", None)
-                if ctx and hasattr(ctx, "session") and ctx.session:
-                    await ctx.session.send_notification(
-                        Notification("notifications/tools/listChanged")
-                    )
-                    logger.info("🔔 AgentMCPServer: Sent tools/listChanged via session")
-                    return
+                # Accessing request_context may raise LookupError when no active request exists.
+                ctx = app.request_context
+            except LookupError:
+                ctx = None
             except Exception as e:
-                logger.warning(f"Failed to send via session: {e}")
+                logger.warning(f"Failed to resolve MCP request context: {e}")
+                ctx = None
+
+            if ctx is not None:
+                try:
+                    from mcp.types import Notification
+
+                    session = getattr(ctx, "session", None)
+                    if session:
+                        await session.send_notification(
+                            Notification(
+                                method="notifications/tools/listChanged",
+                                params=None,
+                            )
+                        )
+                        logger.info("🔔 AgentMCPServer: Sent tools/listChanged via session")
+                        return
+                except Exception as e:
+                    logger.warning(f"Failed to send via session: {e}")
 
         logger.warning("AgentMCPServer: No method available to send tools/listChanged notification")
 
     def _validate_overrides(self):
         """Check if configured overrides actually exist in kernel.
 
-        Logs warnings if settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml) contain overrides for tools that don't exist.
+        Logs warnings if settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml) contain overrides for tools that don't exist.
         """
         if not self._kernel or not self._kernel.is_ready:
             return
@@ -399,7 +457,7 @@ class AgentMCPServer:
         real_commands = set(self._kernel.skill_context.get_core_commands())
         overrides = load_command_overrides()
 
-        for configured_name in overrides.commands.keys():
+        for configured_name in overrides.commands:
             if configured_name not in real_commands:
                 # Find close matches or just list a few
                 suggestions = sorted(
@@ -434,57 +492,16 @@ class AgentMCPServer:
                 return []
 
             try:
+                if query is None and self._standard_tools_cache is not None:
+                    if limit is None:
+                        return list(self._standard_tools_cache)
+                    return list(self._standard_tools_cache[: max(0, limit)])
+
                 # Direct access to skill context - no iteration overhead
                 context = self._kernel.skill_context
                 commands = context.get_core_commands()
 
-                mcp_tools = []
-
-                # [MASTER] Omni - Highest Authority Universal Gateway (from common module)
-                omni_info = get_omni_tool_info()
-                mcp_tools.append(
-                    Tool(
-                        name="omni",
-                        description=omni_info["description"],
-                        inputSchema=omni_info["inputSchema"],
-                    )
-                )
-
-                # [NEW] OmniCell Kernel Tools - Direct Rust/Nushell Bridge
-                # These tools bypass skill resolution for maximum performance
-                mcp_tools.append(
-                    Tool(
-                        name="sys_query",
-                        description="[READ-ONLY] Execute a system query via OmniCell. Returns structured JSON data for file listing, reading, and searching.",
-                        inputSchema={
-                            "type": "object",
-                            "properties": {
-                                "query": {
-                                    "type": "string",
-                                    "description": "Nushell command to execute (read-only: ls, cat, grep, etc.)",
-                                }
-                            },
-                            "required": ["query"],
-                        },
-                    )
-                )
-
-                mcp_tools.append(
-                    Tool(
-                        name="sys_exec",
-                        description="[WRITE/ACTION] Execute a system command via OmniCell. Use for mutations: save, rm, mv, cp, mkdir. All mutations are safety-validated.",
-                        inputSchema={
-                            "type": "object",
-                            "properties": {
-                                "script": {
-                                    "type": "string",
-                                    "description": "Nushell command to execute (mutations: save, rm, mv, cp, etc.)",
-                                }
-                            },
-                            "required": ["script"],
-                        },
-                    )
-                )
+                mcp_tools = self._base_tools()
 
                 for cmd_name in commands:
                     # [NEW] 1. Apply Filter (Global Hide)
@@ -519,7 +536,11 @@ class AgentMCPServer:
                 logger.info(
                     f"⚡ Served {len(mcp_tools)} tools via Rust Registry (uptime: {elapsed:.2f}s)"
                 )
-                return mcp_tools
+                if query is None:
+                    self._standard_tools_cache = list(mcp_tools)
+                if limit is None:
+                    return mcp_tools
+                return mcp_tools[: max(0, limit)]
 
             except Exception as e:
                 logger.error(f"Failed to list tools: {e}")

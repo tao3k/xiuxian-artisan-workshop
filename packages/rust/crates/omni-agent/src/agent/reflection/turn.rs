@@ -41,8 +41,7 @@ pub fn build_turn_reflection(
 }
 
 /// Render a compact markdown block for user-visible or logging output.
-#[allow(dead_code)]
-pub fn render_turn_reflection_block(reflection: &TurnReflection) -> String {
+pub(crate) fn render_turn_reflection_block(reflection: &TurnReflection) -> String {
     format!(
         "### Reflection\n- route: `{}`\n- outcome: `{}` confidence=`{:.2}` tool_calls=`{}`\n- objective: {}\n- next_action: {}",
         reflection.route,
@@ -55,8 +54,7 @@ pub fn render_turn_reflection_block(reflection: &TurnReflection) -> String {
 }
 
 /// Render reflection for memory episode experience append.
-#[allow(dead_code)]
-pub fn render_turn_reflection_for_memory(reflection: &TurnReflection) -> String {
+pub(crate) fn render_turn_reflection_for_memory(reflection: &TurnReflection) -> String {
     format!(
         "[reflection]\nroute={}\noutcome={}\nconfidence={:.2}\ntool_calls={}\nobjective={}\nnext_action={}",
         reflection.route,

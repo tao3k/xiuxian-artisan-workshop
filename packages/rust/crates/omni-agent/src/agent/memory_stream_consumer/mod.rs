@@ -24,7 +24,3 @@ use stream::{
 use types::compute_retry_backoff_ms;
 #[cfg(test)]
 use types::{MemoryStreamConsumerRuntimeConfig, StreamReadErrorKind, build_consumer_name};
-
-#[cfg(test)]
-#[path = "../../../tests/agent/memory_stream_consumer.rs"]
-mod tests;

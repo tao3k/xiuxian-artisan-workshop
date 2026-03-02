@@ -3,7 +3,7 @@
 Inference Client - Unified LLM API client via LiteLLM
 
 Modularized for testability.
-Configuration-driven from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml; inference section).
+Configuration-driven from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml; inference section).
 Supports 100+ LLM providers (Anthropic, OpenAI, MiniMax, etc.) via litellm.
 """
 

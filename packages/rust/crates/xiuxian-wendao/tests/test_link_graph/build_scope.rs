@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -31,8 +12,8 @@ fn test_link_graph_build_with_excluded_dirs_skips_cache_tree()
     )?;
 
     let excluded = vec![".cache".to_string()];
-    let index = LinkGraphIndex::build_with_excluded_dirs(tmp.path(), &excluded)
-        .map_err(|e| e.to_string())?;
+    let index =
+        LinkGraphIndex::build_with_excluded_dirs(tmp.path(), &excluded).map_err(|e| e.clone())?;
 
     let stats = index.stats();
     assert_eq!(stats.total_notes, 2);
@@ -54,7 +35,7 @@ fn test_link_graph_build_skips_hidden_dirs_by_default() -> Result<(), Box<dyn st
         "# Hidden\n\n[[docs/a]]\n",
     )?;
 
-    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
     let stats = index.stats();
     assert_eq!(stats.total_notes, 2);
     assert_eq!(stats.links_in_graph, 2);
@@ -77,7 +58,7 @@ fn test_link_graph_build_with_include_dirs_limits_scope() -> Result<(), Box<dyn 
 
     let include = vec!["docs".to_string()];
     let index =
-        LinkGraphIndex::build_with_filters(tmp.path(), &include, &[]).map_err(|e| e.to_string())?;
+        LinkGraphIndex::build_with_filters(tmp.path(), &include, &[]).map_err(|e| e.clone())?;
 
     let stats = index.stats();
     assert_eq!(stats.total_notes, 2);
@@ -86,5 +67,77 @@ fn test_link_graph_build_with_include_dirs_limits_scope() -> Result<(), Box<dyn 
 
     let toc_paths: Vec<String> = index.toc(10).into_iter().map(|row| row.path).collect();
     assert!(toc_paths.iter().all(|path| path.starts_with("docs/")));
+    Ok(())
+}
+
+#[test]
+fn test_link_graph_build_promotes_skill_metadata_into_skill_doc_tags()
+-> Result<(), Box<dyn std::error::Error>> {
+    let tmp = TempDir::new()?;
+    write_file(
+        &tmp.path().join("skills/demo/SKILL.md"),
+        r#"---
+name: demo-skill
+description: Demo skill for promotion testing.
+metadata:
+  routing_keywords:
+    - "task planning"
+  intents:
+    - "Draft a plan"
+---
+
+# Demo Skill
+"#,
+    )?;
+    write_file(
+        &tmp.path().join("skills/demo/references/rules.md"),
+        r#"---
+type: knowledge
+metadata:
+  title: "Rules"
+---
+# Rules
+
+Follow observable constraints.
+"#,
+    )?;
+
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
+    let skill_docs = index
+        .toc(10)
+        .into_iter()
+        .filter(|doc| doc.path == "skills/demo/SKILL.md")
+        .collect::<Vec<_>>();
+    assert_eq!(
+        skill_docs.len(),
+        1,
+        "expected one promoted skill descriptor"
+    );
+    let Some(skill_doc) = skill_docs.first() else {
+        return Err(std::io::Error::other("missing promoted skill descriptor").into());
+    };
+    assert_eq!(skill_doc.doc_type.as_deref(), Some("skill"));
+    assert!(
+        skill_doc.tags.iter().any(|tag| tag == "skill"),
+        "skill descriptor should carry generic skill tag"
+    );
+    assert!(
+        skill_doc.tags.iter().any(|tag| tag == "skill:demo-skill"),
+        "skill descriptor should carry semantic skill tag"
+    );
+    assert!(
+        skill_doc
+            .tags
+            .iter()
+            .any(|tag| tag == "routing:task-planning"),
+        "routing keywords should be promoted into normalized tags"
+    );
+    assert!(
+        skill_doc
+            .tags
+            .iter()
+            .any(|tag| tag == "intent:draft-a-plan"),
+        "intents should be promoted into normalized tags"
+    );
     Ok(())
 }

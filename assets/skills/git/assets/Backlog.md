@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Git Skill Backlog"
+---
+
 # Git Skill Backlog
 
 This backlog tracks the evolution of the Git Skill from basic wrapper to full-fledged Version Control Agent.

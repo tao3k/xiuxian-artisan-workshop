@@ -321,7 +321,3 @@ impl Agent {
         self.downstream_admission_policy.runtime_snapshot(metrics)
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/agent/admission.rs"]
-mod tests;

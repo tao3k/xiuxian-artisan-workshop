@@ -1,41 +1,40 @@
 use super::super::super::{
     LinkGraphIndex, SectionCandidate, section_tree_distance, token_match_ratio,
 };
+use super::super::context::{SearchExecutionContext, SearchRuntimePolicy};
 use std::cmp::Ordering;
 
 impl LinkGraphIndex {
-    #[allow(clippy::too_many_arguments)]
     pub(in crate::link_graph::index::search) fn section_candidates(
         &self,
         doc_id: &str,
-        query: &str,
-        query_tokens: &[String],
-        case_sensitive: bool,
-        max_heading_level: usize,
-        min_section_words: usize,
-        max_tree_hops: Option<usize>,
+        context: &SearchExecutionContext,
+        runtime_policy: &SearchRuntimePolicy,
     ) -> Vec<SectionCandidate> {
         let Some(sections) = self.sections_by_doc.get(doc_id) else {
             return Vec::new();
         };
+        let query = context.clean_query.as_str();
+        let query_tokens = &context.query_tokens;
 
         let mut candidates: Vec<SectionCandidate> = Vec::new();
         for section in sections {
-            if section.heading_level > 0 && section.heading_level > max_heading_level {
+            if section.heading_level > 0 && section.heading_level > runtime_policy.max_heading_level
+            {
                 continue;
             }
 
             let section_word_count = section.section_text.split_whitespace().count();
-            if section_word_count < min_section_words {
+            if section_word_count < runtime_policy.min_section_words {
                 continue;
             }
 
-            let heading = if case_sensitive {
+            let heading = if context.case_sensitive {
                 section.heading_path.as_str()
             } else {
                 section.heading_path_lower.as_str()
             };
-            let body = if case_sensitive {
+            let body = if context.case_sensitive {
                 section.section_text.as_str()
             } else {
                 section.section_text_lower.as_str()
@@ -96,7 +95,7 @@ impl LinkGraphIndex {
                 .then(left.heading_path.cmp(&right.heading_path))
         });
 
-        if let Some(max_hops) = max_tree_hops
+        if let Some(max_hops) = runtime_policy.max_tree_hops
             && !query.is_empty()
             && let Some(seed_heading) = candidates.first().map(|row| row.heading_path.clone())
         {

@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Skills Tools Benchmark CI Gate"
 category: "testing"
 tags:
@@ -8,6 +9,8 @@ tags:
   - regression
 saliency_base: 6.8
 decay_rate: 0.04
+metadata:
+  title: "Skills Tools Benchmark CI Gate"
 ---
 
 # Skills Tools Benchmark CI Gate
@@ -69,11 +72,20 @@ init, host load). It is not a stable proxy for runtime algorithm changes.
 A dedicated bootstrap threshold prevents startup volatility from masking real
 runtime regressions in `daemon_connect/tool_exec`.
 
+`default_cold` daemon-spawn bootstrap is excluded from blocking diff comparison
+because it is tightly coupled to process/runtime jitter in CI hosts.
+
 ### 3) Trend strict mode: streak-based enforcement
 
 One-off regressions can be environmental. Trend strict mode fails only when
 regression streaks persist (`>=2`) at overall or component level. This keeps the
 gate strict while reducing flake-driven noise.
+
+Execution policy:
+
+- CLI diff is always generated (for visibility) and then consumed by trend logic.
+- Blocking failure comes from trend-alert thresholds (not one-shot diff noise).
+- Baseline auto-promotion is skipped whenever `cli_diff.regression_count > 0`.
 
 ## Expected Artifacts
 

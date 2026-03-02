@@ -1,10 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown
-)]
+//! Unit tests for Qianji DAG execution behavior.
 
 use serde_json::json;
 use std::sync::Arc;
@@ -12,7 +6,8 @@ use xiuxian_qianji::executors::MockMechanism;
 use xiuxian_qianji::{QianjiEngine, QianjiScheduler};
 
 #[tokio::test]
-async fn test_qianji_dag_parallel_execution() {
+async fn test_qianji_dag_parallel_execution() -> std::result::Result<(), Box<dyn std::error::Error>>
+{
     let mut engine = QianjiEngine::new();
 
     let a_mech = Arc::new(MockMechanism {
@@ -44,10 +39,11 @@ async fn test_qianji_dag_parallel_execution() {
     engine.add_link(c, d, None, 1.0);
 
     let scheduler = QianjiScheduler::new(engine);
-    let result = scheduler.run(json!({})).await.expect("Execution failed");
+    let result = scheduler.run(json!({})).await?;
 
     assert_eq!(result["A"], "done");
     assert_eq!(result["B"], "done");
     assert_eq!(result["C"], "done");
     assert_eq!(result["D"], "done");
+    Ok(())
 }

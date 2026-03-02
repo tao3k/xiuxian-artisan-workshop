@@ -1,6 +1,6 @@
 //! Complex Scenario Tests for Omni-Memory
 //!
-//! These tests validate the MemRL paper claims:
+//! These tests validate the `MemRL` paper claims:
 //! 1. Self-evolution via RL on episodic memory
 //! 2. Two-phase retrieval (semantic + utility)
 //! 3. Environmental feedback (reward signal)
@@ -13,6 +13,8 @@ mod common;
 
 use omni_memory::{Episode, EpisodeStore, StoreConfig};
 
+type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
+
 /// Test 1: Self-Evolution via Feedback
 ///
 /// Validates: "Agents can self-evolve at runtime by doing reinforcement learning
@@ -20,7 +22,7 @@ use omni_memory::{Episode, EpisodeStore, StoreConfig};
 ///
 /// Scenario: System learns from multiple success/failure experiences and adapts
 #[test]
-fn test_self_evolution_from_feedback() {
+fn test_self_evolution_from_feedback() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -38,7 +40,7 @@ fn test_self_evolution_from_feedback() {
         "Increased timeout to 30s".to_string(),
         "success".to_string(),
     );
-    store.store(ep1.clone()).unwrap();
+    store.store(ep1.clone())?;
 
     // Initial Q-value should be 0.5 (default)
     let initial_q = store.q_table.get_q("ep-1");
@@ -63,7 +65,7 @@ fn test_self_evolution_from_feedback() {
         "Restarted service".to_string(),
         "failure".to_string(),
     );
-    store.store(ep2).unwrap();
+    store.store(ep2)?;
 
     // Mark as failure → Q-value should decrease
     store.update_q("ep-2", 0.0);
@@ -74,8 +76,9 @@ fn test_self_evolution_from_feedback() {
     );
 
     println!("✓ Self-evolution: Q-values adapted based on feedback");
-    println!("  - Success episode Q: {} → {}", initial_q, after_success_q);
+    println!("  - Success episode Q: {initial_q} → {after_success_q}");
     println!("  - Failure episode Q: {} → {}", 0.5, after_failure_q);
+    Ok(())
 }
 
 /// Test 2: Two-Phase Retrieval Noise Reduction
@@ -86,7 +89,7 @@ fn test_self_evolution_from_feedback() {
 /// Scenario: Multiple similar episodes with different outcomes - two-phase should
 /// prioritize high utility ones
 #[test]
-fn test_two_phase_noise_reduction() {
+fn test_two_phase_noise_reduction() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -97,7 +100,7 @@ fn test_two_phase_noise_reduction() {
     let encoder = store.encoder();
 
     // Store multiple similar experiences with different outcomes
-    let intents = vec![
+    let intents = [
         ("fix database connection", "Restarted DB", "success"),
         (
             "fix database connection",
@@ -112,21 +115,21 @@ fn test_two_phase_noise_reduction() {
 
     for (i, (intent, exp, outcome)) in intents.iter().enumerate() {
         let ep = Episode::new(
-            format!("ep-{}", i),
+            format!("ep-{i}"),
             intent.to_string(),
             encoder.encode(intent),
             exp.to_string(),
             outcome.to_string(),
         );
-        store.store(ep).unwrap();
+        store.store(ep)?;
     }
 
     // Mark successes as high utility, failures as low
     for i in 0..3 {
-        store.update_q(&format!("ep-{}", i), 1.0); // Success
+        store.update_q(&format!("ep-{i}"), 1.0); // Success
     }
     for i in 3..6 {
-        store.update_q(&format!("ep-{}", i), 0.0); // Failure
+        store.update_q(&format!("ep-{i}"), 0.0); // Failure
     }
 
     // Phase 1: Pure semantic recall (all similar)
@@ -142,23 +145,24 @@ fn test_two_phase_noise_reduction() {
     println!("✓ Two-phase noise reduction:");
     println!("  - Phase 1 (semantic): {} results", phase1.len());
     println!("  - Phase 2 (with Q-rerank): {} results", phase2.len());
-    println!("  - High-utility in top-3: {}/3", phase2_successes);
+    println!("  - High-utility in top-3: {phase2_successes}/3");
 
     // Two-phase should prioritize successful experiences
     assert!(
         phase2_successes >= 2,
         "Two-phase should return mostly successful experiences"
     );
+    Ok(())
 }
 
 /// Test 3: Memory Decay (Q-Value Decay)
 ///
 /// Validates: Memory should decay Q-values over time (not delete episodes)
-/// (Our enhancement, not in original MemRL paper)
+/// (Our enhancement, not in original `MemRL` paper)
 ///
 /// Scenario: Q-values should decay towards 0.5 over time
 #[test]
-fn test_memory_decay_scenario() {
+fn test_memory_decay_scenario() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -176,7 +180,7 @@ fn test_memory_decay_scenario() {
         "Did X".to_string(),
         "success".to_string(),
     );
-    store.store(ep1).unwrap();
+    store.store(ep1)?;
     store.update_q("fresh-high", 0.9);
 
     // Store another episode with low Q-value
@@ -187,7 +191,7 @@ fn test_memory_decay_scenario() {
         "Did Y".to_string(),
         "failure".to_string(),
     );
-    store.store(ep2).unwrap();
+    store.store(ep2)?;
     store.update_q("old-low", 0.1);
 
     // Get Q-values before decay
@@ -202,29 +206,24 @@ fn test_memory_decay_scenario() {
     let q_after_low = store.q_table.get_q("old-low");
 
     println!("✓ Memory decay (Q-value decay towards 0.5):");
-    println!(
-        "  - High Q before: {:.3} -> after: {:.3}",
-        q_before, q_after
-    );
-    println!(
-        "  - Low Q before: {:.3} -> after: {:.3}",
-        q_before_low, q_after_low
-    );
+    println!("  - High Q before: {q_before:.3} -> after: {q_after:.3}");
+    println!("  - Low Q before: {q_before_low:.3} -> after: {q_after_low:.3}");
 
     // High Q should move towards 0.5
     assert!(q_after < q_before, "High Q should decay towards 0.5");
     // Low Q should move towards 0.5
     assert!(q_after_low > q_before_low, "Low Q should decay towards 0.5");
+    Ok(())
 }
 
 /// Test 4: Multi-hop Reasoning
 ///
 /// Validates: Can chain multiple queries for complex reasoning
-/// (Our enhancement, not in original MemRL paper)
+/// (Our enhancement, not in original `MemRL` paper)
 ///
 /// Scenario: Query chain: "api error" → "timeout fix" → "network issue"
 #[test]
-fn test_multi_hop_reasoning_scenario() {
+fn test_multi_hop_reasoning_scenario() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -235,7 +234,7 @@ fn test_multi_hop_reasoning_scenario() {
     let encoder = store.encoder();
 
     // Store chain of related experiences
-    let chain = vec![
+    let chain = [
         ("api error", "Checked logs", "success", 0.8),
         ("timeout fix", "Increased timeout", "success", 0.9),
         ("network issue", "Checked firewall", "success", 0.7),
@@ -244,14 +243,14 @@ fn test_multi_hop_reasoning_scenario() {
 
     for (i, (intent, exp, outcome, q)) in chain.iter().enumerate() {
         let ep = Episode::new(
-            format!("ep-{}", i),
+            format!("ep-{i}"),
             intent.to_string(),
             encoder.encode(intent),
             exp.to_string(),
             outcome.to_string(),
         );
-        store.store(ep).unwrap();
-        store.update_q(&format!("ep-{}", i), *q);
+        store.store(ep)?;
+        store.update_q(&format!("ep-{i}"), *q);
     }
 
     // Multi-hop: chain queries
@@ -272,6 +271,7 @@ fn test_multi_hop_reasoning_scenario() {
         !results.is_empty(),
         "Multi-hop should find related experiences"
     );
+    Ok(())
 }
 
 /// Test 5: Q-Learning Convergence
@@ -280,7 +280,7 @@ fn test_multi_hop_reasoning_scenario() {
 ///
 /// Scenario: Repeatedly update Q-value with same reward, should converge
 #[test]
-fn test_q_learning_convergence_scenario() {
+fn test_q_learning_convergence_scenario() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -297,10 +297,9 @@ fn test_q_learning_convergence_scenario() {
         "Did X".to_string(),
         "success".to_string(),
     );
-    store.store(ep).unwrap();
+    store.store(ep)?;
 
     // Update Q-value many times with reward = 1.0 (QTable uses default learning rate)
-    let _learning_rate = 0.2;
     let mut q_values = vec![0.5];
 
     for _ in 0..20 {
@@ -309,11 +308,13 @@ fn test_q_learning_convergence_scenario() {
         q_values.push(q);
     }
 
-    let final_q = *q_values.last().unwrap();
+    let final_q = *q_values
+        .last()
+        .ok_or_else(|| std::io::Error::other("q-values should contain at least one value"))?;
 
     println!("✓ Q-learning convergence:");
     println!("  - Initial Q: 0.5");
-    println!("  - After 20 success updates: {:.4}", final_q);
+    println!("  - After 20 success updates: {final_q:.4}");
     println!("  - Converged towards 1.0: {}", final_q > 0.9);
 
     // Should converge towards 1.0
@@ -321,6 +322,7 @@ fn test_q_learning_convergence_scenario() {
         final_q > 0.9,
         "Q-value should converge towards reward (1.0)"
     );
+    Ok(())
 }
 
 /// Test 6: Conflicting Experiences
@@ -330,7 +332,7 @@ fn test_q_learning_convergence_scenario() {
 ///
 /// Scenario: Same intent "fix bug" with success and failure outcomes
 #[test]
-fn test_conflicting_experiences() {
+fn test_conflicting_experiences() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -364,9 +366,9 @@ fn test_conflicting_experiences() {
         "success".to_string(),
     );
 
-    store.store(ep1).unwrap();
-    store.store(ep2).unwrap();
-    store.store(ep3).unwrap();
+    store.store(ep1)?;
+    store.store(ep2)?;
+    store.store(ep3)?;
 
     // Update Q-values using rewards (not direct Q-values)
     // Q_new = Q_old + α * (reward - Q_old)
@@ -396,18 +398,18 @@ fn test_conflicting_experiences() {
     // Success rewards should give higher Q (~0.6) than failure (~0.4)
     assert!(
         top_episode_q >= 0.5,
-        "Should prefer successful experience, got {}",
-        top_episode_q
+        "Should prefer successful experience, got {top_episode_q}"
     );
+    Ok(())
 }
 
 /// Test 7: Utility vs Similarity Trade-off
 ///
-/// Validates: λ (q_weight) parameter controls utility vs similarity trade-off
+/// Validates: λ (`q_weight`) parameter controls utility vs similarity trade-off
 ///
 /// Scenario: Test λ=0 (similarity only) vs λ=1 (Q only) vs λ=0.5 (balanced)
 #[test]
-fn test_utility_similarity_tradeoff() {
+fn test_utility_similarity_tradeoff() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -434,8 +436,8 @@ fn test_utility_similarity_tradeoff() {
         "success".to_string(),
     );
 
-    store.store(ep1).unwrap();
-    store.store(ep2).unwrap();
+    store.store(ep1)?;
+    store.store(ep2)?;
     store.update_q("high-sim-low-q", 0.1);
     store.update_q("low-sim-high-q", 0.95);
 
@@ -484,18 +486,21 @@ fn test_utility_similarity_tradeoff() {
         results_lambda_1[0].0.id, "low-sim-high-q",
         "λ=1 should prefer Q-value"
     );
+    Ok(())
 }
 
 /// Test 8: Persistence and Recovery
 ///
 /// Validates: Episodes and Q-values persist across restarts
 #[test]
-fn test_persistence_and_recovery() {
+fn test_persistence_and_recovery() -> TestResult {
     use tempfile::TempDir;
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new()?;
     let store_path = temp_dir.path().join("store.json");
     let q_path = temp_dir.path().join("qtable.json");
+    let store_path_str = store_path.to_string_lossy().to_string();
+    let q_path_str = q_path.to_string_lossy().to_string();
 
     // Create store and add episodes
     {
@@ -514,19 +519,19 @@ fn test_persistence_and_recovery() {
             "Critical fix".to_string(),
             "success".to_string(),
         );
-        store.store(ep).unwrap();
+        store.store(ep)?;
 
         // Update Q-value multiple times to ensure it's in the table
         store.update_q("persist-1", 1.0);
         store.update_q("persist-1", 0.85);
 
         // Save
-        store.save(store_path.to_str().unwrap()).unwrap();
-        store.save_q_table(q_path.to_str().unwrap()).unwrap();
+        store.save(&store_path_str)?;
+        store.save_q_table(&q_path_str)?;
 
         // Verify saved Q-value
         let saved_q = store.q_table.get_q("persist-1");
-        println!("  Saved Q-value: {:.2}", saved_q);
+        println!("  Saved Q-value: {saved_q:.2}");
     }
 
     // Load into new store
@@ -539,19 +544,21 @@ fn test_persistence_and_recovery() {
         };
         let store = EpisodeStore::new(config);
 
-        store.load(store_path.to_str().unwrap()).unwrap();
-        store.load_q_table(q_path.to_str().unwrap()).unwrap();
+        store.load(&store_path_str)?;
+        store.load_q_table(&q_path_str)?;
 
         // Verify
         assert_eq!(store.len(), 1, "Should have 1 episode");
 
         // First verify the episode was loaded
-        let loaded_ep = store.get("persist-1").expect("Episode should exist");
+        let loaded_ep = store
+            .get("persist-1")
+            .ok_or_else(|| std::io::Error::other("Episode should exist"))?;
         println!("  Loaded episode Q-value: {:.2}", loaded_ep.q_value);
 
         // Then verify Q-table was loaded
         let q = store.q_table.get_q("persist-1");
-        println!("  Loaded Q-table value: {:.2}", q);
+        println!("  Loaded Q-table value: {q:.2}");
 
         // With Q-learning, final value after two updates (1.0 then 0.85)
         // Q1 = 0.5 + 0.2 * (1.0 - 0.5) = 0.6
@@ -560,13 +567,14 @@ fn test_persistence_and_recovery() {
 
         println!("✓ Persistence and recovery: Episode and Q-value persisted correctly");
     }
+    Ok(())
 }
 
 /// Test 9: Batch Operations Performance
 ///
 /// Validates: System handles large batch of episodes efficiently
 #[test]
-fn test_batch_operations_performance() {
+fn test_batch_operations_performance() -> TestResult {
     use std::time::Instant;
 
     let path = common::test_store_path("test");
@@ -583,13 +591,13 @@ fn test_batch_operations_performance() {
     // Store 1000 episodes
     for i in 0..1000 {
         let ep = Episode::new(
-            format!("batch-{}", i),
+            format!("batch-{i}"),
             format!("task {}", i % 100), // 100 unique intents
             encoder.encode(&format!("task {}", i % 100)),
-            format!("Solution {}", i),
+            format!("Solution {i}"),
             if i % 3 == 0 { "failure" } else { "success" }.to_string(),
         );
-        store.store(ep).unwrap();
+        store.store(ep)?;
     }
 
     let store_time = start.elapsed();
@@ -601,20 +609,21 @@ fn test_batch_operations_performance() {
     let recall_time = recall_start.elapsed();
 
     println!("✓ Batch operations performance:");
-    println!("  - Store 1000 episodes: {:?}", store_time);
-    println!("  - Recall top-10: {:?}", recall_time);
+    println!("  - Store 1000 episodes: {store_time:?}");
+    println!("  - Recall top-10: {recall_time:?}");
     println!("  - Results: {} episodes", results.len());
 
     // Should be reasonably fast
     assert!(store_time.as_millis() < 1000, "Store should be fast");
     assert!(recall_time.as_millis() < 100, "Recall should be fast");
+    Ok(())
 }
 
 /// Test 10: Incremental Learning
 ///
 /// Validates: System can update episodes incrementally without full rebuild
 #[test]
-fn test_incremental_learning() {
+fn test_incremental_learning() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -632,14 +641,16 @@ fn test_incremental_learning() {
         "Initial solution".to_string(),
         "success".to_string(),
     );
-    store.store(ep).unwrap();
+    store.store(ep)?;
     store.update_q("learn-1", 0.6);
 
     // First improvement (experience and outcome only, Q updates separately)
     store.update_episode("learn-1", "improved approach", "success");
 
     // Check update - experience should be updated
-    let retrieved = store.get("learn-1").unwrap();
+    let retrieved = store
+        .get("learn-1")
+        .ok_or_else(|| std::io::Error::other("learn-1 should exist after update"))?;
     assert_eq!(
         retrieved.experience, "improved approach",
         "Experience should be updated"
@@ -661,7 +672,7 @@ fn test_incremental_learning() {
         "Old".to_string(),
         "failure".to_string(),
     );
-    store.store(ep_old).unwrap();
+    store.store(ep_old)?;
     store.delete_episode("old-1");
 
     assert!(
@@ -670,4 +681,5 @@ fn test_incremental_learning() {
     );
 
     println!("✓ Incremental learning: Update and delete work correctly");
+    Ok(())
 }

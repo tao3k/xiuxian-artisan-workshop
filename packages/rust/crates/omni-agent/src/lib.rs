@@ -3,13 +3,16 @@
 //! - **B.1**: Session store (in-memory or omni-window), LLM client (OpenAI-compatible chat API).
 //! - **B.2**: One turn: user message → prompt + tools/list → LLM → `tool_calls` → MCP tools/call → repeat until done.
 
-#![allow(missing_docs)]
+/// Compile-time embedded resource tree rooted at `omni-agent/resources`.
+pub static RESOURCES: ::include_dir::Dir<'_> =
+    ::include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources");
 
 mod agent;
 mod channels;
 mod config;
 mod contracts;
 mod embedding;
+mod env_parse;
 mod gateway;
 mod jobs;
 mod llm;
@@ -22,20 +25,26 @@ pub mod test_support;
 mod tools;
 
 pub use agent::{
-    Agent, GraphBridgeRequest, GraphBridgeResult, MemoryRecallLatencyBucketsSnapshot,
-    MemoryRecallMetricsSnapshot, SessionContextBudgetClassSnapshot, SessionContextBudgetSnapshot,
-    SessionContextMode, SessionContextSnapshotInfo, SessionContextStats, SessionContextWindowInfo,
-    SessionMemoryRecallDecision, SessionMemoryRecallSnapshot, prune_messages_for_token_budget,
-    summarise_drained_turns, validate_graph_bridge_request,
+    Agent, MemoryRecallLatencyBucketsSnapshot, MemoryRecallMetricsSnapshot, NativeToolRegistry,
+    SessionContextBudgetClassSnapshot, SessionContextBudgetSnapshot, SessionContextMode,
+    SessionContextSnapshotInfo, SessionContextStats, SessionContextWindowInfo,
+    SessionMemoryRecallDecision, SessionMemoryRecallSnapshot,
+    native_tools::registry::{NativeTool, NativeToolCallContext},
+    native_tools::zhixing::{AgendaViewTool, JournalRecordTool, TaskAddTool},
+    notification::{NotificationDispatcher, NotificationProvider},
+    prune_messages_for_token_budget, summarise_drained_turns,
 };
 pub use channels::{
     Channel, ChannelMessage, DEFAULT_REDIS_KEY_PREFIX, DISCORD_MAX_MESSAGE_LENGTH,
     DiscordAclOverrides, DiscordChannel, DiscordCommandAdminRule, DiscordControlCommandPolicy,
-    DiscordIngressApp, DiscordIngressRunRequest, DiscordRuntimeConfig, DiscordSessionPartition,
-    DiscordSlashCommandPolicy, RecipientCommandAdminUsersMutation, SessionGate,
-    TELEGRAM_MAX_MESSAGE_LENGTH, TelegramAclOverrides, TelegramChannel, TelegramCommandAdminRule,
-    TelegramControlCommandPolicy, TelegramRuntimeConfig, TelegramSessionPartition,
-    TelegramSlashCommandPolicy, TelegramWebhookApp, WebhookDedupBackend, WebhookDedupConfig,
+    DiscordIngressApp, DiscordIngressBuildRequest, DiscordIngressRunRequest, DiscordRuntimeConfig,
+    DiscordSessionPartition, DiscordSlashCommandPolicy, ForegroundQueueMode,
+    RecipientCommandAdminUsersMutation, SessionGate, TELEGRAM_MAX_MESSAGE_LENGTH,
+    TelegramAclOverrides, TelegramChannel, TelegramCommandAdminRule, TelegramControlCommandPolicy,
+    TelegramRuntimeConfig, TelegramSessionPartition, TelegramSlashCommandPolicy,
+    TelegramWebhookApp, TelegramWebhookControlPolicyBuildRequest,
+    TelegramWebhookPartitionBuildRequest, TelegramWebhookPolicyRunRequest,
+    TelegramWebhookRunRequest, WebhookDedupBackend, WebhookDedupConfig,
     build_discord_acl_overrides, build_discord_command_admin_rule, build_discord_ingress_app,
     build_discord_ingress_app_with_control_command_policy,
     build_discord_ingress_app_with_partition_and_control_command_policy,
@@ -60,7 +69,7 @@ pub use contracts::{
     DiscoverConfidence, DiscoverMatch, GraphExecutionPlan, GraphPlanStep, GraphPlanStepKind,
     GraphWorkflowMode, MemoryGateDecision, MemoryGateVerdict, OmegaDecision, OmegaFallbackPolicy,
     OmegaRiskLevel, OmegaRoute, OmegaToolTrustClass, RouteTrace, RouteTraceGraphStep,
-    RouteTraceInjection,
+    RouteTraceInjection, WorkflowBridgeMode,
 };
 pub use embedding::EmbeddingClient;
 pub use gateway::{
@@ -81,8 +90,5 @@ pub use session::{
     BoundedSessionStore, ChatMessage, FunctionCall, SessionStore, SessionSummarySegment,
     ToolCallOut,
 };
-pub use shortcuts::{
-    CRAWL_TOOL_NAME, CrawlShortcut, GraphBridgeShortcut, parse_crawl_shortcut,
-    parse_graph_bridge_shortcut,
-};
+pub use shortcuts::parse_react_shortcut;
 pub use tools::{parse_qualified_tool_name, qualify_tool_name};

@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use super::SyncEngine;
 
-#[allow(clippy::missing_errors_doc)]
 impl SyncEngine {
     /// Discover files in project root.
     #[must_use]

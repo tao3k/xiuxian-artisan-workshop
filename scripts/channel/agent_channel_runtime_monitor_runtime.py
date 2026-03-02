@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import os
-import sys
 import time
 from collections import Counter, deque
 from typing import TYPE_CHECKING, Any
@@ -21,9 +19,9 @@ from agent_channel_runtime_monitor_models import (
     MonitorStats,
     MonitorTerminationState,
 )
+from agent_channel_runtime_monitor_runtime_finalize import finalize_runtime_report
 from agent_channel_runtime_monitor_runtime_report import (
     build_runtime_report,
-    termination_payload,
 )
 from agent_channel_runtime_monitor_runtime_signals import (
     install_termination_handlers,
@@ -40,27 +38,6 @@ from agent_channel_runtime_monitor_runtime_streaming import (
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _build_spawn_error_report(
-    *,
-    start_wall: str,
-    end_wall: str,
-    command: list[str],
-    error: OSError,
-) -> dict[str, Any]:
-    from agent_channel_runtime_monitor_runtime_report import build_spawn_error_report
-
-    return build_spawn_error_report(
-        start_wall=start_wall,
-        end_wall=end_wall,
-        command=command,
-        error=error,
-    )
-
-
-def _termination_payload(requested_signal: int) -> dict[str, Any]:
-    return termination_payload(requested_signal)
 
 
 def run_monitored_process(
@@ -106,38 +83,22 @@ def run_monitored_process(
     restore_signal_handlers(previous_signal_handlers)
 
     returncode = wait_for_process(proc, interrupted=interrupted)
-
-    duration_ms = int((time.monotonic() - start_monotonic) * 1000)
-    end_wall = now_utc_iso()
-    exit_info = classify_exit(returncode)
-    report = build_runtime_report(
+    return finalize_runtime_report(
         start_wall=start_wall,
-        end_wall=end_wall,
-        duration_ms=duration_ms,
+        start_monotonic=start_monotonic,
         command=command,
         pid=pid,
         returncode=returncode,
-        exit_info=exit_info,
         stats=stats,
         event_counts=event_counts,
         recent_lines=recent_lines,
-        cwd=os.getcwd(),
-        log_file=str(log_file),
-        requested_signal=termination.requested_signal,
+        log_file=log_file,
+        termination=termination,
+        report_file=report_file,
+        report_jsonl=report_jsonl,
+        classify_exit_fn=classify_exit,
+        now_utc_iso_fn=now_utc_iso,
+        build_runtime_report_fn=build_runtime_report,
+        write_report_fn=write_report,
+        normalize_exit_code_fn=normalize_exit_code,
     )
-    write_report(report_file, report_jsonl, report)
-
-    print(
-        "[monitor] "
-        f"exit_kind={exit_info['kind']} "
-        f"exit_code={exit_info['exit_code']} "
-        f"signal={exit_info['signal_name'] or ''} "
-        f"duration_ms={duration_ms} "
-        f"report={report_file}",
-        file=sys.stderr,
-        flush=True,
-    )
-    if stats.first_error_line:
-        print(f"[monitor] first_error_line={stats.first_error_line}", file=sys.stderr, flush=True)
-
-    return normalize_exit_code(returncode)

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "xiuxian-qianji (千机)"
+---
+
 # xiuxian-qianji (千机)
 
 > **"The Dao of logic is like a thousand interlocking gears; only through extreme precision can one ascend from computational chaos."**
@@ -12,7 +18,7 @@ In the lore of **CyberXiuXian**, a "Qianji Box" is a legendary mechanical device
 
 ### 1.1 From Entropy to Ascension
 
-Standard AI workflows (like LangGraph) often suffer from **"Computational Entropy"**—loose Python scripts that become unmanageable as complexity scales. `xiuxian-qianji` rejects this chaos. We treat every agentic workflow as a **Refined Artifact**.
+Standard AI workflows built on legacy Python graph runtimes often suffer from **"Computational Entropy"**—loose scripts that become unmanageable as complexity scales. `xiuxian-qianji` rejects this chaos. We treat every agentic workflow as a **Refined Artifact**.
 
 - **The Iron Frame:** Like the tempered steel of a cultivation blade, our graph kernel is unyielding and formally verified.
 - **The Divine Logic:** Like the flow of Qi through meridians, our scheduling is dynamic, probabilistic, and self-aware.

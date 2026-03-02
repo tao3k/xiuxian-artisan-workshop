@@ -16,6 +16,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 config_module = importlib.import_module("mcp_startup_suite_config")
 models_module = importlib.import_module("mcp_startup_suite_models")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def _base_args(tmp_path: Path) -> argparse.Namespace:
@@ -28,7 +29,7 @@ def _base_args(tmp_path: Path) -> argparse.Namespace:
         cold_parallel=1,
         startup_timeout_secs=60,
         cooldown_secs=0.1,
-        mcp_host="127.0.0.1",
+        mcp_host=endpoints.DEFAULT_LOCAL_HOST,
         mcp_port=3002,
         mcp_config=str(mcp_config),
         health_url="",
@@ -60,7 +61,7 @@ def _base_args(tmp_path: Path) -> argparse.Namespace:
 
 def test_build_config_rejects_negative_port(tmp_path: Path) -> None:
     args = _base_args(tmp_path)
-    args.mcp_port = 0
+    args.mcp_port = -1
     with pytest.raises(ValueError, match="--mcp-port must be positive"):
         config_module.build_config(args, config_cls=models_module.SuiteConfig)
 

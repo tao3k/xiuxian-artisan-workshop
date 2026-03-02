@@ -1,15 +1,7 @@
 //! Python bindings for omni-memory.
 
 #[cfg(feature = "pybindings")]
-#[allow(
-    missing_docs,
-    clippy::doc_markdown,
-    clippy::module_inception,
-    clippy::needless_pass_by_value,
-    clippy::must_use_candidate,
-    clippy::semicolon_if_nothing_returned
-)]
-mod pymodule_impl {
+mod pybindings_impl {
     use crate::encoder::IntentEncoder;
     use crate::episode::Episode;
     use crate::q_table::QTable;
@@ -92,7 +84,7 @@ mod pymodule_impl {
         }
     }
 
-    /// Python wrapper for QTable.
+    /// Python wrapper for `QTable`.
     #[pyclass]
     #[derive(Clone)]
     pub struct PyQTable {
@@ -135,7 +127,7 @@ mod pymodule_impl {
         }
     }
 
-    /// Python wrapper for IntentEncoder.
+    /// Python wrapper for `IntentEncoder`.
     #[pyclass]
     #[derive(Clone)]
     pub struct PyIntentEncoder {
@@ -156,7 +148,9 @@ mod pymodule_impl {
         }
 
         fn cosine_similarity(&self, a: Vec<f32>, b: Vec<f32>) -> f32 {
-            self.inner.cosine_similarity(&a, &b)
+            let a = a.into_boxed_slice();
+            let b = b.into_boxed_slice();
+            self.inner.cosine_similarity(a.as_ref(), b.as_ref())
         }
 
         fn dimension(&self) -> usize {
@@ -164,14 +158,17 @@ mod pymodule_impl {
         }
     }
 
-    /// Python wrapper for StoreConfig.
+    /// Python wrapper for `StoreConfig`.
     #[pyclass]
     #[derive(Clone)]
     pub struct PyStoreConfig {
+        /// Storage path for the episode dataset.
         #[pyo3(get, set)]
         pub path: String,
+        /// Embedding dimension expected by the store.
         #[pyo3(get, set)]
         pub embedding_dim: usize,
+        /// Table name used by the persistence backend.
         #[pyo3(get, set)]
         pub table_name: String,
     }
@@ -192,7 +189,7 @@ mod pymodule_impl {
         }
     }
 
-    /// Python wrapper for EpisodeStore.
+    /// Python wrapper for `EpisodeStore`.
     #[pyclass]
     pub struct PyEpisodeStore {
         inner: EpisodeStore,
@@ -215,7 +212,7 @@ mod pymodule_impl {
 
         fn store(&self, episode: PyEpisode) -> PyResult<String> {
             self.inner
-                .store(episode.inner.clone())
+                .store(episode.inner)
                 .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
         }
 
@@ -249,8 +246,9 @@ mod pymodule_impl {
             embedding: Vec<f32>,
             top_k: usize,
         ) -> Vec<(PyEpisode, f32)> {
+            let embedding = embedding.into_boxed_slice();
             self.inner
-                .recall_with_embedding(&embedding, top_k)
+                .recall_with_embedding(embedding.as_ref(), top_k)
                 .into_iter()
                 .map(|(e, s)| (PyEpisode { inner: e }, s))
                 .collect()
@@ -278,8 +276,9 @@ mod pymodule_impl {
             k2: usize,
             lambda: f32,
         ) -> Vec<(PyEpisode, f32)> {
+            let embedding = embedding.into_boxed_slice();
             self.inner
-                .two_phase_recall_with_embedding(&embedding, k1, k2, lambda)
+                .two_phase_recall_with_embedding(embedding.as_ref(), k1, k2, lambda)
                 .into_iter()
                 .map(|(e, s)| (PyEpisode { inner: e }, s))
                 .collect()
@@ -292,8 +291,9 @@ mod pymodule_impl {
             k: usize,
             lambda: f32,
         ) -> Vec<(PyEpisode, f32)> {
+            let queries = queries.into_boxed_slice();
             self.inner
-                .multi_hop_recall(&queries, k, lambda)
+                .multi_hop_recall(queries.as_ref(), k, lambda)
                 .into_iter()
                 .map(|(e, s)| (PyEpisode { inner: e }, s))
                 .collect()
@@ -306,8 +306,9 @@ mod pymodule_impl {
             k: usize,
             lambda: f32,
         ) -> Vec<(PyEpisode, f32)> {
+            let embeddings = embeddings.into_boxed_slice();
             self.inner
-                .multi_hop_recall_with_embeddings(&embeddings, k, lambda)
+                .multi_hop_recall_with_embeddings(embeddings.as_ref(), k, lambda)
                 .into_iter()
                 .map(|(e, s)| (PyEpisode { inner: e }, s))
                 .collect()
@@ -352,7 +353,7 @@ mod pymodule_impl {
         /// Apply time-based decay to all episodes.
         ///
         /// Args:
-        /// - decay_factor: Decay per hour (e.g., 0.95 = 5% decay per hour)
+        /// - `decay_factor`: Decay per hour (e.g., 0.95 = 5% decay per hour)
         fn apply_decay(&self, decay_factor: f32) {
             self.inner.apply_decay(decay_factor);
         }
@@ -404,14 +405,17 @@ mod pymodule_impl {
         pub q_table_size: usize,
     }
 
-    /// Python wrapper for TwoPhaseConfig.
+    /// Python wrapper for `TwoPhaseConfig`.
     #[pyclass]
     #[derive(Clone)]
     pub struct PyTwoPhaseConfig {
+        /// Number of semantic candidates in phase 1.
         #[pyo3(get, set)]
         pub k1: usize,
+        /// Number of reranked candidates returned in phase 2.
         #[pyo3(get, set)]
         pub k2: usize,
+        /// Blend weight for semantic score and Q-value.
         #[pyo3(get, set)]
         pub lambda: f32,
     }
@@ -428,7 +432,7 @@ mod pymodule_impl {
         }
     }
 
-    /// Python wrapper for TwoPhaseSearch.
+    /// Python wrapper for `TwoPhaseSearch`.
     #[pyclass]
     pub struct PyTwoPhaseSearch {
         inner: TwoPhaseSearch,
@@ -486,6 +490,8 @@ mod pymodule_impl {
     // ============================================================================
 
     #[pyfunction]
+    /// Create an episode and compute its intent embedding using the default encoder.
+    #[must_use]
     pub fn create_episode(
         id: String,
         intent: String,
@@ -501,6 +507,7 @@ mod pymodule_impl {
 
     /// Create an episode with pre-computed embedding (for real embeddings from Python)
     #[pyfunction]
+    #[must_use]
     pub fn create_episode_with_embedding(
         id: String,
         intent: String,
@@ -514,6 +521,8 @@ mod pymodule_impl {
     }
 
     #[pyfunction]
+    /// Create a `QTable` wrapper with optional learning parameters.
+    #[must_use]
     pub fn create_q_table(learning_rate: Option<f32>, discount_factor: Option<f32>) -> PyQTable {
         let inner = match (learning_rate, discount_factor) {
             (Some(lr), Some(df)) => QTable::with_params(lr, df),
@@ -523,6 +532,8 @@ mod pymodule_impl {
     }
 
     #[pyfunction]
+    /// Create an `IntentEncoder` wrapper with an optional embedding dimension.
+    #[must_use]
     pub fn create_intent_encoder(dimension: Option<usize>) -> PyIntentEncoder {
         PyIntentEncoder {
             inner: IntentEncoder::new(dimension.unwrap_or(384)),
@@ -530,6 +541,8 @@ mod pymodule_impl {
     }
 
     #[pyfunction]
+    /// Create an `EpisodeStore` wrapper from optional store configuration.
+    #[must_use]
     pub fn create_episode_store(config: Option<PyStoreConfig>) -> PyEpisodeStore {
         let config = config.map(|c| StoreConfig {
             path: c.path,
@@ -543,6 +556,7 @@ mod pymodule_impl {
     }
 
     #[pyfunction]
+    /// Create a `TwoPhaseSearch` wrapper bound to an encoder and Q-table.
     pub fn create_two_phase_search(
         q_table: &PyQTable,
         encoder: &PyIntentEncoder,
@@ -562,6 +576,8 @@ mod pymodule_impl {
     }
 
     #[pyfunction]
+    /// Calculate a blended relevance score from similarity and Q-value.
+    #[must_use]
     pub fn calculate_score(similarity: f32, q_value: f32, lambda: f32) -> f32 {
         calc_score(similarity, q_value, lambda)
     }
@@ -612,10 +628,4 @@ mod pymodule_impl {
     }
 }
 
-#[cfg(feature = "pybindings")]
-pub use pymodule_impl::*;
-
-#[cfg(not(feature = "pybindings"))]
-pub mod pymodule_impl {
-    // Empty module when pybindings not enabled
-}
+pub use pybindings_impl::*;

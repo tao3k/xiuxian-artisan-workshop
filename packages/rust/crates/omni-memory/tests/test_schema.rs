@@ -1,12 +1,15 @@
-//! Schema validation tests for EpisodeMetadata.
+//! Schema validation tests for `EpisodeMetadata`.
 
 use omni_memory::EpisodeMetadata;
 
+type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
+
 #[test]
-fn test_metadata_validation_valid() {
-    let m = EpisodeMetadata::from_episode("exp", "ok", 0.5, 0, 0, 12345).unwrap();
-    assert_eq!(m.q_value, 0.5);
+fn test_metadata_validation_valid() -> TestResult {
+    let m = EpisodeMetadata::from_episode("exp", "ok", 0.5, 0, 0, 12345)?;
+    assert!((m.q_value - 0.5).abs() < f32::EPSILON);
     assert_eq!(m.experience, "exp");
+    Ok(())
 }
 
 #[test]
@@ -16,12 +19,13 @@ fn test_metadata_validation_q_out_of_range() {
 }
 
 #[test]
-fn test_metadata_roundtrip() {
-    let m = EpisodeMetadata::from_episode("exp", "out", 0.7, 1, 2, 999).unwrap();
-    let json = m.to_json().unwrap();
-    let m2 = EpisodeMetadata::from_json(&json).unwrap();
+fn test_metadata_roundtrip() -> TestResult {
+    let m = EpisodeMetadata::from_episode("exp", "out", 0.7, 1, 2, 999)?;
+    let json = m.to_json()?;
+    let m2 = EpisodeMetadata::from_json(&json)?;
     assert_eq!(m.experience, m2.experience);
-    assert_eq!(m.q_value, m2.q_value);
+    assert!((m.q_value - m2.q_value).abs() < f32::EPSILON);
+    Ok(())
 }
 
 #[test]

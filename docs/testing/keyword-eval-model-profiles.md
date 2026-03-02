@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Keyword Eval Model Profiles"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - keyword
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Keyword Eval Model Profiles"
 ---
 
 # Keyword Eval Model Profiles
@@ -39,7 +42,7 @@ For experiment scripts, select another built-in profile with `--model-profile`.
 
 Note:
 
-- This is separate from router confidence profiles (`router.search.*` in settings: system packages/conf/settings.yaml, user $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml),
+- This is separate from router confidence profiles (`router.search.*` in settings: system packages/conf/settings.yaml, user $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml),
   which are used by `omni route test`.
 
 ## CLI Usage

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni Tags"
+---
+
 # Omni Tags
 
 > High-Performance Code Symbol Extraction for Omni DevEnv.

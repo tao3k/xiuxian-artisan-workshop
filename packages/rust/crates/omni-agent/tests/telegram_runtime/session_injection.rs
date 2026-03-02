@@ -1,44 +1,8 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram runtime session-injection command behavior tests.
 
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use tokio::sync::mpsc;
 
 use crate::channels::traits::{Channel, ChannelMessage};
@@ -92,7 +56,7 @@ async fn runtime_handle_inbound_session_injection_set_and_status_json() -> Resul
     assert_eq!(payload["qa_count"], 1);
     let xml = payload["xml"]
         .as_str()
-        .expect("status xml should be present");
+        .ok_or_else(|| anyhow!("status xml should be present"))?;
     assert!(xml.contains("<system_prompt_injection>"));
     Ok(())
 }

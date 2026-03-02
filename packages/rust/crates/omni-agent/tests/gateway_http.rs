@@ -1,41 +1,3 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
-
 //! HTTP gateway integration tests: validation (400), routing, response shape.
 //! Uses a minimal Agent (no MCP) so no external services are required.
 
@@ -56,129 +18,127 @@ fn minimal_agent_config() -> AgentConfig {
     }
 }
 
+async fn build_agent_or_panic() -> Agent {
+    let config = minimal_agent_config();
+    match Agent::from_config(config).await {
+        Ok(agent) => agent,
+        Err(error) => panic!("agent init should succeed: {error}"),
+    }
+}
+
+fn request_or_panic(builder: axum::http::request::Builder, body: Body) -> Request<Body> {
+    match builder.body(body) {
+        Ok(request) => request,
+        Err(error) => panic!("request build should succeed: {error}"),
+    }
+}
+
+async fn oneshot_or_panic(app: axum::Router, request: Request<Body>) -> axum::response::Response {
+    match app.oneshot(request).await {
+        Ok(response) => response,
+        Err(error) => panic!("gateway request should succeed: {error}"),
+    }
+}
+
 #[tokio::test]
 async fn gateway_returns_400_for_empty_session_id() {
-    let config = minimal_agent_config();
-    let agent = Agent::from_config(config).await.expect("agent");
+    let agent = build_agent_or_panic().await;
     let app = router(agent, 300, None);
 
-    let response = app
-        .oneshot(
-            Request::post("/message")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"session_id":"","message":"hi"}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let request = request_or_panic(
+        Request::post("/message").header("content-type", "application/json"),
+        Body::from(r#"{"session_id":"","message":"hi"}"#),
+    );
+    let response = oneshot_or_panic(app, request).await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
 async fn gateway_returns_400_for_empty_message() {
-    let config = minimal_agent_config();
-    let agent = Agent::from_config(config).await.expect("agent");
+    let agent = build_agent_or_panic().await;
     let app = router(agent, 300, None);
 
-    let response = app
-        .oneshot(
-            Request::post("/message")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"session_id":"s1","message":"   "}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let request = request_or_panic(
+        Request::post("/message").header("content-type", "application/json"),
+        Body::from(r#"{"session_id":"s1","message":"   "}"#),
+    );
+    let response = oneshot_or_panic(app, request).await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
 async fn gateway_returns_404_for_unknown_route() {
-    let config = minimal_agent_config();
-    let agent = Agent::from_config(config).await.expect("agent");
+    let agent = build_agent_or_panic().await;
     let app = router(agent, 300, None);
 
-    let response = app
-        .oneshot(Request::get("/unknown").body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let request = request_or_panic(Request::get("/unknown"), Body::empty());
+    let response = oneshot_or_panic(app, request).await;
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
 async fn gateway_embed_returns_400_for_empty_text() {
-    let config = minimal_agent_config();
-    let agent = Agent::from_config(config).await.expect("agent");
+    let agent = build_agent_or_panic().await;
     let app = router(agent, 300, None);
 
-    let response = app
-        .oneshot(
-            Request::post("/embed")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"text":"   "}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let request = request_or_panic(
+        Request::post("/embed").header("content-type", "application/json"),
+        Body::from(r#"{"text":"   "}"#),
+    );
+    let response = oneshot_or_panic(app, request).await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
 async fn gateway_embed_batch_returns_400_for_empty_texts() {
-    let config = minimal_agent_config();
-    let agent = Agent::from_config(config).await.expect("agent");
+    let agent = build_agent_or_panic().await;
     let app = router(agent, 300, None);
 
-    let response = app
-        .oneshot(
-            Request::post("/embed/batch")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"texts":[]}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let request = request_or_panic(
+        Request::post("/embed/batch").header("content-type", "application/json"),
+        Body::from(r#"{"texts":[]}"#),
+    );
+    let response = oneshot_or_panic(app, request).await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
 async fn gateway_openai_embeddings_returns_400_for_invalid_input_type() {
-    let config = minimal_agent_config();
-    let agent = Agent::from_config(config).await.expect("agent");
+    let agent = build_agent_or_panic().await;
     let app = router(agent, 300, None);
 
-    let response = app
-        .oneshot(
-            Request::post("/v1/embeddings")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"input":123}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let request = request_or_panic(
+        Request::post("/v1/embeddings").header("content-type", "application/json"),
+        Body::from(r#"{"input":123}"#),
+    );
+    let response = oneshot_or_panic(app, request).await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
 async fn gateway_health_returns_structured_summary_without_mcp() {
-    let config = minimal_agent_config();
-    let agent = Agent::from_config(config).await.expect("agent");
+    let agent = build_agent_or_panic().await;
     let app = router(agent, 300, Some(4));
 
-    let response = app
-        .oneshot(Request::get("/health").body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let request = request_or_panic(Request::get("/health"), Body::empty());
+    let response = oneshot_or_panic(app, request).await;
 
     assert_eq!(response.status(), StatusCode::OK);
-    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let payload: Value = serde_json::from_slice(&bytes).expect("json body");
+    let bytes_result = to_bytes(response.into_body(), usize::MAX).await;
+    let bytes = match bytes_result {
+        Ok(bytes) => bytes,
+        Err(error) => panic!("health body bytes should decode: {error}"),
+    };
+    let payload: Value = match serde_json::from_slice(&bytes) {
+        Ok(payload) => payload,
+        Err(error) => panic!("health response should be valid JSON: {error}"),
+    };
 
     assert_eq!(
         payload.get("status").and_then(Value::as_str),

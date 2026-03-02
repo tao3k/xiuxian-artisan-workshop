@@ -18,15 +18,6 @@ impl LinkGraphIndex {
         if !Self::matches_temporal_filters(doc, options) {
             return true;
         }
-        !self.matches_structured_filters(
-            doc,
-            options,
-            &context.include_paths,
-            &context.exclude_paths,
-            &context.tag_all,
-            &context.tag_any,
-            &context.tag_not,
-            &context.mention_filters,
-        )
+        !self.matches_structured_filters(doc, options, context)
     }
 }

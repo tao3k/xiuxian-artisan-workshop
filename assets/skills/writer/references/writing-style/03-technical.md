@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Technical Writing Guidelines"
+---
+
 # Technical Writing Guidelines
 
 ## Code-First Documentation

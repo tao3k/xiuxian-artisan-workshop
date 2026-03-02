@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "LinkGraph PPR Algorithm Spec (HippoRAG + GRAG Calibrated)"
 category: "plans"
 tags:
@@ -10,6 +11,8 @@ tags:
   - grag
 saliency_base: 8.5
 decay_rate: 0.02
+metadata:
+  title: "LinkGraph PPR Algorithm Spec (HippoRAG + GRAG Calibrated)"
 ---
 
 # LinkGraph PPR Algorithm Spec (HippoRAG + GRAG Calibrated)

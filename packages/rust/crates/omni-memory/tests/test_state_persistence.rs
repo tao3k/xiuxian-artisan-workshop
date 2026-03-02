@@ -1,10 +1,12 @@
-//! State persistence tests for EpisodeStore.
+//! State persistence tests for `EpisodeStore`.
 
-use omni_memory::{Episode, EpisodeStore, StoreConfig};
+use omni_memory::{Episode, EpisodeStore, RecallFeedbackOutcome, StoreConfig};
+
+type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
 
 #[test]
-fn save_state_creates_parent_dirs_and_loads_roundtrip() {
-    let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+fn save_state_creates_parent_dirs_and_loads_roundtrip() -> TestResult {
+    let temp_dir = tempfile::tempdir()?;
     let store_root = temp_dir.path().join("nested").join("memory-state");
 
     let config = StoreConfig {
@@ -21,10 +23,11 @@ fn save_state_creates_parent_dirs_and_loads_roundtrip() {
         "Raised timeout and retried".to_string(),
         "success".to_string(),
     );
-    store.store(episode).expect("failed to store episode");
+    store.store(episode)?;
     store.update_q("ep-1", 1.0);
+    let _ = store.apply_recall_feedback_for_scope("session-a", RecallFeedbackOutcome::Failure);
 
-    store.save_state().expect("failed to persist state");
+    store.save_state()?;
 
     let episodes_path = store.episodes_state_path();
     let q_path = store.q_table_state_path();
@@ -32,16 +35,18 @@ fn save_state_creates_parent_dirs_and_loads_roundtrip() {
     assert!(q_path.exists(), "q-table state file should exist");
 
     let reloaded = EpisodeStore::new(config);
-    reloaded.load_state().expect("failed to load state");
+    reloaded.load_state()?;
 
     assert_eq!(reloaded.len(), 1);
     assert!(reloaded.get("ep-1").is_some());
     assert!(reloaded.q_table.get_q("ep-1") > 0.5);
+    assert!(reloaded.recall_feedback_bias_for_scope("session-a") < 0.0);
+    Ok(())
 }
 
 #[test]
-fn save_state_uses_table_scoped_filenames() {
-    let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+fn save_state_uses_table_scoped_filenames() -> TestResult {
+    let temp_dir = tempfile::tempdir()?;
     let root = temp_dir.path().join("memory");
 
     let alpha = EpisodeStore::new(StoreConfig {
@@ -49,16 +54,14 @@ fn save_state_uses_table_scoped_filenames() {
         embedding_dim: 128,
         table_name: "alpha".to_string(),
     });
-    alpha
-        .store(Episode::new(
-            "alpha-1".to_string(),
-            "alpha task".to_string(),
-            alpha.encoder().encode("alpha task"),
-            "alpha experience".to_string(),
-            "success".to_string(),
-        ))
-        .expect("failed to store alpha episode");
-    alpha.save_state().expect("failed to save alpha state");
+    alpha.store(Episode::new(
+        "alpha-1".to_string(),
+        "alpha task".to_string(),
+        alpha.encoder().encode("alpha task"),
+        "alpha experience".to_string(),
+        "success".to_string(),
+    ))?;
+    alpha.save_state()?;
 
     let beta = EpisodeStore::new(StoreConfig {
         path: root.to_string_lossy().to_string(),
@@ -71,12 +74,12 @@ fn save_state_uses_table_scoped_filenames() {
         beta.encoder().encode("beta task"),
         "beta experience".to_string(),
         "success".to_string(),
-    ))
-    .expect("failed to store beta episode");
-    beta.save_state().expect("failed to save beta state");
+    ))?;
+    beta.save_state()?;
 
     assert!(root.join("alpha.episodes.json").exists());
     assert!(root.join("alpha.q_table.json").exists());
     assert!(root.join("beta.episodes.json").exists());
     assert!(root.join("beta.q_table.json").exists());
+    Ok(())
 }

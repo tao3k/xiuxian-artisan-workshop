@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "omni-mcp-client tests"
+---
+
 # omni-mcp-client tests
 
 ## Unit tests (always run)

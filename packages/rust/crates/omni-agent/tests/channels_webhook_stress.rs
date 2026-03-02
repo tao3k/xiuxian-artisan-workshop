@@ -1,53 +1,17 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Webhook stress tests for dedup throughput and concurrency behavior.
 
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use axum::{
     Router,
     body::Body,
     http::{Request, StatusCode},
 };
 use omni_agent::{
-    TelegramSessionPartition, WebhookDedupBackend, WebhookDedupConfig, build_telegram_webhook_app,
-    build_telegram_webhook_app_with_partition,
+    TelegramSessionPartition, TelegramWebhookPartitionBuildRequest, WebhookDedupBackend,
+    WebhookDedupConfig, build_telegram_webhook_app, build_telegram_webhook_app_with_partition,
 };
 use tokio::sync::mpsc;
 use tower::util::ServiceExt;
@@ -58,7 +22,7 @@ fn sample_update(update_id: i64, message_id: i64) -> serde_json::Value {
         "message": {
             "message_id": message_id,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     })
@@ -89,6 +53,10 @@ async fn post_update(app: Router, path: String, payload: serde_json::Value) -> R
         .body(Body::from(payload.to_string()))?;
     let response = app.oneshot(request).await?;
     Ok(response.status())
+}
+
+fn usize_to_i64(value: usize) -> Result<i64> {
+    i64::try_from(value).map_err(|_| anyhow!("value {value} does not fit into i64"))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -313,8 +281,9 @@ async fn webhook_concurrent_unique_updates_enqueue_all() -> Result<()> {
     for i in 0..REQUESTS {
         let app = webhook.app.clone();
         let path = webhook.path.clone();
-        let update_id = 100_000 + i as i64;
-        let message_id = 1_000 + i as i64;
+        let i_i64 = usize_to_i64(i)?;
+        let update_id = 100_000 + i_i64;
+        let message_id = 1_000 + i_i64;
         tasks.push(tokio::spawn(async move {
             post_update(app, path, sample_update(update_id, message_id)).await
         }));
@@ -331,9 +300,10 @@ async fn webhook_concurrent_unique_updates_enqueue_all() -> Result<()> {
 
     let mut seen_ids = HashSet::with_capacity(REQUESTS);
     for _ in 0..REQUESTS {
-        let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv())
-            .await?
-            .expect("expected queued message");
+        let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv()).await?;
+        let Some(msg) = msg else {
+            return Err(anyhow!("expected queued message"));
+        };
         seen_ids.insert(msg.id);
     }
 
@@ -364,8 +334,9 @@ async fn webhook_manual_heavy_stress_unique_updates() -> Result<()> {
     for i in 0..REQUESTS {
         let app = webhook.app.clone();
         let path = webhook.path.clone();
-        let update_id = 200_000 + i as i64;
-        let message_id = 3_000 + i as i64;
+        let i_i64 = usize_to_i64(i)?;
+        let update_id = 200_000 + i_i64;
+        let message_id = 3_000 + i_i64;
         tasks.push(tokio::spawn(async move {
             post_update(app, path, sample_update(update_id, message_id)).await
         }));
@@ -375,9 +346,10 @@ async fn webhook_manual_heavy_stress_unique_updates() -> Result<()> {
         assert_eq!(task.await??, StatusCode::OK);
     }
     for _ in 0..REQUESTS {
-        let _ = tokio::time::timeout(Duration::from_secs(5), rx.recv())
-            .await?
-            .expect("expected queued message");
+        let msg = tokio::time::timeout(Duration::from_secs(5), rx.recv()).await?;
+        if msg.is_none() {
+            return Err(anyhow!("expected queued message"));
+        }
     }
     Ok(())
 }
@@ -387,31 +359,33 @@ async fn webhook_concurrent_chat_user_partition_keeps_isolated_session_keys() ->
     const REQUESTS_PER_USER: usize = 200;
     const USER_A: i64 = 888;
     const USER_B: i64 = 999;
-    const CHAT_ID: i64 = -200123;
+    const CHAT_ID: i64 = -200_123;
     let total_requests = REQUESTS_PER_USER * 2;
 
     let (tx, mut rx) = mpsc::channel(total_requests + 64);
-    let webhook = build_telegram_webhook_app_with_partition(
-        "fake-token".to_string(),
-        vec!["*".to_string()],
-        vec![],
-        vec!["*".to_string()],
-        "/telegram/webhook",
-        None,
-        WebhookDedupConfig {
-            backend: WebhookDedupBackend::Memory,
-            ttl_secs: 600,
-        },
-        TelegramSessionPartition::ChatUser,
-        tx,
-    )?;
+    let webhook =
+        build_telegram_webhook_app_with_partition(TelegramWebhookPartitionBuildRequest {
+            bot_token: "fake-token".to_string(),
+            allowed_users: vec!["*".to_string()],
+            allowed_groups: vec![],
+            admin_users: vec!["*".to_string()],
+            webhook_path: "/telegram/webhook".to_string(),
+            secret_token: None,
+            dedup_config: WebhookDedupConfig {
+                backend: WebhookDedupBackend::Memory,
+                ttl_secs: 600,
+            },
+            session_partition: TelegramSessionPartition::ChatUser,
+            tx,
+        })?;
 
     let mut tasks = Vec::with_capacity(total_requests);
     for i in 0..REQUESTS_PER_USER {
+        let i_i64 = usize_to_i64(i)?;
         let app_a = webhook.app.clone();
         let path_a = webhook.path.clone();
-        let update_id_a = 310_000 + i as i64;
-        let message_id_a = 10_000 + i as i64;
+        let update_id_a = 310_000 + i_i64;
+        let message_id_a = 10_000 + i_i64;
         tasks.push(tokio::spawn(async move {
             post_update(
                 app_a,
@@ -423,8 +397,8 @@ async fn webhook_concurrent_chat_user_partition_keeps_isolated_session_keys() ->
 
         let app_b = webhook.app.clone();
         let path_b = webhook.path.clone();
-        let update_id_b = 320_000 + i as i64;
-        let message_id_b = 20_000 + i as i64;
+        let update_id_b = 320_000 + i_i64;
+        let message_id_b = 20_000 + i_i64;
         tasks.push(tokio::spawn(async move {
             post_update(
                 app_b,
@@ -441,9 +415,10 @@ async fn webhook_concurrent_chat_user_partition_keeps_isolated_session_keys() ->
 
     let mut per_session_counts: HashMap<String, usize> = HashMap::new();
     for _ in 0..total_requests {
-        let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv())
-            .await?
-            .expect("expected queued message");
+        let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv()).await?;
+        let Some(msg) = msg else {
+            return Err(anyhow!("expected queued message"));
+        };
         *per_session_counts.entry(msg.session_key).or_default() += 1;
     }
 
@@ -473,7 +448,7 @@ async fn webhook_live_valkey_chat_user_partition_keeps_isolated_session_keys() -
     const REQUESTS_PER_USER: usize = 100;
     const USER_A: i64 = 888;
     const USER_B: i64 = 999;
-    const CHAT_ID: i64 = -200123;
+    const CHAT_ID: i64 = -200_123;
     let total_requests = REQUESTS_PER_USER * 2;
 
     let Some(valkey_url) = std::env::var("VALKEY_URL")
@@ -491,30 +466,32 @@ async fn webhook_live_valkey_chat_user_partition_keeps_isolated_session_keys() -
     );
 
     let (tx, mut rx) = mpsc::channel(total_requests + 64);
-    let webhook = build_telegram_webhook_app_with_partition(
-        "fake-token".to_string(),
-        vec!["*".to_string()],
-        vec![],
-        vec!["*".to_string()],
-        "/telegram/webhook",
-        None,
-        WebhookDedupConfig {
-            backend: WebhookDedupBackend::Redis {
-                url: valkey_url,
-                key_prefix: unique_prefix,
+    let webhook =
+        build_telegram_webhook_app_with_partition(TelegramWebhookPartitionBuildRequest {
+            bot_token: "fake-token".to_string(),
+            allowed_users: vec!["*".to_string()],
+            allowed_groups: vec![],
+            admin_users: vec!["*".to_string()],
+            webhook_path: "/telegram/webhook".to_string(),
+            secret_token: None,
+            dedup_config: WebhookDedupConfig {
+                backend: WebhookDedupBackend::Redis {
+                    url: valkey_url,
+                    key_prefix: unique_prefix,
+                },
+                ttl_secs: 600,
             },
-            ttl_secs: 600,
-        },
-        TelegramSessionPartition::ChatUser,
-        tx,
-    )?;
+            session_partition: TelegramSessionPartition::ChatUser,
+            tx,
+        })?;
 
     let mut tasks = Vec::with_capacity(total_requests);
     for i in 0..REQUESTS_PER_USER {
+        let i_i64 = usize_to_i64(i)?;
         let app_a = webhook.app.clone();
         let path_a = webhook.path.clone();
-        let update_id_a = 410_000 + i as i64;
-        let message_id_a = 30_000 + i as i64;
+        let update_id_a = 410_000 + i_i64;
+        let message_id_a = 30_000 + i_i64;
         tasks.push(tokio::spawn(async move {
             post_update(
                 app_a,
@@ -526,8 +503,8 @@ async fn webhook_live_valkey_chat_user_partition_keeps_isolated_session_keys() -
 
         let app_b = webhook.app.clone();
         let path_b = webhook.path.clone();
-        let update_id_b = 420_000 + i as i64;
-        let message_id_b = 40_000 + i as i64;
+        let update_id_b = 420_000 + i_i64;
+        let message_id_b = 40_000 + i_i64;
         tasks.push(tokio::spawn(async move {
             post_update(
                 app_b,
@@ -544,9 +521,10 @@ async fn webhook_live_valkey_chat_user_partition_keeps_isolated_session_keys() -
 
     let mut per_session_counts: HashMap<String, usize> = HashMap::new();
     for _ in 0..total_requests {
-        let msg = tokio::time::timeout(Duration::from_secs(3), rx.recv())
-            .await?
-            .expect("expected queued message");
+        let msg = tokio::time::timeout(Duration::from_secs(3), rx.recv()).await?;
+        let Some(msg) = msg else {
+            return Err(anyhow!("expected queued message"));
+        };
         *per_session_counts.entry(msg.session_key).or_default() += 1;
     }
 

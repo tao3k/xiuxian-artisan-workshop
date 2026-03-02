@@ -1,10 +1,6 @@
 use std::path::Path;
 
 use anyhow::Result;
-#[cfg(test)]
-use omni_agent::LITELLM_DEFAULT_URL;
-#[cfg(test)]
-use omni_agent::McpServerEntry;
 use omni_agent::{Agent, AgentConfig, RuntimeSettings};
 
 mod inference;
@@ -15,18 +11,11 @@ mod session;
 mod shared;
 mod types;
 
-#[cfg(test)]
-use inference::{
-    parse_embedding_backend_mode, resolve_inference_url, resolve_runtime_embedding_backend_mode,
-    resolve_runtime_embedding_base_url, validate_inference_url_origin,
-};
 use inference::{resolve_runtime_inference_url, resolve_runtime_model};
 use logging::log_runtime_agent_options;
 use mcp::{resolve_runtime_mcp_options, resolve_runtime_mcp_servers};
 use memory::resolve_runtime_memory_options;
 use session::resolve_runtime_session_options;
-#[cfg(test)]
-use types::RuntimeEmbeddingBackendMode;
 
 pub(crate) async fn build_agent(
     mcp_config_path: &Path,
@@ -67,7 +56,3 @@ pub(crate) async fn build_agent(
     };
     Agent::from_config(config).await
 }
-
-#[cfg(test)]
-#[path = "../../tests/runtime_agent_factory/inference.rs"]
-mod tests;

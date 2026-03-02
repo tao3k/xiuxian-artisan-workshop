@@ -1,23 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
-//! Benchmark test for LinkGraph related-PPR latency on large fixtures.
+//! Benchmark test for `LinkGraph` related-PPR latency on large fixtures.
 //!
 //! This benchmark is intentionally `ignored` by default because it materializes
 //! a 10k+ markdown fixture to validate long-horizon PPR runtime behavior.
@@ -79,7 +60,9 @@ fn build_large_fixture(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
             if !links.is_empty() {
                 links.push(' ');
             }
-            links.push_str(&format!("[[{}]]", note_id(idx)));
+            links.push_str("[[");
+            links.push_str(&note_id(idx));
+            links.push_str("]]");
             emitted += 1;
             idx += stride;
         }
@@ -94,11 +77,20 @@ fn build_large_fixture(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn percentile(values: &[f64], percentile: f64) -> f64 {
+fn percentile(values: &[f64], percentile: u32) -> f64 {
     assert!(!values.is_empty(), "percentile requires at least one value");
+    assert!(
+        percentile <= 100,
+        "percentile must be between 0 and 100 inclusive"
+    );
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let rank = ((percentile * sorted.len() as f64).ceil() as usize).saturating_sub(1);
+    let len = sorted.len();
+    let percentile_usize = usize::try_from(percentile).unwrap_or(100);
+    let rank = len
+        .saturating_mul(percentile_usize)
+        .div_ceil(100)
+        .saturating_sub(1);
     sorted[cmp::min(rank, sorted.len() - 1)]
 }
 

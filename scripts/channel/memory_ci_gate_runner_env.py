@@ -6,6 +6,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from resolve_mcp_endpoint import resolve_mcp_endpoint
+
 
 def resolve_script_paths(script_dir: Any) -> dict[str, Any]:
     """Resolve runtime scripts used by the CI gate runner."""
@@ -26,14 +28,15 @@ def build_runtime_env(
     write_ci_channel_acl_settings_fn: Any,
 ) -> tuple[dict[str, str], Any]:
     """Build isolated runtime environment and write run-scoped settings."""
+    local_host = str(resolve_mcp_endpoint()["host"])
     env = os.environ.copy()
-    env["VALKEY_URL"] = cfg.valkey_url
+    env["XIUXIAN_WENDAO_VALKEY_URL"] = cfg.valkey_url
     env["OMNI_AGENT_SESSION_VALKEY_PREFIX"] = cfg.valkey_prefix
     env["OMNI_AGENT_MEMORY_VALKEY_KEY_PREFIX"] = f"{cfg.valkey_prefix}:memory"
     env["TELEGRAM_BOT_TOKEN"] = env.get("TELEGRAM_BOT_TOKEN", "ci-telegram-token")
     env["TELEGRAM_WEBHOOK_SECRET"] = cfg.webhook_secret
-    env["OMNI_AGENT_TELEGRAM_API_BASE_URL"] = f"http://127.0.0.1:{cfg.telegram_api_port}"
-    env["OMNI_WEBHOOK_URL"] = f"http://127.0.0.1:{cfg.webhook_port}/telegram/webhook"
+    env["OMNI_AGENT_TELEGRAM_API_BASE_URL"] = f"http://{local_host}:{cfg.telegram_api_port}"
+    env["OMNI_WEBHOOK_URL"] = f"http://{local_host}:{cfg.webhook_port}/telegram/webhook"
     env["OMNI_CHANNEL_LOG_FILE"] = str(cfg.runtime_log_file)
     env["OMNI_TEST_CHAT_ID"] = str(cfg.chat_id)
     env["OMNI_TEST_CHAT_B"] = str(cfg.chat_b)

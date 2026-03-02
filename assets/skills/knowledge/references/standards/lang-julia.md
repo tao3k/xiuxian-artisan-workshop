@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Julia Language Standards"
+---
+
 # Julia Language Standards
 
 > **Philosophy**: Multiple dispatch, type stability, performance by default.

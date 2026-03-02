@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Knowledge Skill Guide"
+---
+
 # Knowledge Skill Guide
 
 > "Knowledge is power." This skill fetches that power.

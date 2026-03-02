@@ -3,6 +3,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use crate::agent::DownstreamAdmissionRuntimeSnapshot;
+use crate::channels::runtime_snapshot::resolve_runtime_snapshot_interval_secs;
 use crate::channels::telegram::runtime_config::TelegramRuntimeConfig;
 use crate::channels::traits::ChannelMessage;
 
@@ -38,6 +39,7 @@ pub(in crate::channels::telegram::runtime) fn emit_runtime_snapshot(
         foreground_queue_capacity,
         foreground_queue_depth,
         foreground_queue_available,
+        foreground_queue_mode = runtime_config.foreground_queue_mode.as_str(),
         foreground_max_in_flight = runtime_config.foreground_max_in_flight_messages,
         foreground_turn_timeout_secs = runtime_config.foreground_turn_timeout_secs,
         admission_enabled = admission.enabled,
@@ -59,20 +61,9 @@ pub(in crate::channels::telegram::runtime) fn resolve_snapshot_interval_secs<F>(
 where
     F: Fn(&str) -> Option<String>,
 {
-    let Some(raw) = lookup(RUNTIME_SNAPSHOT_INTERVAL_ENV) else {
-        return Some(DEFAULT_RUNTIME_SNAPSHOT_INTERVAL_SECS);
-    };
-    match raw.trim().parse::<u64>() {
-        Ok(0) => None,
-        Ok(value) => Some(value),
-        Err(_) => {
-            tracing::warn!(
-                env_var = RUNTIME_SNAPSHOT_INTERVAL_ENV,
-                value = %raw,
-                default_secs = DEFAULT_RUNTIME_SNAPSHOT_INTERVAL_SECS,
-                "invalid telegram runtime snapshot interval; using default"
-            );
-            Some(DEFAULT_RUNTIME_SNAPSHOT_INTERVAL_SECS)
-        }
-    }
+    resolve_runtime_snapshot_interval_secs(
+        lookup,
+        RUNTIME_SNAPSHOT_INTERVAL_ENV,
+        DEFAULT_RUNTIME_SNAPSHOT_INTERVAL_SECS,
+    )
 }

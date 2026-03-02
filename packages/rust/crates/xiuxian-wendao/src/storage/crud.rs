@@ -10,11 +10,9 @@ impl KnowledgeStorage {
     /// # Errors
     ///
     /// Returns an error when `Valkey` connectivity check fails.
-    #[allow(clippy::unused_async)]
     pub async fn init(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let client = self.redis_client()?;
-        let mut conn = client.get_connection()?;
-        let _pong: String = redis::cmd("PING").query(&mut conn)?;
+        let mut conn = self.redis_connection().await?;
+        let _pong: String = redis::cmd("PING").query_async(&mut conn).await?;
         Ok(())
     }
 
@@ -23,16 +21,15 @@ impl KnowledgeStorage {
     /// # Errors
     ///
     /// Returns an error when serialization fails or `Valkey` operations fail.
-    #[allow(clippy::unused_async)]
     pub async fn upsert(&self, entry: &KnowledgeEntry) -> Result<(), Box<dyn std::error::Error>> {
         self.init().await?;
-        let client = self.redis_client()?;
-        let mut conn = client.get_connection()?;
+        let mut conn = self.redis_connection().await?;
         let entries_key = self.entries_key();
         let existing_raw: Option<String> = redis::cmd("HGET")
             .arg(&entries_key)
             .arg(&entry.id)
-            .query(&mut conn)?;
+            .query_async(&mut conn)
+            .await?;
         let existing = existing_raw
             .as_deref()
             .map(serde_json::from_str::<KnowledgeEntry>)
@@ -55,7 +52,8 @@ impl KnowledgeStorage {
             .arg(entries_key)
             .arg(&to_store.id)
             .arg(payload)
-            .query(&mut conn)?;
+            .query_async(&mut conn)
+            .await?;
         Ok(())
     }
 
@@ -64,13 +62,12 @@ impl KnowledgeStorage {
     /// # Errors
     ///
     /// Returns an error when `Valkey` operations fail.
-    #[allow(clippy::unused_async)]
     pub async fn count(&self) -> Result<i64, Box<dyn std::error::Error>> {
-        let client = self.redis_client()?;
-        let mut conn = client.get_connection()?;
+        let mut conn = self.redis_connection().await?;
         let total: i64 = redis::cmd("HLEN")
             .arg(self.entries_key())
-            .query(&mut conn)?;
+            .query_async(&mut conn)
+            .await?;
         Ok(total)
     }
 
@@ -79,14 +76,13 @@ impl KnowledgeStorage {
     /// # Errors
     ///
     /// Returns an error when `Valkey` operations fail.
-    #[allow(clippy::unused_async)]
     pub async fn delete(&self, id: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let client = self.redis_client()?;
-        let mut conn = client.get_connection()?;
+        let mut conn = self.redis_connection().await?;
         let _: i64 = redis::cmd("HDEL")
             .arg(self.entries_key())
             .arg(id)
-            .query(&mut conn)?;
+            .query_async(&mut conn)
+            .await?;
         Ok(())
     }
 
@@ -95,11 +91,12 @@ impl KnowledgeStorage {
     /// # Errors
     ///
     /// Returns an error when `Valkey` operations fail.
-    #[allow(clippy::unused_async)]
     pub async fn clear(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let client = self.redis_client()?;
-        let mut conn = client.get_connection()?;
-        let _: i64 = redis::cmd("DEL").arg(self.entries_key()).query(&mut conn)?;
+        let mut conn = self.redis_connection().await?;
+        let _: i64 = redis::cmd("DEL")
+            .arg(self.entries_key())
+            .query_async(&mut conn)
+            .await?;
         Ok(())
     }
 }

@@ -18,26 +18,26 @@ pub(super) fn parse_terms(raw: &str, state: &mut ParsedDirectiveState) -> Vec<St
         let term = terms[index].clone();
         let bare = term.trim().to_lowercase();
         if bare == "orphan" {
-            state.parsed_filters.orphan = true;
+            state.filters.orphan = true;
             index += 1;
             continue;
         }
         if bare == "tagless" {
-            state.parsed_filters.tagless = true;
+            state.filters.tagless = true;
             index += 1;
             continue;
         }
         if bare == "missing_backlink" {
-            state.parsed_filters.missing_backlink = true;
+            state.filters.missing_backlink = true;
             index += 1;
             continue;
         }
         if parse_time_filter(
             &term,
-            &mut state.parsed_created_after,
-            &mut state.parsed_created_before,
-            &mut state.parsed_modified_after,
-            &mut state.parsed_modified_before,
+            &mut state.created_after,
+            &mut state.created_before,
+            &mut state.modified_after,
+            &mut state.modified_before,
         ) {
             index += 1;
             continue;

@@ -11,7 +11,6 @@ impl KnowledgeStorage {
     /// # Errors
     ///
     /// Returns an error when entry loading fails.
-    #[allow(clippy::unused_async)]
     pub async fn search(
         &self,
         query: &[f32],
@@ -24,7 +23,8 @@ impl KnowledgeStorage {
 
         let query_norm = self.normalize_vector(query);
         let mut scored: Vec<(f32, KnowledgeEntry)> = self
-            .load_all_entries()?
+            .load_all_entries()
+            .await?
             .into_iter()
             .map(|entry| {
                 let score =
@@ -46,7 +46,6 @@ impl KnowledgeStorage {
     /// # Errors
     ///
     /// Returns an error when entry loading fails.
-    #[allow(clippy::unused_async)]
     pub async fn search_text(
         &self,
         query: &str,
@@ -58,7 +57,8 @@ impl KnowledgeStorage {
         }
 
         let mut scored: Vec<(f32, KnowledgeEntry)> = self
-            .load_all_entries()?
+            .load_all_entries()
+            .await?
             .into_iter()
             .map(|entry| {
                 let mut relevance_score = Self::text_score(query, &entry);
@@ -86,9 +86,8 @@ impl KnowledgeStorage {
     /// # Errors
     ///
     /// Returns an error when entry loading fails.
-    #[allow(clippy::unused_async)]
     pub async fn stats(&self) -> Result<KnowledgeStats, Box<dyn std::error::Error>> {
-        let entries = self.load_all_entries()?;
+        let entries = self.load_all_entries().await?;
         if entries.is_empty() {
             return Ok(KnowledgeStats::default());
         }

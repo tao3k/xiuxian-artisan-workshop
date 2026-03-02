@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Documentation Design Specification (DFS-2026)"
+---
+
 # Documentation Design Specification (DFS-2026)
 
 > **Authority:** CyberXiuXian Artisan Studio  

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HOST="127.0.0.1"
-PORT="3002"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+HOST=""
+PORT=""
 RUNTIME_DIR="${PRJ_RUNTIME_DIR:-.run}"
 PID_FILE="${RUNTIME_DIR}/omni-mcp-sse.pid"
 LISTENER_PID_FILE=""
@@ -19,8 +22,8 @@ Usage: restart-omni-mcp.sh [options]
 Restart local MCP SSE server and wait until /health is ready.
 
 Options:
-  --host <host>                    Bind host (default: 127.0.0.1)
-  --port <port>                    Bind port (default: 3002)
+  --host <host>                    Bind host (default: resolved from settings)
+  --port <port>                    Bind port (default: resolved from settings)
   --pid-file <path>                PID file path (default: $PRJ_RUNTIME_DIR/omni-mcp-sse.pid)
   --listener-pid-file <path>       Listener PID file path (default: <pid-file>.listener)
   --log-file <path>                Log file path (default: $PRJ_RUNTIME_DIR/logs/omni-mcp-sse.log)
@@ -30,6 +33,10 @@ Options:
   --no-embedding                   Start MCP with --no-embedding
   --help                           Show this help
 EOF
+}
+
+resolve_mcp_field() {
+  python3 "${PROJECT_ROOT}/scripts/channel/resolve_mcp_endpoint.py" --field "$1"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -81,6 +88,13 @@ while [[ $# -gt 0 ]]; do
     ;;
   esac
 done
+
+if [[ -z $HOST ]]; then
+  HOST="$(resolve_mcp_field host)"
+fi
+if [[ -z $PORT ]]; then
+  PORT="$(resolve_mcp_field port)"
+fi
 
 if [[ -z $LISTENER_PID_FILE ]]; then
   LISTENER_PID_FILE="${PID_FILE}.listener"

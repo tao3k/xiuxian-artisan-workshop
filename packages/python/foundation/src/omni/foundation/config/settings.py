@@ -6,8 +6,8 @@ Architecture (two-layer config with modular files):
   - <git-root>/packages/conf/settings.yaml (general defaults)
   - <git-root>/packages/conf/wendao.yaml (LinkGraph/Wendao defaults)
 - User:
-  - $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml (general overrides)
-  - $PRJ_CONFIG_HOME/omni-dev-fusion/wendao.yaml (LinkGraph/Wendao overrides)
+  - $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml (general overrides)
+  - $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/wendao.yaml (LinkGraph/Wendao overrides)
 - CLI flag `--conf` can set PRJ_CONFIG_HOME for a run.
 
 get_setting() returns merged effective values. User layer overrides system layer;
@@ -43,8 +43,8 @@ class Settings:
        - `<git-root>/packages/conf/settings.yaml`
        - `<git-root>/packages/conf/wendao.yaml` (overlays settings defaults)
     3. Load user overrides:
-       - `$PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml`
-       - `$PRJ_CONFIG_HOME/omni-dev-fusion/wendao.yaml` (overlays user settings)
+       - `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml`
+       - `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/wendao.yaml` (overlays user settings)
     4. Merge User > Defaults.
     """
 
@@ -130,14 +130,14 @@ class Settings:
         skills_path = conf_dir / "skills.yaml"
         defaults["skills"] = self._read_yaml(skills_path) if skills_path.exists() else {}
 
-        # 3. Load user config overlays from $PRJ_CONFIG_HOME/omni-dev-fusion/*.yaml
+        # 3. Load user config overlays from $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/*.yaml
         user_config = {}
-        user_settings_path = PRJ_CONFIG("omni-dev-fusion", "settings.yaml")
+        user_settings_path = PRJ_CONFIG("xiuxian-artisan-workshop", "settings.yaml")
         if user_settings_path.exists():
             user_config = self._read_yaml(user_settings_path)
 
         user_wendao = {}
-        user_wendao_path = PRJ_CONFIG("omni-dev-fusion", "wendao.yaml")
+        user_wendao_path = PRJ_CONFIG("xiuxian-artisan-workshop", "wendao.yaml")
         if user_wendao_path.exists():
             user_wendao = self._read_yaml(user_wendao_path)
 
@@ -244,7 +244,7 @@ class Settings:
         """Get the active application configuration directory path."""
         from .dirs import PRJ_CONFIG
 
-        return str(PRJ_CONFIG("omni-dev-fusion"))
+        return str(PRJ_CONFIG("xiuxian-artisan-workshop"))
 
 
 def get_setting(key: str, default: Any = None) -> Any:

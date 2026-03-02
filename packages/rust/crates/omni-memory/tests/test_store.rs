@@ -1,8 +1,10 @@
-//! EpisodeStore tests.
+//! `EpisodeStore` tests.
 
 mod common;
 
 use omni_memory::{Episode, EpisodeStore, StoreConfig};
+
+type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
 
 #[test]
 fn test_store_creation() {
@@ -18,7 +20,7 @@ fn test_store_creation() {
 }
 
 #[test]
-fn test_store_episode() {
+fn test_store_episode() -> TestResult {
     let store = EpisodeStore::default();
 
     let episode = Episode::new(
@@ -29,43 +31,45 @@ fn test_store_episode() {
         "success".to_string(),
     );
 
-    let id = store.store(episode).unwrap();
+    let id = store.store(episode)?;
     assert_eq!(id, "ep-001");
     assert_eq!(store.len(), 1);
+    Ok(())
 }
 
 #[test]
-fn test_recall() {
+fn test_recall() -> TestResult {
     let store = EpisodeStore::default();
 
     for i in 0..5 {
         let episode = Episode::new(
-            format!("ep-{}", i),
-            format!("intent {}", i),
-            store.encoder().encode(&format!("intent {}", i)),
-            format!("experience {}", i),
+            format!("ep-{i}"),
+            format!("intent {i}"),
+            store.encoder().encode(&format!("intent {i}")),
+            format!("experience {i}"),
             "success".to_string(),
         );
-        store.store(episode).unwrap();
+        store.store(episode)?;
     }
 
     let results = store.recall("intent 0", 3);
     assert!(results.len() <= 3);
+    Ok(())
 }
 
 #[test]
-fn test_two_phase_recall() {
+fn test_two_phase_recall() -> TestResult {
     let store = EpisodeStore::default();
 
     for i in 0..5 {
         let episode = Episode::new(
-            format!("ep-{}", i),
-            format!("debug error {}", i),
-            store.encoder().encode(&format!("debug error {}", i)),
-            format!("experience {}", i),
+            format!("ep-{i}"),
+            format!("debug error {i}"),
+            store.encoder().encode(&format!("debug error {i}")),
+            format!("experience {i}"),
             if i < 3 { "success" } else { "failure" }.to_string(),
         );
-        store.store(episode).unwrap();
+        store.store(episode)?;
     }
 
     store.update_q("ep-0", 1.0);
@@ -74,10 +78,11 @@ fn test_two_phase_recall() {
 
     let results = store.two_phase_recall("debug error", 5, 3, 0.5);
     assert!(results.len() <= 3);
+    Ok(())
 }
 
 #[test]
-fn test_q_update() {
+fn test_q_update() -> TestResult {
     let store = EpisodeStore::default();
 
     let episode = Episode::new(
@@ -87,11 +92,12 @@ fn test_q_update() {
         "experience".to_string(),
         "success".to_string(),
     );
-    store.store(episode).unwrap();
+    store.store(episode)?;
 
     let q_initial = store.q_table.get_q("ep-001");
-    assert_eq!(q_initial, 0.5);
+    assert!((q_initial - 0.5).abs() < f32::EPSILON);
 
     let q_new = store.update_q("ep-001", 1.0);
     assert!(q_new > 0.5);
+    Ok(())
 }

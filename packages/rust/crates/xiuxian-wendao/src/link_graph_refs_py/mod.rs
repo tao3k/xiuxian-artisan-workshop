@@ -1,5 +1,4 @@
-//! LinkGraph Entity Reference PyO3 Bindings
-#![allow(clippy::doc_markdown)]
+//! `LinkGraph` entity-reference `PyO3` bindings.
 
 mod py_functions;
 mod py_types;

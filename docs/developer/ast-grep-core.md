@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "ast-grep-core 0.40.5 Developer Guide"
 category: "developer"
 tags:
@@ -6,6 +7,8 @@ tags:
   - ast
 saliency_base: 6.3
 decay_rate: 0.04
+metadata:
+  title: "ast-grep-core 0.40.5 Developer Guide"
 ---
 
 # ast-grep-core 0.40.5 Developer Guide

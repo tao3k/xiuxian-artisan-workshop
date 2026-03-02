@@ -52,6 +52,10 @@ fn test_chunk_text_multiple_chunks_indices_contiguous() {
     let out = chunk_text(&text, 50, 10);
     assert!(out.len() > 1, "expected multiple chunks");
     for (i, (_, idx)) in out.iter().enumerate() {
-        assert_eq!(*idx, i as u32, "chunk_index should be contiguous from 0");
+        let expected = match u32::try_from(i) {
+            Ok(index) => index,
+            Err(error) => panic!("chunk index conversion failed: {error}"),
+        };
+        assert_eq!(*idx, expected, "chunk_index should be contiguous from 0");
     }
 }

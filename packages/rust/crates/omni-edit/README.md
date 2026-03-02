@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni Edit"
+---
+
 # Omni Edit
 
 > Structural Code Refactoring for Omni DevEnv.

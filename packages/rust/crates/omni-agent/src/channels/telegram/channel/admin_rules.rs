@@ -5,6 +5,7 @@ use anyhow::Result;
 
 use super::identity::normalize_user_identity;
 
+/// Parsed Telegram command-admin rule for control-command authorization.
 pub type TelegramCommandAdminRule = CommandSelectorAuthRule;
 
 /// Build one Telegram command-admin rule from selectors and allowed users.

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "RAG Knowledge Base Usage Guide"
+---
+
 # RAG Knowledge Base Usage Guide
 
 > Keywords: rag, knowledge base, consult_knowledge_base, vector store, lancedb

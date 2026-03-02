@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Documentation Standards"
+---
+
 # Documentation Standards
 
 > Keywords: documentation, standards, structure, conventions

@@ -1,7 +1,7 @@
 //! Partitioning suggestions for large tables.
 //!
-//! Phase 4 of the LanceDB 2.0 roadmap: suggest a column to partition by
-//! (e.g. skill_name) when the table is large enough to benefit.
+//! Phase 4 of the `LanceDB` 2.0 roadmap: suggest a column to partition by
+//! (e.g. `skill_name`) when the table is large enough to benefit.
 
 use crate::error::VectorStoreError;
 use crate::{CATEGORY_COLUMN, SKILL_NAME_COLUMN, VectorStore};
@@ -11,7 +11,7 @@ const PARTITION_SUGGEST_ROW_THRESHOLD: usize = 10_000;
 
 impl VectorStore {
     /// Suggests a column to partition the table by, if the table is large and has
-    /// a partition-friendly column (e.g. skill_name, category). Returns `None` if
+    /// a partition-friendly column (e.g. `skill_name`, category). Returns `None` if
     /// the table does not exist, is too small, or has no such column.
     ///
     /// # Errors

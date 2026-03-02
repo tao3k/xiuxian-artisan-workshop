@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Hot Reload Mechanism"
 category: "developer"
 tags:
@@ -6,6 +7,8 @@ tags:
   - hot
 saliency_base: 6.3
 decay_rate: 0.04
+metadata:
+  title: "Hot Reload Mechanism"
 ---
 
 # Hot Reload Mechanism

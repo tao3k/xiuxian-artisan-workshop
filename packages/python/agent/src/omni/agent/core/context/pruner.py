@@ -1,11 +1,11 @@
 """Context Pruner - Rust-accelerated Context Window Management.
 
 This module provides high-performance token counting and context pruning
-for LangGraph workflows using the Rust omni-tokenizer bindings.
+for workflow runtimes using the Rust omni-tokenizer bindings.
 
 Architecture:
     - Rust (omni-tokenizer): Token counting, truncation, message compression
-    - Python: Integration with LangGraph workflows
+    - Python: Integration with workflow runtimes
 
 Features:
     - 20-100x faster token counting than Python tiktoken

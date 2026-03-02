@@ -48,10 +48,7 @@ pub(in crate::channels::telegram::runtime::jobs) async fn try_handle_session_fee
         SessionFeedbackDirection::Up => SessionRecallFeedbackDirection::Up,
         SessionFeedbackDirection::Down => SessionRecallFeedbackDirection::Down,
     };
-    let response = match agent
-        .apply_session_recall_feedback(session_id, direction)
-        .await
-    {
+    let response = match agent.apply_session_recall_feedback(session_id, direction) {
         Some(update) if command.format.is_json() => {
             format_session_feedback_json(direction, update.previous_bias, update.updated_bias)
         }

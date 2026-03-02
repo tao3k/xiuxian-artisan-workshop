@@ -1,0 +1,19 @@
+[package]
+name = "xiuxian-config-core"
+version.workspace = true
+edition.workspace = true
+description = "Unified cascading configuration kernel for xiuxian Rust crates"
+authors = ["CyberXiuXian Artisan Studio"]
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

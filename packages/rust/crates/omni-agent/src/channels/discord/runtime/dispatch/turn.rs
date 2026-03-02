@@ -1,6 +1,6 @@
 use crate::agent::Agent;
 use crate::channels::managed_runtime::turn::{
-    ForegroundTurnOutcome, run_foreground_turn_with_interrupt,
+    ForegroundTurnOutcome, ForegroundTurnRequest, run_foreground_turn_with_interrupt,
 };
 use crate::channels::traits::{Channel, ChannelMessage};
 use std::sync::Arc;
@@ -26,16 +26,16 @@ pub(super) async fn run_foreground_turn_with_typing(
         tracing::debug!("discord: failed to start typing: {error}");
     }
 
-    let result = run_foreground_turn_with_interrupt(
+    let result = run_foreground_turn_with_interrupt(ForegroundTurnRequest {
         agent,
-        input.session_id,
-        input.content,
-        input.turn_timeout_secs,
-        format!("Request timed out after {}s.", input.turn_timeout_secs),
-        input.interrupt_rx,
-        input.interrupt_generation,
-        "Request interrupted by a newer instruction.".to_string(),
-    )
+        session_id: input.session_id.to_string(),
+        content: input.content.to_string(),
+        timeout_secs: input.turn_timeout_secs,
+        timeout_reply: format!("Request timed out after {}s.", input.turn_timeout_secs),
+        interrupt_rx: input.interrupt_rx,
+        interrupt_generation: input.interrupt_generation,
+        interrupted_reply: "Request interrupted by a newer instruction.".to_string(),
+    })
     .await;
 
     if let Err(error) = channel.stop_typing(input.recipient).await {

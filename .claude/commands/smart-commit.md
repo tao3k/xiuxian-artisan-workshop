@@ -1,6 +1,9 @@
 ---
+type: knowledge
 description: Smart Commit Workflow - Human-in-the-Loop Commit
 argument-hint: [message]
+metadata:
+  title: "Smart Commit Workflow"
 ---
 
 # Smart Commit Workflow

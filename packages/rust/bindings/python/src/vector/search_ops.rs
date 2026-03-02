@@ -3,7 +3,9 @@
 //! Contains: search_optimized, search_hybrid, create_index,
 //!           search_tools, load_tool_registry, scan_skill_tools_raw
 
-use omni_vector::{AgenticSearchConfig, QueryIntent, SearchOptions, ToolSearchOptions};
+use omni_vector::{
+    AgenticSearchConfig, QueryIntent, SearchOptions, ToolSearchOptions, ToolSearchRequest,
+};
 use pyo3::{
     prelude::*,
     types::{PyAny, PyDict, PyList},
@@ -506,19 +508,19 @@ pub(crate) fn search_tools_async(
         )
         .await?;
         let results = store
-            .search_tools_with_options(
+            .search_tools_with_options(ToolSearchRequest {
                 table_name,
-                &query_vector,
-                query_text.as_deref(),
+                query_vector: &query_vector,
+                query_text: query_text.as_deref(),
                 limit,
                 threshold,
-                ToolSearchOptions {
+                options: ToolSearchOptions {
                     rerank,
                     semantic_weight: None,
                     keyword_weight: None,
                 },
-                None,
-            )
+                where_filter: None,
+            })
             .await
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
@@ -613,19 +615,19 @@ pub(crate) fn search_tools_ipc_async(
         )
         .await?;
         let bytes = store
-            .search_tools_ipc(
+            .search_tools_ipc(ToolSearchRequest {
                 table_name,
-                &query_vector,
-                query_text.as_deref(),
+                query_vector: &query_vector,
+                query_text: query_text.as_deref(),
                 limit,
                 threshold,
-                ToolSearchOptions {
+                options: ToolSearchOptions {
                     rerank,
                     semantic_weight: None,
                     keyword_weight: None,
                 },
-                None,
-            )
+                where_filter: None,
+            })
             .await
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
         Ok(bytes)
@@ -833,7 +835,7 @@ pub(crate) fn load_tool_registry_async(
 }
 
 pub(crate) fn scan_skill_tools_raw(base_path: &str) -> PyResult<Vec<String>> {
-    use omni_scanner::{SkillScanner, ToolRecord, ToolsScanner};
+    use xiuxian_skills::{SkillScanner, ToolRecord, ToolsScanner};
 
     let skill_scanner = SkillScanner::new();
     let script_scanner = ToolsScanner::new();

@@ -1,3 +1,9 @@
+---
+type: prompt
+metadata:
+  title: "Omni-Dev-Fusion System Context"
+---
+
 # Omni-Dev-Fusion System Context
 
 ---

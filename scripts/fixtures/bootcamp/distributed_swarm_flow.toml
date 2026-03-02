@@ -1,0 +1,33 @@
+name = "Distributed_Swarm_Role_Routing_Gate"
+
+[[nodes]]
+id = "StudentNode"
+task_type = "mock"
+weight = 1.0
+[nodes.params]
+role_class = "student"
+
+[[nodes]]
+id = "StewardNode"
+task_type = "mock"
+weight = 1.0
+[nodes.params]
+role_class = "steward"
+
+[[nodes]]
+id = "TeacherNode"
+task_type = "mock"
+weight = 1.0
+[nodes.params]
+role_class = "teacher"
+
+[[edges]]
+from = "StudentNode"
+to = "StewardNode"
+weight = 1.0
+
+[[edges]]
+from = "StewardNode"
+to = "TeacherNode"
+weight = 1.0
+

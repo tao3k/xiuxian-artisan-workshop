@@ -3,65 +3,11 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
-
-def _resolve_session_identity(
-    args: Any,
-    *,
-    log_file: Path,
-    session_ids_from_runtime_log_fn: Any,
-) -> tuple[int | None, int | None, int | None]:
-    chat_id = args.chat_id if args.chat_id is not None else None
-    user_id = args.user_id if args.user_id is not None else None
-    thread_id = args.thread_id if args.thread_id is not None else None
-
-    if chat_id is None:
-        env_chat = os.environ.get("OMNI_TEST_CHAT_ID")
-        if env_chat:
-            chat_id = int(env_chat)
-    if user_id is None:
-        env_user = os.environ.get("OMNI_TEST_USER_ID")
-        if env_user:
-            user_id = int(env_user)
-    if thread_id is None:
-        env_thread = os.environ.get("OMNI_TEST_THREAD_ID")
-        if env_thread:
-            thread_id = int(env_thread)
-
-    if chat_id is None or user_id is None:
-        inferred_chat, inferred_user, inferred_thread = session_ids_from_runtime_log_fn(log_file)
-        if chat_id is None:
-            chat_id = inferred_chat
-        if user_id is None:
-            user_id = inferred_user
-        if thread_id is None:
-            thread_id = inferred_thread
-    return chat_id, user_id, thread_id
-
-
-def _resolve_wait_secs(value: int | None, *, fallback_env: str) -> int | None:
-    resolved = value
-    if resolved is None:
-        env_value = os.environ.get(fallback_env, "").strip()
-        if env_value:
-            resolved = int(env_value)
-    if resolved is not None and resolved <= 0:
-        resolved = None
-    return resolved
-
-
-def _resolve_username(
-    args: Any, *, log_file: Path, username_from_settings_fn: Any, username_from_runtime_log_fn: Any
-) -> str | None:
-    username: str | None = args.username
-    if not username:
-        username = username_from_settings_fn()
-    if not username:
-        username = username_from_runtime_log_fn(log_file)
-    return username
+from agent_channel_blackbox_config_build_identity import resolve_session_identity, resolve_username
+from agent_channel_blackbox_config_build_values import resolve_allow_chat_ids, resolve_wait_secs
 
 
 def build_config(
@@ -78,12 +24,12 @@ def build_config(
 ) -> Any:
     """Build ProbeConfig from parsed args + environment fallbacks."""
     log_file = Path(args.log_file)
-    chat_id, user_id, thread_id = _resolve_session_identity(
+    chat_id, user_id, thread_id = resolve_session_identity(
         args,
         log_file=log_file,
         session_ids_from_runtime_log_fn=session_ids_from_runtime_log_fn,
     )
-    username = _resolve_username(
+    username = resolve_username(
         args,
         log_file=log_file,
         username_from_settings_fn=username_from_settings_fn,
@@ -96,22 +42,21 @@ def build_config(
             f"Tip: run one real Telegram message first to auto-infer from {log_file}."
         )
 
-    max_wait_secs = _resolve_wait_secs(
+    max_wait_secs = resolve_wait_secs(
         args.max_wait if args.max_wait is not None else args.timeout,
         fallback_env="OMNI_BLACKBOX_MAX_WAIT_SECS",
     )
-    max_idle_secs = _resolve_wait_secs(
+    max_idle_secs = resolve_wait_secs(
         args.max_idle_secs,
         fallback_env="OMNI_BLACKBOX_MAX_IDLE_SECS",
     )
     expect_reply_json_fields = tuple(
         parse_expected_field_fn(value) for value in args.expect_reply_json_field
     )
-    cli_allow_chat_ids = parse_allow_chat_ids_fn(args.allow_chat_id)
-    env_allow_chat_ids = parse_allow_chat_ids_fn(
-        [token for token in os.environ.get("OMNI_BLACKBOX_ALLOWED_CHAT_IDS", "").split(",")]
+    allow_chat_ids = resolve_allow_chat_ids(
+        args,
+        parse_allow_chat_ids_fn=parse_allow_chat_ids_fn,
     )
-    allow_chat_ids = tuple(dict.fromkeys([*cli_allow_chat_ids, *env_allow_chat_ids]))
     if allow_chat_ids and int(chat_id) not in allow_chat_ids:
         raise ValueError(
             "Probe chat_id is not in allowlist. "

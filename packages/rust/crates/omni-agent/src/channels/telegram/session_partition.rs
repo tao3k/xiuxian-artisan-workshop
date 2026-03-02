@@ -3,6 +3,8 @@
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
+use xiuxian_macros::env_non_empty;
+
 use crate::config::load_runtime_settings;
 
 /// How incoming Telegram messages are mapped to a logical conversation session.
@@ -31,7 +33,7 @@ impl TelegramSessionPartition {
     pub fn from_env() -> Self {
         let settings = load_runtime_settings();
         Self::from_lookup(
-            |name| std::env::var(name).ok(),
+            |name| env_non_empty!(name),
             settings.telegram.session_partition.as_deref(),
         )
     }

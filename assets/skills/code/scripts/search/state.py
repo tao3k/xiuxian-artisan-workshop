@@ -1,13 +1,14 @@
 """
-Search State Definition - TypedDict for LangGraph Workflow
+Search State Definition - TypedDict for native workflow runtime.
 
 Defines the state structure for the Interactive Search Graph,
-enabling parallel execution and state persistence.
+enabling strategy-aware execution and state persistence.
 """
 
-from typing import List, Dict, Any, Literal, Annotated
-from typing_extensions import TypedDict
 import operator
+from typing import Annotated, Literal
+
+from typing_extensions import TypedDict
 
 
 class SearchResult(TypedDict):
@@ -31,10 +32,10 @@ class SearchGraphState(TypedDict):
     query: str
 
     # Routing decisions
-    strategies: Annotated[List[str], operator.add]  # ["ast", "vector", "grep"]
+    strategies: Annotated[list[str], operator.add]  # ["ast", "vector", "grep"]
 
     # Accumulated results from parallel execution
-    raw_results: Annotated[List[SearchResult], operator.add]
+    raw_results: Annotated[list[SearchResult], operator.add]
 
     # Control flow
     iteration: int

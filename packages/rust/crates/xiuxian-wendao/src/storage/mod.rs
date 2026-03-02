@@ -28,7 +28,6 @@ fn saturating_usize_to_i64(value: usize) -> i64 {
     i64::try_from(value).unwrap_or(i64::MAX)
 }
 
-#[allow(clippy::missing_errors_doc)]
 impl KnowledgeStorage {
     /// Create a new `KnowledgeStorage` instance.
     #[must_use]
@@ -141,6 +140,3 @@ impl KnowledgeStorage {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

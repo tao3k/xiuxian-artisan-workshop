@@ -168,7 +168,7 @@ pub(crate) enum Command {
         #[arg(long, value_enum)]
         webhook_dedup_backend: Option<WebhookDedupBackendMode>,
 
-        /// Valkey URL for webhook dedup (or `VALKEY_URL` env).
+        /// Valkey URL for webhook dedup (or `XIUXIAN_WENDAO_VALKEY_URL` env).
         #[arg(long)]
         valkey_url: Option<String>,
 
@@ -183,5 +183,19 @@ pub(crate) enum Command {
         /// Verbose logs: show user messages and bot replies (also enables debug-level tracing).
         #[arg(long, short = 'v')]
         verbose: bool,
+    },
+    /// Run one embedding request to warm up backend/model before channel startup.
+    EmbeddingWarmup {
+        /// Warmup input text.
+        #[arg(long, default_value = "embedding warmup")]
+        text: String,
+
+        /// Optional explicit embedding model override.
+        #[arg(long)]
+        model: Option<String>,
+
+        /// Only execute warmup when effective embedding backend is `mistral_sdk`.
+        #[arg(long, default_value_t = false)]
+        mistral_sdk_only: bool,
     },
 }

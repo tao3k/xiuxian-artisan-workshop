@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Keyword Backend Replacement Evidence (V4)"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - keyword
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Keyword Backend Replacement Evidence (V4)"
 ---
 
 # Keyword Backend Replacement Evidence (V4)

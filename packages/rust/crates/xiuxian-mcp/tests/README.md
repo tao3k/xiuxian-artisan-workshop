@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "xiuxian-mcp tests"
+---
+
 # xiuxian-mcp tests
 
 ## Unit tests (always run)

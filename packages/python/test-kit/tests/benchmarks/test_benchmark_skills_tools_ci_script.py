@@ -122,14 +122,14 @@ def test_ci_script_dry_run_honors_explicit_baseline_arg() -> None:
     assert "# baseline: /tmp/base_summary.json" in out
 
 
-def test_ci_script_dry_run_prints_remote_fetch_command_when_configured() -> None:
+def test_ci_script_dry_run_prints_remote_fetch_command_when_configured(tmp_path: Path) -> None:
     script = _ci_script_path()
     env = dict(os.environ)
     env["OMNI_SKILLS_TOOLS_CI_DRY_RUN"] = "1"
     env["OMNI_SKILLS_TOOLS_CLI_SUMMARY_PROMOTE_BASELINE"] = "1"
     env["OMNI_SKILLS_TOOLS_REMOTE_ARTIFACT_NAME"] = "skills-tools-benchmark-ubuntu-latest"
     result = subprocess.run(
-        ["bash", str(script)],
+        ["bash", str(script), str(tmp_path)],
         check=False,
         capture_output=True,
         text=True,

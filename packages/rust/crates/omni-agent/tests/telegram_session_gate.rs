@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Session gate concurrency tests for shared and independent session keys.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -46,10 +10,11 @@ use tokio::sync::oneshot;
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn same_session_is_serialized() {
     let gate = SessionGate::default();
-    let first_guard = gate
-        .acquire("telegram:-100:888")
-        .await
-        .expect("first session lock should succeed");
+    let first_guard_result = gate.acquire("telegram:-100:888").await;
+    let first_guard = match first_guard_result {
+        Ok(guard) => guard,
+        Err(error) => panic!("first session lock should succeed: {error}"),
+    };
 
     let gate_for_second = gate.clone();
     let (entered_tx, entered_rx) = oneshot::channel::<()>();
@@ -58,11 +23,13 @@ async fn same_session_is_serialized() {
 
     let second = tokio::spawn(async move {
         blocked_for_task.store(true, Ordering::SeqCst);
-        let _second_guard = gate_for_second
-            .acquire("telegram:-100:888")
-            .await
-            .expect("second session lock should succeed");
-        let _ = entered_tx.send(());
+        let second_guard_result = gate_for_second.acquire("telegram:-100:888").await;
+        match second_guard_result {
+            Ok(_second_guard) => {
+                let _ = entered_tx.send(());
+            }
+            Err(error) => panic!("second session lock should succeed: {error}"),
+        }
     });
 
     tokio::time::sleep(Duration::from_millis(50)).await;
@@ -78,30 +45,36 @@ async fn same_session_is_serialized() {
     );
 
     drop(first_guard);
-    second.await.expect("second task should finish");
+    if let Err(error) = second.await {
+        panic!("second task should finish: {error}");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn different_sessions_can_run_in_parallel() {
     let gate = SessionGate::default();
-    let first_guard = gate
-        .acquire("telegram:-100:888")
-        .await
-        .expect("first session lock should succeed");
+    let first_guard_result = gate.acquire("telegram:-100:888").await;
+    let first_guard = match first_guard_result {
+        Ok(guard) => guard,
+        Err(error) => panic!("first session lock should succeed: {error}"),
+    };
 
     let gate_for_other = gate.clone();
     let (entered_tx, entered_rx) = oneshot::channel::<()>();
     tokio::spawn(async move {
-        let _other_guard = gate_for_other
-            .acquire("telegram:-101:888")
-            .await
-            .expect("other session lock should succeed");
-        let _ = entered_tx.send(());
+        let other_guard_result = gate_for_other.acquire("telegram:-101:888").await;
+        match other_guard_result {
+            Ok(_other_guard) => {
+                let _ = entered_tx.send(());
+            }
+            Err(error) => panic!("other session lock should succeed: {error}"),
+        }
     });
 
-    let _ = tokio::time::timeout(Duration::from_millis(200), entered_rx)
-        .await
-        .expect("other session should not be blocked");
+    let timeout_result = tokio::time::timeout(Duration::from_millis(200), entered_rx).await;
+    if let Err(error) = timeout_result {
+        panic!("other session should not be blocked: {error}");
+    }
 
     drop(first_guard);
 }
@@ -111,10 +84,11 @@ async fn session_entry_is_cleaned_after_last_guard_drops() {
     let gate = SessionGate::default();
     assert_eq!(gate.active_sessions(), 0);
     {
-        let _guard = gate
-            .acquire("telegram:-100:888")
-            .await
-            .expect("session lock should succeed");
+        let guard_result = gate.acquire("telegram:-100:888").await;
+        let _guard = match guard_result {
+            Ok(guard) => guard,
+            Err(error) => panic!("session lock should succeed: {error}"),
+        };
         assert_eq!(gate.active_sessions(), 1);
     }
     assert_eq!(gate.active_sessions(), 0);
@@ -123,21 +97,24 @@ async fn session_entry_is_cleaned_after_last_guard_drops() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn waiting_tasks_keep_session_entry_alive() {
     let gate = SessionGate::default();
-    let first_guard = gate
-        .acquire("telegram:-100:888")
-        .await
-        .expect("first session lock should succeed");
+    let first_guard_result = gate.acquire("telegram:-100:888").await;
+    let first_guard = match first_guard_result {
+        Ok(guard) => guard,
+        Err(error) => panic!("first session lock should succeed: {error}"),
+    };
 
     let gate_for_second = gate.clone();
     let (entered_second_tx, entered_second_rx) = oneshot::channel::<()>();
     let (release_second_tx, release_second_rx) = oneshot::channel::<()>();
     let second = tokio::spawn(async move {
-        let _second_guard = gate_for_second
-            .acquire("telegram:-100:888")
-            .await
-            .expect("second session lock should succeed");
-        let _ = entered_second_tx.send(());
-        let _ = release_second_rx.await;
+        let second_guard_result = gate_for_second.acquire("telegram:-100:888").await;
+        match second_guard_result {
+            Ok(_second_guard) => {
+                let _ = entered_second_tx.send(());
+                let _ = release_second_rx.await;
+            }
+            Err(error) => panic!("second session lock should succeed: {error}"),
+        }
     });
 
     tokio::time::sleep(Duration::from_millis(40)).await;
@@ -148,18 +125,22 @@ async fn waiting_tasks_keep_session_entry_alive() {
     );
 
     drop(first_guard);
-    let _ = tokio::time::timeout(Duration::from_millis(200), entered_second_rx)
-        .await
-        .expect("second task should enter after first guard drops");
+    let entered_second_result =
+        tokio::time::timeout(Duration::from_millis(200), entered_second_rx).await;
+    if let Err(error) = entered_second_result {
+        panic!("second task should enter after first guard drops: {error}");
+    }
 
     let gate_for_third = gate.clone();
     let (entered_third_tx, entered_third_rx) = oneshot::channel::<()>();
     let third = tokio::spawn(async move {
-        let _third_guard = gate_for_third
-            .acquire("telegram:-100:888")
-            .await
-            .expect("third session lock should succeed");
-        let _ = entered_third_tx.send(());
+        let third_guard_result = gate_for_third.acquire("telegram:-100:888").await;
+        match third_guard_result {
+            Ok(_third_guard) => {
+                let _ = entered_third_tx.send(());
+            }
+            Err(error) => panic!("third session lock should succeed: {error}"),
+        }
     });
 
     assert!(
@@ -170,8 +151,12 @@ async fn waiting_tasks_keep_session_entry_alive() {
     );
 
     let _ = release_second_tx.send(());
-    second.await.expect("second task should finish");
-    third.await.expect("third task should finish");
+    if let Err(error) = second.await {
+        panic!("second task should finish: {error}");
+    }
+    if let Err(error) = third.await {
+        panic!("third task should finish: {error}");
+    }
     assert_eq!(gate.active_sessions(), 0);
 }
 
@@ -198,11 +183,13 @@ async fn distributed_same_session_is_serialized_across_gate_instances() -> anyho
     let first_guard = gate_a.acquire("telegram:-100:888").await?;
     let (entered_tx, entered_rx) = oneshot::channel::<()>();
     let second = tokio::spawn(async move {
-        let _second_guard = gate_b
-            .acquire("telegram:-100:888")
-            .await
-            .expect("distributed lock should eventually succeed");
-        let _ = entered_tx.send(());
+        let second_guard_result = gate_b.acquire("telegram:-100:888").await;
+        match second_guard_result {
+            Ok(_second_guard) => {
+                let _ = entered_tx.send(());
+            }
+            Err(error) => panic!("distributed lock should eventually succeed: {error}"),
+        }
     });
 
     assert!(
@@ -213,7 +200,9 @@ async fn distributed_same_session_is_serialized_across_gate_instances() -> anyho
     );
 
     drop(first_guard);
-    second.await.expect("second task should finish");
+    if let Err(error) = second.await {
+        return Err(anyhow::anyhow!("second task should finish: {error}"));
+    }
     Ok(())
 }
 
@@ -241,15 +230,20 @@ async fn distributed_different_sessions_run_in_parallel_across_gate_instances() 
     let _first_guard = gate_a.acquire("telegram:-100:888").await?;
     let (entered_tx, entered_rx) = oneshot::channel::<()>();
     tokio::spawn(async move {
-        let _second_guard = gate_b
-            .acquire("telegram:-101:888")
-            .await
-            .expect("different sessions should not block each other");
-        let _ = entered_tx.send(());
+        let second_guard_result = gate_b.acquire("telegram:-101:888").await;
+        match second_guard_result {
+            Ok(_second_guard) => {
+                let _ = entered_tx.send(());
+            }
+            Err(error) => panic!("different sessions should not block each other: {error}"),
+        }
     });
 
-    let _ = tokio::time::timeout(Duration::from_millis(300), entered_rx)
-        .await
-        .expect("different sessions across gate instances should execute in parallel");
+    let timeout_result = tokio::time::timeout(Duration::from_millis(300), entered_rx).await;
+    if let Err(error) = timeout_result {
+        return Err(anyhow::anyhow!(
+            "different sessions across gate instances should execute in parallel: {error}"
+        ));
+    }
     Ok(())
 }

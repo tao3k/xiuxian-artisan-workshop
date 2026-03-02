@@ -1,10 +1,10 @@
 {
-  "general": {
-    "previewFeatures": true
-  },
-  "mcpServers": {
-    "omniAgent": {
-      "httpUrl": "http://localhost:3000/mcp"
-    }
-  }
+  // "general": {
+  //   "previewFeatures": true
+  // }// ,
+  // // "mcpServers": {
+  // //   "omniAgent": {
+  // //     "httpUrl": "http://localhost:3002"
+  // //   }
+  // // }
 }

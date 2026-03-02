@@ -38,9 +38,10 @@ Categories:
 ================================================================================
 """
 
+from typing import TypedDict
+
 from omni.foundation.api.decorators import skill_command
 from omni.foundation.api.handlers import graph_node
-
 
 # =============================================================================
 # Basic Skill Commands
@@ -137,12 +138,8 @@ def validate_input(name: str, age: int) -> str:
 
 
 # =============================================================================
-# LangGraph Node Pattern (for workflow skills)
+# Graph Node Pattern (for workflow skills)
 # =============================================================================
-
-# Example TypedDict for workflow state
-from typing import TypedDict
-
 
 class WorkflowState(TypedDict):
     """State for the example workflow."""
@@ -159,7 +156,7 @@ def node_process(state: WorkflowState) -> WorkflowState:
     Process node - transform input data.
 
     Error handling: Exceptions are automatically logged and re-raised
-    by the graph_node handler for LangGraph error handling.
+    by the graph_node handler for workflow error handling.
     """
     if not state.get("input"):
         raise ValueError("Input is required")
@@ -194,8 +191,8 @@ async def node_validate(state: WorkflowState) -> WorkflowState:
 __all__ = [
     "example",
     "example_with_options",
-    "process_data",
-    "validate_input",
     "node_process",
     "node_validate",
+    "process_data",
+    "validate_input",
 ]

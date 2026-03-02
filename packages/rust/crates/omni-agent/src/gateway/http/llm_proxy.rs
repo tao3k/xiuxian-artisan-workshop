@@ -1,8 +1,8 @@
-//! LLM Gateway Proxy Handler
-//!
-//! Provides a reverse proxy for OpenAI-compatible `/v1/chat/completions` requests.
-//! It dynamically routes requests to different providers (OpenAI, MiniMax, Anthropic, etc.)
-//! based on the model prefix (e.g., `minimax/MiniMax-M2.1`) or falls back to `settings.yaml` configuration.
+// LLM Gateway Proxy Handler
+//
+// Provides a reverse proxy for OpenAI-compatible `/v1/chat/completions` requests.
+// It dynamically routes requests to different providers (`OpenAI`, `MiniMax`, Anthropic, etc.)
+// based on the model prefix (e.g., `minimax/MiniMax-M2.1`) or falls back to runtime TOML configuration.
 
 use crate::config::{load_runtime_settings, load_xiuxian_config};
 use axum::body::Body;
@@ -11,23 +11,65 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use reqwest::Client;
 use serde_json::Value;
-use std::env;
 use std::sync::LazyLock;
+use xiuxian_macros::{env_non_empty, string_first_non_empty};
 
 static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
         .pool_idle_timeout(std::time::Duration::from_secs(90))
         .build()
-        .expect("Failed to build HTTP client for LLM proxy")
+        .unwrap_or_else(|error| panic!("failed to build HTTP client for LLM proxy: {error}"))
 });
+
+fn resolve_azure_openai_endpoint() -> String {
+    env_non_empty!("AZURE_OPENAI_ENDPOINT").unwrap_or_default()
+}
+
+fn resolve_target_base_url(base_url_override: Option<&str>, resolved_base_url: &str) -> String {
+    string_first_non_empty!(base_url_override, Some(resolved_base_url))
+}
+
+fn resolve_target_api_key_env(
+    api_key_env_override: Option<&str>,
+    resolved_key_env: &str,
+) -> String {
+    string_first_non_empty!(api_key_env_override, Some(resolved_key_env))
+}
+
+fn read_api_key(env_name: &str) -> String {
+    env_non_empty!(env_name).unwrap_or_default()
+}
+
+fn resolve_request_model(
+    request_model: Option<&str>,
+    inference_default_model: Option<&str>,
+    xiuxian_default_model: Option<&str>,
+) -> Option<String> {
+    request_model
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+        .or_else(|| {
+            inference_default_model
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToString::to_string)
+        })
+        .or_else(|| {
+            xiuxian_default_model
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToString::to_string)
+        })
+}
 
 /// Map provider alias to Base URL and API Key Env Var using xiuxian.toml or hardcoded fallbacks
 fn resolve_provider_config(provider: &str) -> (String, String) {
     let xiuxian_conf = load_xiuxian_config();
-    if let Some(cfg) = xiuxian_conf.llm.providers.get(provider) {
-        if let (Some(url), Some(env_key)) = (&cfg.base_url, &cfg.api_key_env) {
-            return (url.clone(), env_key.clone());
-        }
+    if let Some(cfg) = xiuxian_conf.llm.providers.get(provider)
+        && let (Some(url), Some(env_key)) = (&cfg.base_url, &cfg.api_key_env)
+    {
+        return (url.clone(), env_key.clone());
     }
 
     match provider {
@@ -40,7 +82,7 @@ fn resolve_provider_config(provider: &str) -> (String, String) {
             "ANTHROPIC_API_KEY".to_string(),
         ),
         "azure" => (
-            env::var("AZURE_OPENAI_ENDPOINT").unwrap_or_default(),
+            resolve_azure_openai_endpoint(),
             "AZURE_OPENAI_API_KEY".to_string(),
         ),
         "deepseek" => (
@@ -59,22 +101,21 @@ fn apply_model_alias(provider: &str, model: &str) -> String {
     let xiuxian_conf = load_xiuxian_config();
     let lower_model = model.to_lowercase();
 
-    if let Some(cfg) = xiuxian_conf.llm.providers.get(provider) {
-        if let Some(alias) = cfg.model_aliases.get(&lower_model) {
-            return alias.clone();
-        }
+    if let Some(cfg) = xiuxian_conf.llm.providers.get(provider)
+        && let Some(alias) = cfg.model_aliases.get(&lower_model)
+    {
+        return alias.clone();
     }
 
     // Hardcoded fallback for minimax casing fix
-    if provider == "minimax" {
-        if lower_model.starts_with("minimax-") {
-            let suffix = &lower_model[8..];
-            let mut actual_model = format!("MiniMax-{}", suffix);
-            if lower_model == "minimax-m2.1-highspeed" {
-                actual_model = "MiniMax-M2.1-lightning".to_string();
-            }
-            return actual_model;
+    if provider == "minimax"
+        && let Some(suffix) = lower_model.strip_prefix("minimax-")
+    {
+        let mut actual_model = format!("MiniMax-{suffix}");
+        if lower_model == "minimax-m2.1-highspeed" {
+            actual_model = "MiniMax-M2.1-lightning".to_string();
         }
+        return actual_model;
     }
 
     model.to_string()
@@ -83,7 +124,7 @@ fn apply_model_alias(provider: &str, model: &str) -> String {
 /// Handle `/v1/chat/completions` request.
 /// Parses the JSON body to extract `model`.
 /// Uses `provider/model_name` syntax if present (e.g., `minimax/MiniMax-M2.5`).
-/// Otherwise, falls back to the configured provider in `settings.yaml` and `xiuxian.toml`.
+/// Otherwise, falls back to the configured provider in `xiuxian.toml`.
 pub async fn handle_chat_completions(
     req: Request,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
@@ -99,94 +140,96 @@ pub async fn handle_chat_completions(
     // Read body as JSON to modify the model string
     let body_bytes = axum::body::to_bytes(req.into_body(), usize::MAX)
         .await
-        .map_err(|e| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("Failed to read body: {}", e),
-            )
-        })?;
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read body: {e}")))?;
 
     let mut json_body: Value = serde_json::from_slice(&body_bytes)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid JSON: {}", e)))?;
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid JSON: {e}")))?;
 
     let mut provider = default_provider.clone();
     let mut base_url = settings.inference.base_url.clone();
     let mut api_key_env = settings.inference.api_key_env.clone();
 
-    if let Some(model_val) = json_body.get_mut("model") {
-        if let Some(model_str) = model_val.as_str() {
-            let mut actual_model = model_str.to_string();
+    let request_model = json_body.get("model").and_then(Value::as_str);
+    let resolved_model = resolve_request_model(
+        request_model,
+        settings.inference.model.as_deref(),
+        xiuxian_conf.llm.default_model.as_deref(),
+    )
+    .ok_or((
+        StatusCode::BAD_REQUEST,
+        "model is required (request.model, settings.inference.model, or xiuxian.llm.default_model)"
+            .to_string(),
+    ))?;
 
-            // Check for LiteLLM style prefix (e.g., minimax/MiniMax-M2.5)
-            if let Some((prefix, suffix)) = model_str.split_once('/') {
-                provider = prefix.to_lowercase();
-                actual_model = suffix.to_string();
+    let mut actual_model = resolved_model.clone();
+    if let Some((prefix, suffix)) = resolved_model.split_once('/') {
+        provider = prefix.to_lowercase();
+        actual_model = suffix.to_string();
+        // Clear custom base_url if provider is selected from model prefix.
+        base_url = None;
+        api_key_env = None;
+    }
+    actual_model = apply_model_alias(&provider, &actual_model);
 
-                // Clear custom base_url if we are overriding provider from prefix
-                base_url = None;
-                api_key_env = None;
-            }
-
-            actual_model = apply_model_alias(&provider, &actual_model);
-
-            // Update the model string in the payload to the actual model
-            *model_val = Value::String(actual_model);
-        }
+    if let Some(object) = json_body.as_object_mut() {
+        object.insert("model".to_string(), Value::String(actual_model));
+    } else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "request body must be a JSON object".to_string(),
+        ));
     }
 
     let (resolved_base_url, resolved_key_env) = resolve_provider_config(&provider);
-    let target_base_url = base_url.unwrap_or(resolved_base_url);
-    let target_api_key_env = api_key_env.unwrap_or(resolved_key_env);
+    let target_base_url = resolve_target_base_url(base_url.as_deref(), resolved_base_url.as_str());
+    let target_api_key_env =
+        resolve_target_api_key_env(api_key_env.as_deref(), resolved_key_env.as_str());
 
-    let api_key = env::var(&target_api_key_env).unwrap_or_default();
+    let api_key = read_api_key(target_api_key_env.as_str());
     if api_key.is_empty() {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!(
-                "Missing API key for provider {}. Set {}",
-                provider, target_api_key_env
-            ),
+            format!("Missing API key for provider {provider}. Set {target_api_key_env}"),
         ));
     }
 
     let target_url = format!("{}/chat/completions", target_base_url.trim_end_matches('/'));
 
-    let mut proxy_req = HTTP_CLIENT.post(&target_url).json(&json_body);
+    let mut proxy_req_builder = HTTP_CLIENT.post(&target_url).json(&json_body);
 
     // Some providers (like Anthropic) require specific headers.
     if provider == "anthropic" {
-        proxy_req = proxy_req
+        proxy_req_builder = proxy_req_builder
             .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01");
     } else {
-        proxy_req = proxy_req.header("Authorization", format!("Bearer {}", api_key));
+        proxy_req_builder = proxy_req_builder.header("Authorization", format!("Bearer {api_key}"));
     }
 
-    let proxy_res = proxy_req.send().await.map_err(|e| {
+    let upstream_res = proxy_req_builder.send().await.map_err(|e| {
         (
             StatusCode::BAD_GATEWAY,
-            format!("Upstream request failed: {}", e),
+            format!("Upstream request failed: {e}"),
         )
     })?;
 
-    let status = proxy_res.status();
-    let headers = proxy_res.headers().clone();
+    let status = upstream_res.status();
+    let headers = upstream_res.headers().clone();
 
     // Convert reqwest Response body to axum Body stream
-    let body_stream = Body::from_stream(proxy_res.bytes_stream());
+    let body_stream = Body::from_stream(upstream_res.bytes_stream());
 
     let mut axum_res = body_stream.into_response();
     *axum_res.status_mut() = status;
 
     // Forward essential headers
-    for (k, v) in headers.into_iter() {
-        if let Some(key) = k {
-            if key == axum::http::header::CONTENT_TYPE
+    for (k, v) in headers {
+        if let Some(key) = k
+            && (key == axum::http::header::CONTENT_TYPE
                 || key == axum::http::header::CONTENT_ENCODING
-                || key.as_str().starts_with("x-")
-            {
-                axum_res.headers_mut().insert(key, v);
-            }
+                || key.as_str().starts_with("x-"))
+        {
+            axum_res.headers_mut().insert(key, v);
         }
     }
 

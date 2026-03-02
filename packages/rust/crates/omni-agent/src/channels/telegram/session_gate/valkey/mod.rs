@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
-use tokio::sync::{Mutex, oneshot};
+use tokio::sync::{Mutex, RwLock, oneshot};
 
 pub(super) const DEFAULT_GATE_RETRY_INTERVAL_MS: u64 = 25;
 
@@ -14,7 +14,8 @@ pub(super) struct ValkeySessionGateBackend {
     lease_ttl_ms: u64,
     acquire_timeout: Option<Duration>,
     retry_interval: Duration,
-    connection: Arc<Mutex<Option<redis::aio::MultiplexedConnection>>>,
+    connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+    reconnect_lock: Arc<Mutex<()>>,
 }
 
 pub(super) struct DistributedLeaseGuard {

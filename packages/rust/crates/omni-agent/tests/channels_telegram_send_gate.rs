@@ -1,45 +1,9 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram send-gate tests for constructor validation and rate-limiting flow.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use omni_agent::{Channel, TelegramChannel};
 use tokio::sync::Mutex;
@@ -51,8 +15,8 @@ fn telegram_send_rate_limit_valkey_constructor_rejects_invalid_url() {
         vec!["*".to_string()],
         vec![],
         "http://127.0.0.1:18080".to_string(),
-        "http://127.0.0.1:6379/0".to_string(),
-        "omni-agent:test:send-gate:invalid-url".to_string(),
+        "http://127.0.0.1:6379/0",
+        "omni-agent:test:send-gate:invalid-url",
     );
     assert!(
         result.is_err(),
@@ -169,16 +133,16 @@ async fn telegram_send_gate_valkey_enforces_cross_instance_rate_limit_window() -
         vec!["*".to_string()],
         vec![],
         api_base.clone(),
-        valkey_url.clone(),
-        key_prefix.clone(),
+        &valkey_url,
+        &key_prefix,
     )?;
     let channel_b = TelegramChannel::new_with_base_url_and_send_rate_limit_valkey_for_test(
         "fake-token".to_string(),
         vec!["*".to_string()],
         vec![],
         api_base,
-        valkey_url,
-        key_prefix,
+        &valkey_url,
+        &key_prefix,
     )?;
 
     let first_send = tokio::spawn(async move { channel_a.send("firstgatecheck", "123456").await });
@@ -208,7 +172,7 @@ async fn telegram_send_gate_valkey_enforces_cross_instance_rate_limit_window() -
                 == Some("crossinstancecheck"))
             .then_some(request.received_at)
         })
-        .expect("cross-instance request should be recorded");
+        .ok_or_else(|| anyhow!("cross-instance request should be recorded"))?;
     let wait_duration = second_request_at.duration_since(second_started_at);
     assert!(
         wait_duration >= Duration::from_millis(850),

@@ -14,6 +14,17 @@ use super::policy_builders::{
 };
 use super::state::DiscordChannel;
 
+struct DiscordChannelCoreInit {
+    bot_token: String,
+    allowed_users: Vec<String>,
+    allowed_guilds: Vec<String>,
+    api_base_url: String,
+    control_command_policy: ControlCommandPolicy<DiscordCommandAdminRule>,
+    slash_command_policy: DiscordSlashCommandPolicy,
+    session_partition: DiscordSessionPartition,
+    client: reqwest::Client,
+}
+
 impl DiscordChannel {
     /// Create a Discord channel skeleton with default admin policy (`admin_users=allowed_users`).
     #[must_use]
@@ -73,27 +84,27 @@ impl DiscordChannel {
     ) -> Self {
         let admin_users = allowed_users.clone();
         Self::new_with_base_url_and_partition_and_parsed_control_command_policy(
-            bot_token,
-            allowed_users,
-            allowed_guilds,
-            api_base_url,
-            ControlCommandPolicy::new(admin_users, None, Vec::new()),
-            DiscordSlashCommandPolicy::default(),
-            session_partition,
-            build_discord_http_client(),
+            DiscordChannelCoreInit {
+                bot_token,
+                allowed_users,
+                allowed_guilds,
+                api_base_url,
+                control_command_policy: ControlCommandPolicy::new(admin_users, None, Vec::new()),
+                slash_command_policy: DiscordSlashCommandPolicy::default(),
+                session_partition,
+                client: build_discord_http_client(),
+            },
         )
     }
 
     /// Create a Discord channel skeleton with explicit control-command policy.
-    ///
-    /// # Errors
-    /// Returns an error when control-command policy normalization fails.
+    #[must_use]
     pub fn new_with_control_command_policy(
         bot_token: String,
         allowed_users: Vec<String>,
         allowed_guilds: Vec<String>,
         control_command_policy: DiscordControlCommandPolicy,
-    ) -> anyhow::Result<Self> {
+    ) -> Self {
         Self::new_with_partition_and_control_command_policy(
             bot_token,
             allowed_users,
@@ -105,24 +116,21 @@ impl DiscordChannel {
 
     /// Create a Discord channel skeleton with explicit control-command policy and session
     /// partition.
-    ///
-    /// # Errors
-    /// Returns an error when control-command policy normalization fails.
-    #[allow(clippy::unnecessary_wraps)]
+    #[must_use]
     pub fn new_with_partition_and_control_command_policy(
         bot_token: String,
         allowed_users: Vec<String>,
         allowed_guilds: Vec<String>,
         control_command_policy: DiscordControlCommandPolicy,
         session_partition: DiscordSessionPartition,
-    ) -> anyhow::Result<Self> {
+    ) -> Self {
         let DiscordControlCommandPolicy {
             admin_users,
             control_command_allow_from,
             control_command_rules,
             slash_command_policy,
         } = control_command_policy;
-        Ok(Self::new_with_partition_and_parsed_control_command_policy(
+        Self::new_with_partition_and_parsed_control_command_policy(
             bot_token,
             allowed_users,
             allowed_guilds,
@@ -133,7 +141,7 @@ impl DiscordChannel {
             ),
             slash_command_policy,
             session_partition,
-        ))
+        )
     }
 
     fn new_with_partition_and_parsed_control_command_policy(
@@ -145,14 +153,16 @@ impl DiscordChannel {
         session_partition: DiscordSessionPartition,
     ) -> Self {
         Self::new_with_base_url_and_partition_and_parsed_control_command_policy(
-            bot_token,
-            allowed_users,
-            allowed_guilds,
-            DISCORD_DEFAULT_API_BASE.to_string(),
-            control_command_policy,
-            slash_command_policy,
-            session_partition,
-            build_discord_http_client(),
+            DiscordChannelCoreInit {
+                bot_token,
+                allowed_users,
+                allowed_guilds,
+                api_base_url: DISCORD_DEFAULT_API_BASE.to_string(),
+                control_command_policy,
+                slash_command_policy,
+                session_partition,
+                client: build_discord_http_client(),
+            },
         )
     }
 
@@ -168,28 +178,33 @@ impl DiscordChannel {
     ) -> Self {
         let admin_users = allowed_users.clone();
         Self::new_with_base_url_and_partition_and_parsed_control_command_policy(
+            DiscordChannelCoreInit {
+                bot_token,
+                allowed_users,
+                allowed_guilds,
+                api_base_url,
+                control_command_policy: ControlCommandPolicy::new(admin_users, None, Vec::new()),
+                slash_command_policy: DiscordSlashCommandPolicy::default(),
+                session_partition,
+                client,
+            },
+        )
+    }
+
+    fn new_with_base_url_and_partition_and_parsed_control_command_policy(
+        init: DiscordChannelCoreInit,
+    ) -> Self {
+        let DiscordChannelCoreInit {
             bot_token,
             allowed_users,
             allowed_guilds,
             api_base_url,
-            ControlCommandPolicy::new(admin_users, None, Vec::new()),
-            DiscordSlashCommandPolicy::default(),
+            control_command_policy,
+            slash_command_policy,
             session_partition,
             client,
-        )
-    }
+        } = init;
 
-    #[allow(clippy::too_many_arguments)]
-    fn new_with_base_url_and_partition_and_parsed_control_command_policy(
-        bot_token: String,
-        allowed_users: Vec<String>,
-        allowed_guilds: Vec<String>,
-        api_base_url: String,
-        control_command_policy: ControlCommandPolicy<DiscordCommandAdminRule>,
-        slash_command_policy: DiscordSlashCommandPolicy,
-        session_partition: DiscordSessionPartition,
-        client: reqwest::Client,
-    ) -> Self {
         let control_command_policy = normalize_control_command_policy(control_command_policy);
         let slash_command_policy = build_slash_command_policy(
             control_command_policy.admin_users.clone(),

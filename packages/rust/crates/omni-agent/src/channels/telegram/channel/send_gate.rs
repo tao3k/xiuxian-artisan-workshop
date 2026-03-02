@@ -2,9 +2,11 @@ use anyhow::{Context, Result, bail};
 use redis::FromRedisValue;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
+use xiuxian_macros::env_non_empty;
 
 use crate::config::load_runtime_settings;
+use crate::env_parse::resolve_valkey_url_env;
 
 const TELEGRAM_SEND_GATE_KEY_PREFIX_ENV: &str =
     "OMNI_AGENT_TELEGRAM_SEND_RATE_LIMIT_GATE_KEY_PREFIX";
@@ -33,7 +35,8 @@ pub(super) struct ValkeyTelegramSendRateLimitBackend {
     client: redis::Client,
     rate_key: String,
     spread_key: String,
-    connection: Arc<Mutex<Option<redis::aio::MultiplexedConnection>>>,
+    connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+    reconnect_lock: Arc<Mutex<()>>,
 }
 
 impl TelegramSendRateLimitBackend {
@@ -95,7 +98,7 @@ impl TelegramSendRateLimitRuntimeConfig {
             .session
             .valkey_url
             .clone()
-            .or_else(|| non_empty_env("VALKEY_URL"))
+            .or_else(resolve_valkey_url_env)
             .as_deref()
             .and_then(non_empty_string);
 
@@ -125,7 +128,8 @@ impl ValkeyTelegramSendRateLimitBackend {
             client,
             rate_key: format!("{trimmed_prefix}:rate_limit"),
             spread_key: format!("{trimmed_prefix}:spread_slot"),
-            connection: Arc::new(Mutex::new(None)),
+            connection: Arc::new(RwLock::new(None)),
+            reconnect_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -213,13 +217,9 @@ return ttl
     {
         let mut last_err: Option<anyhow::Error> = None;
         for attempt in 0..2 {
-            let mut conn_guard = self.connection.lock().await;
-            self.ensure_connection(&mut conn_guard).await?;
-            let conn = conn_guard.as_mut().ok_or_else(|| {
-                anyhow::anyhow!("telegram send gate valkey connection unavailable")
-            })?;
+            let mut conn = self.acquire_connection().await?;
             let cmd = build();
-            let result: redis::RedisResult<T> = cmd.query_async(conn).await;
+            let result: redis::RedisResult<T> = cmd.query_async(&mut conn).await;
             match result {
                 Ok(value) => {
                     if attempt > 0 {
@@ -240,7 +240,7 @@ return ttl
                         error = %error,
                         "telegram send gate valkey command failed; reconnecting"
                     );
-                    *conn_guard = None;
+                    self.invalidate_connection().await;
                     last_err = Some(
                         anyhow::anyhow!(error).context("telegram send gate valkey command failed"),
                     );
@@ -252,33 +252,41 @@ return ttl
         }))
     }
 
-    async fn ensure_connection(
-        &self,
-        connection: &mut Option<redis::aio::MultiplexedConnection>,
-    ) -> Result<()> {
-        if connection.is_some() {
-            return Ok(());
+    async fn acquire_connection(&self) -> Result<redis::aio::MultiplexedConnection> {
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
         }
-        *connection = Some(
-            self.client
-                .get_multiplexed_async_connection()
-                .await
-                .context("failed to open valkey connection for telegram send gate")?,
-        );
+
+        let _reconnect_guard = self.reconnect_lock.lock().await;
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
+        }
+
+        let connection = self
+            .client
+            .get_multiplexed_async_connection()
+            .await
+            .context("failed to open valkey connection for telegram send gate")?;
+        {
+            let mut guard = self.connection.write().await;
+            *guard = Some(connection.clone());
+        }
         tracing::debug!(
             event = "telegram.send_gate.valkey.connected",
             rate_key = %self.rate_key,
             "telegram send gate valkey backend connected"
         );
-        Ok(())
+        Ok(connection)
+    }
+
+    async fn invalidate_connection(&self) {
+        let mut guard = self.connection.write().await;
+        *guard = None;
     }
 }
 
 fn non_empty_env(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .as_deref()
-        .and_then(non_empty_string)
+    env_non_empty!(name)
 }
 
 fn non_empty_string(value: &str) -> Option<String> {

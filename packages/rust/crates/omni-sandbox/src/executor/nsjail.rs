@@ -13,7 +13,6 @@ use super::SandboxExecutor;
 use super::execute_with_limits;
 
 /// Nsjail-specific configuration (from JSON export)
-#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct NsJailJsonConfig {
     pub name: String,
@@ -47,13 +46,24 @@ pub struct NsJailJsonConfig {
     #[serde(default)]
     pub log: String,
     #[serde(default)]
-    pub clone_newnet: bool,
+    pub clone_newnet: BoolFlag,
     #[serde(default)]
-    pub clone_newuser: bool,
+    pub clone_newuser: BoolFlag,
     #[serde(default)]
-    pub clone_newpid: bool,
+    pub clone_newpid: BoolFlag,
     #[serde(default)]
-    pub clone_newns: bool,
+    pub clone_newns: BoolFlag,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Default)]
+#[serde(transparent)]
+pub struct BoolFlag(bool);
+
+impl BoolFlag {
+    #[must_use]
+    pub const fn is_enabled(self) -> bool {
+        self.0
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -87,10 +97,9 @@ impl NsJailExecutor {
     }
 
     /// Get executor name
-    #[allow(clippy::unused_self)]
     #[must_use]
     pub fn name(&self) -> &'static str {
-        "nsjail"
+        <Self as SandboxExecutor>::name(self)
     }
 }
 
@@ -181,16 +190,16 @@ impl SandboxExecutor for NsJailExecutor {
         }
 
         // Network namespaces
-        if config.clone_newnet {
+        if config.clone_newnet.is_enabled() {
             cmd.arg("--clone_newnet");
         }
-        if config.clone_newuser {
+        if config.clone_newuser.is_enabled() {
             cmd.arg("--clone_newuser");
         }
-        if config.clone_newpid {
+        if config.clone_newpid.is_enabled() {
             cmd.arg("--clone_newpid");
         }
-        if config.clone_newns {
+        if config.clone_newns.is_enabled() {
             cmd.arg("--clone_newns");
         }
 

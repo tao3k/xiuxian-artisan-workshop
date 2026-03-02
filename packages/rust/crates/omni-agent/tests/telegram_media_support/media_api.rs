@@ -1,48 +1,15 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Test coverage for omni-agent behavior.
 
 use std::sync::Arc;
 
 use anyhow::Result;
 use tokio::sync::Mutex;
 
+#[path = "media_api/markdown_fallback.rs"]
 mod markdown_fallback;
+#[path = "media_api/routing.rs"]
 mod routing;
+#[path = "media_api/server_bootstrap.rs"]
 mod server_bootstrap;
 use server_bootstrap::spawn_media_api_server;
 
@@ -106,3 +73,25 @@ pub async fn spawn_mock_telegram_media_api_with_markdown_error(
     spawn_mock_telegram_media_api_with_group_failure_and_markdown_error(0, first_markdown_error)
         .await
 }
+
+fn lint_symbol_probe() {
+    let _ = spawn_mock_telegram_media_api;
+    let _ = spawn_mock_telegram_media_api_with_group_failure;
+    let _ = spawn_mock_telegram_media_api_with_group_failure_and_markdown_error;
+    let _ = spawn_mock_telegram_media_api_with_markdown_error;
+
+    let media_call = MediaCall {
+        method: String::new(),
+        payload: serde_json::Value::Null,
+    };
+    let _ = (&media_call.method, &media_call.payload);
+
+    let state = MockTelegramMediaState::default();
+    let _ = (
+        &state.calls,
+        &state.fail_send_media_group_remaining,
+        &state.first_markdown_error,
+    );
+}
+
+const _: fn() = lint_symbol_probe;

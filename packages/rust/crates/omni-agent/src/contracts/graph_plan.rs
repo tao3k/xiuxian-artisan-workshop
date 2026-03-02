@@ -2,247 +2,138 @@ use serde::{Deserialize, Serialize};
 
 use super::{OmegaFallbackPolicy, OmegaRoute};
 
-/// Explicit workflow bridge mode used by graph shortcut execution.
+const SUPPORTED_FALLBACK_ACTIONS: &[&str] = &[
+    "abort",
+    "retry_react",
+    "route_to_react",
+    "retry_bridge_without_metadata",
+];
+
+/// Workflow mode for deterministic graph-plan execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GraphWorkflowMode {
+    /// Direct graph execution.
     Graph,
+    /// Graph execution orchestrated by omega reasoning.
     Omega,
 }
 
-impl GraphWorkflowMode {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Graph => "graph",
-            Self::Omega => "omega",
-        }
-    }
-}
-
-/// Deterministic graph-plan step type.
+/// Deterministic graph-plan step kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GraphPlanStepKind {
+    /// Prepare context/injection metadata for graph tool call.
     PrepareInjectionContext,
+    /// Invoke the selected graph bridge tool.
     InvokeGraphTool,
+    /// Evaluate fallback action after bridge invocation.
     EvaluateFallback,
 }
 
-/// One graph-plan step in execution order.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// One step in deterministic graph execution plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GraphPlanStep {
+    /// One-based step index in execution order.
     pub index: u8,
+    /// Stable step identifier.
     pub id: String,
+    /// Step kind in the graph-plan lifecycle.
     pub kind: GraphPlanStepKind,
+    /// Human-readable description for diagnostics and audits.
     pub description: String,
+    /// Tool name for invocation steps.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_name: Option<String>,
+    /// Fallback action for fallback-evaluation steps.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fallback_action: Option<String>,
 }
 
-/// Deterministic plan contract produced by Rust graph planner.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Deterministic graph execution plan contract.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GraphExecutionPlan {
-    /// Stable plan identifier for traceability and replay.
+    /// Stable plan identifier.
     pub plan_id: String,
-    /// Contract version.
+    /// Plan contract version.
     pub plan_version: String,
-    /// Route selected by governance for this plan.
+    /// Route selected for this deterministic plan.
     pub route: OmegaRoute,
-    /// Workflow mode (`graph` / `omega`) that generated this plan.
+    /// Workflow mode used for this plan.
     pub workflow_mode: GraphWorkflowMode,
-    /// Primary MCP bridge tool to execute.
+    /// Primary graph tool invoked by this plan.
     pub tool_name: String,
-    /// Fallback policy tied to the route decision.
+    /// Fallback policy to apply on execution failure.
     pub fallback_policy: OmegaFallbackPolicy,
     /// Ordered deterministic execution steps.
     pub steps: Vec<GraphPlanStep>,
 }
 
 impl GraphExecutionPlan {
-    /// Validate deterministic shortcut-plan contract invariants.
-    ///
-    /// This is shared by planner/executor so generation and consumption follow
-    /// the same schema-level guarantees.
+    /// Validate deterministic v1 graph-plan contract.
     ///
     /// # Errors
-    /// Returns an error string when any graph-plan contract invariant is violated.
-    pub fn validate_shortcut_contract(&self) -> std::result::Result<(), String> {
-        self.validate_plan_metadata()?;
-        let ordered = self.collect_ordered_steps()?;
-        self.validate_step_kinds(&ordered)?;
-        self.validate_prepare_step(ordered[0])?;
-        self.validate_invoke_step(ordered[1])?;
-        self.validate_fallback_step(ordered[2])
-    }
-
-    fn validate_plan_metadata(&self) -> std::result::Result<(), String> {
-        if self.plan_id.trim().is_empty() {
-            return Err("graph plan has empty plan_id".to_string());
-        }
+    /// Returns an error when step ordering, kinds, or fallback action violates the contract.
+    pub fn validate_shortcut_contract(&self) -> Result<(), String> {
         if self.plan_version != "v1" {
             return Err(format!(
-                "graph plan `{}` has unsupported plan_version `{}` (expected `v1`)",
-                self.plan_id, self.plan_version
+                "unsupported graph plan version `{}` (expected `v1`)",
+                self.plan_version
             ));
         }
-        if self.tool_name.trim().is_empty() {
-            return Err(format!("graph plan `{}` has empty tool_name", self.plan_id));
+        if self.plan_id.trim().is_empty() {
+            return Err("graph plan id must be non-empty".to_string());
         }
         if self.steps.len() != 3 {
             return Err(format!(
-                "graph plan `{}` must contain exactly 3 steps, found {}",
-                self.plan_id,
+                "graph plan must contain exactly 3 steps (got {})",
                 self.steps.len()
             ));
         }
-        Ok(())
-    }
 
-    fn collect_ordered_steps(&self) -> std::result::Result<[&GraphPlanStep; 3], String> {
-        let mut ordered: Vec<&GraphPlanStep> = self.steps.iter().collect();
+        let mut ordered = self.steps.iter().collect::<Vec<_>>();
         ordered.sort_by_key(|step| step.index);
-        for (idx, step) in ordered.iter().enumerate() {
-            let expected = u8::try_from(idx.saturating_add(1)).map_err(|_| {
-                format!(
-                    "graph plan `{}` contains step index overflow at position {}",
-                    self.plan_id,
-                    idx.saturating_add(1)
-                )
-            })?;
-            if step.index != expected {
-                return Err(format!(
-                    "graph plan `{}` step ordering is invalid: expected index {}, found {}",
-                    self.plan_id, expected, step.index
-                ));
-            }
-            if step.id.trim().is_empty() {
-                return Err(format!(
-                    "graph plan `{}` step {} has empty id",
-                    self.plan_id, step.index
-                ));
-            }
-            if step.description.trim().is_empty() {
-                return Err(format!(
-                    "graph plan `{}` step {} has empty description",
-                    self.plan_id, step.index
-                ));
-            }
+
+        if ordered[0].index != 1 || ordered[1].index != 2 || ordered[2].index != 3 {
+            return Err("step ordering is invalid: expected consecutive indices 1..=3".to_string());
         }
 
-        let [prepare, invoke, fallback] = ordered
-            .try_into()
-            .map_err(|_| format!("graph plan `{}` must contain exactly 3 steps", self.plan_id))?;
-        Ok([prepare, invoke, fallback])
-    }
+        if ordered[0].kind != GraphPlanStepKind::PrepareInjectionContext {
+            return Err(
+                "step ordering is invalid: step 1 must be prepare_injection_context".to_string(),
+            );
+        }
+        if ordered[1].kind != GraphPlanStepKind::InvokeGraphTool {
+            return Err("step ordering is invalid: step 2 must be invoke_graph_tool".to_string());
+        }
+        if ordered[2].kind != GraphPlanStepKind::EvaluateFallback {
+            return Err("step ordering is invalid: step 3 must be evaluate_fallback".to_string());
+        }
 
-    fn validate_step_kinds(
-        &self,
-        ordered: &[&GraphPlanStep; 3],
-    ) -> std::result::Result<(), String> {
-        let expected_kinds = [
-            GraphPlanStepKind::PrepareInjectionContext,
-            GraphPlanStepKind::InvokeGraphTool,
-            GraphPlanStepKind::EvaluateFallback,
-        ];
-        for (idx, step) in ordered.iter().enumerate() {
-            let expected_kind = expected_kinds[idx];
-            if step.kind != expected_kind {
-                return Err(format!(
-                    "graph plan `{}` step {} kind is invalid: expected `{}`, found `{}`",
-                    self.plan_id,
-                    step.index,
-                    expected_kind.as_str(),
-                    step.kind.as_str()
-                ));
-            }
+        if ordered[0].tool_name.is_some() || ordered[0].fallback_action.is_some() {
+            return Err(
+                "prepare_injection_context step must not define tool/fallback fields".into(),
+            );
         }
-        Ok(())
-    }
+        if ordered[1].tool_name.as_deref().is_none_or(str::is_empty) {
+            return Err("invoke_graph_tool step must define non-empty tool_name".into());
+        }
+        if ordered[1].fallback_action.is_some() {
+            return Err("invoke_graph_tool step must not define fallback_action".into());
+        }
 
-    fn validate_prepare_step(&self, step: &GraphPlanStep) -> std::result::Result<(), String> {
-        if step.tool_name.is_some() {
-            return Err(format!(
-                "graph plan `{}` prepare step must not set tool_name",
-                self.plan_id
-            ));
-        }
-        if step.fallback_action.is_some() {
-            return Err(format!(
-                "graph plan `{}` prepare step must not set fallback_action",
-                self.plan_id
-            ));
-        }
-        Ok(())
-    }
-
-    fn validate_invoke_step(&self, step: &GraphPlanStep) -> std::result::Result<(), String> {
-        let invoke_tool = step
-            .tool_name
-            .as_deref()
-            .unwrap_or(self.tool_name.as_str())
-            .trim();
-        if invoke_tool.is_empty() {
-            return Err(format!(
-                "graph plan `{}` invoke step has empty tool_name",
-                self.plan_id
-            ));
-        }
-        if step.fallback_action.is_some() {
-            return Err(format!(
-                "graph plan `{}` invoke step must not set fallback_action",
-                self.plan_id
-            ));
-        }
-        Ok(())
-    }
-
-    fn validate_fallback_step(&self, step: &GraphPlanStep) -> std::result::Result<(), String> {
-        if step.tool_name.is_some() {
-            return Err(format!(
-                "graph plan `{}` fallback step must not set tool_name",
-                self.plan_id
-            ));
-        }
-        let fallback_action = step.fallback_action.as_deref().map(str::trim);
-        let Some(fallback_action) = fallback_action else {
-            return Err(format!(
-                "graph plan `{}` fallback step missing fallback_action",
-                self.plan_id
-            ));
+        let Some(fallback_action) = ordered[2].fallback_action.as_deref() else {
+            return Err("evaluate_fallback step must define fallback_action".into());
         };
-        if fallback_action.is_empty() {
+        if !SUPPORTED_FALLBACK_ACTIONS.contains(&fallback_action) {
             return Err(format!(
-                "graph plan `{}` fallback step has empty fallback_action",
-                self.plan_id
+                "unsupported fallback_action `{fallback_action}` in evaluate_fallback step"
             ));
         }
-        if !is_supported_fallback_action(fallback_action) {
-            return Err(format!(
-                "graph plan `{}` fallback step has unsupported fallback_action `{}`",
-                self.plan_id, fallback_action
-            ));
+        if ordered[2].tool_name.is_some() {
+            return Err("evaluate_fallback step must not define tool_name".into());
         }
+
         Ok(())
     }
-}
-
-impl GraphPlanStepKind {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::PrepareInjectionContext => "prepare_injection_context",
-            Self::InvokeGraphTool => "invoke_graph_tool",
-            Self::EvaluateFallback => "evaluate_fallback",
-        }
-    }
-}
-
-fn is_supported_fallback_action(action: &str) -> bool {
-    matches!(
-        action,
-        "abort" | "retry_bridge_without_metadata" | "route_to_react"
-    )
 }

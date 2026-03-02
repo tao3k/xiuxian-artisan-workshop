@@ -16,8 +16,7 @@ pub(super) struct TelegramApiError {
 }
 
 impl TelegramApiError {
-    #[allow(clippy::needless_pass_by_value)]
-    pub(super) fn from_reqwest(err: reqwest::Error) -> Self {
+    pub(super) fn from_reqwest(err: &reqwest::Error) -> Self {
         let body = if err.is_timeout() {
             format!("timed out: {err}")
         } else {

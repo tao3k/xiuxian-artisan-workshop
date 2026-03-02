@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "<Experiment Title>"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - "<domain>"
 saliency_base: 5.5
 decay_rate: 0.04
+metadata:
+  title: "<Experiment Title>"
 ---
 
 # <Experiment Title>

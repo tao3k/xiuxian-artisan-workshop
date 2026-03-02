@@ -1,24 +1,21 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
+fn run_attachments_query(
+    root: &Path,
+    args: &[&str],
+    context: &str,
+) -> Result<Value, Box<dyn std::error::Error>> {
+    let output = wendao_cmd()
+        .arg("--root")
+        .arg(root)
+        .arg("attachments")
+        .args(args)
+        .output()?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{context}: {stderr}");
+    let stdout = String::from_utf8(output.stdout)?;
+    Ok(serde_json::from_str(&stdout)?)
+}
 #[test]
 fn test_wendao_attachments_search_filters_by_ext_and_kind() -> Result<(), Box<dyn std::error::Error>>
 {
@@ -32,21 +29,11 @@ fn test_wendao_attachments_search_filters_by_ext_and_kind() -> Result<(), Box<dy
         "# Beta\n\n![Photo](assets/photo.jpg)\n",
     )?;
 
-    let image_output = wendao_cmd()
-        .arg("--root")
-        .arg(tmp.path())
-        .arg("attachments")
-        .arg("--kind")
-        .arg("image")
-        .arg("--limit")
-        .arg("10")
-        .output()?;
-    assert!(
-        image_output.status.success(),
-        "wendao attachments --kind image failed: {}",
-        String::from_utf8_lossy(&image_output.stderr)
-    );
-    let image_payload: Value = serde_json::from_str(&String::from_utf8(image_output.stdout)?)?;
+    let image_payload = run_attachments_query(
+        tmp.path(),
+        &["--kind", "image", "--limit", "10"],
+        "wendao attachments --kind image failed",
+    )?;
     let image_hits = image_payload
         .get("hits")
         .and_then(Value::as_array)
@@ -67,21 +54,11 @@ fn test_wendao_attachments_search_filters_by_ext_and_kind() -> Result<(), Box<dy
             .any(|row| { row.get("attachment_ext").and_then(Value::as_str) == Some("jpg") })
     );
 
-    let pdf_output = wendao_cmd()
-        .arg("--root")
-        .arg(tmp.path())
-        .arg("attachments")
-        .arg("--ext")
-        .arg("pdf")
-        .arg("--limit")
-        .arg("10")
-        .output()?;
-    assert!(
-        pdf_output.status.success(),
-        "wendao attachments --ext pdf failed: {}",
-        String::from_utf8_lossy(&pdf_output.stderr)
-    );
-    let pdf_payload: Value = serde_json::from_str(&String::from_utf8(pdf_output.stdout)?)?;
+    let pdf_payload = run_attachments_query(
+        tmp.path(),
+        &["--ext", "pdf", "--limit", "10"],
+        "wendao attachments --ext pdf failed",
+    )?;
     let pdf_hits = pdf_payload
         .get("hits")
         .and_then(Value::as_array)
@@ -104,21 +81,11 @@ fn test_wendao_attachments_search_normalizes_file_scheme_targets()
         "# Alpha\n\n[Absolute](/tmp/manual.pdf)\n[FileUri](file:///tmp/manual-2.pdf)\n",
     )?;
 
-    let output = wendao_cmd()
-        .arg("--root")
-        .arg(tmp.path())
-        .arg("attachments")
-        .arg("--ext")
-        .arg("pdf")
-        .arg("--limit")
-        .arg("10")
-        .output()?;
-    assert!(
-        output.status.success(),
-        "wendao attachments file targets failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let payload: Value = serde_json::from_str(&String::from_utf8(output.stdout)?)?;
+    let payload = run_attachments_query(
+        tmp.path(),
+        &["--ext", "pdf", "--limit", "10"],
+        "wendao attachments file targets failed",
+    )?;
     let hits = payload
         .get("hits")
         .and_then(Value::as_array)

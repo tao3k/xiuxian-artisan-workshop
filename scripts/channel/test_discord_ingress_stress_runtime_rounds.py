@@ -14,6 +14,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 module = importlib.import_module("discord_ingress_stress_runtime_rounds")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_collect_log_stats_counts_expected_markers() -> None:
@@ -36,7 +37,7 @@ def test_run_worker_aggregates_status_classes() -> None:
     cfg = SimpleNamespace(
         requests_per_worker=3,
         prompt="stress",
-        ingress_url="http://127.0.0.1:18082/discord/ingress",
+        ingress_url=endpoints.discord_ingress_url(),
         secret_token="secret",
         timeout_secs=0.2,
     )

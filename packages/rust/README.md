@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Rust Crates for Omni-Dev-Fusion"
+---
+
 # Rust Crates for Omni-Dev-Fusion
 
 > Rust Workspace - Managed from project root `Cargo.toml`

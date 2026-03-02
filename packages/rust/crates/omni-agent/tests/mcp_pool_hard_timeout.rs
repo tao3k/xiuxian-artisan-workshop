@@ -1,41 +1,3 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
-
 //! MCP pool hard-timeout smoke tests for omni-agent MCP facade.
 //!
 //! Detailed timeout and timeout-budget behavior lives in
@@ -66,20 +28,20 @@ impl ServerHandler for HangingMcpServer {
         }
     }
 
-    fn list_tools(
+    async fn list_tools(
         &self,
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListToolsResult, ErrorData>> + Send + '_ {
-        async move { pending::<Result<ListToolsResult, ErrorData>>().await }
+    ) -> Result<ListToolsResult, ErrorData> {
+        pending::<Result<ListToolsResult, ErrorData>>().await
     }
 
-    fn call_tool(
+    async fn call_tool(
         &self,
         _request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<CallToolResult, ErrorData>> + Send + '_ {
-        async move { pending::<Result<CallToolResult, ErrorData>>().await }
+    ) -> Result<CallToolResult, ErrorData> {
+        pending::<Result<CallToolResult, ErrorData>>().await
     }
 }
 
@@ -95,19 +57,24 @@ async fn spawn_hanging_server(addr: std::net::SocketAddr) -> tokio::task::JoinHa
             },
         );
     let router = Router::new().nest_service("/sse", service);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind hanging mcp listener");
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => listener,
+        Err(error) => panic!("bind hanging mcp listener: {error}"),
+    };
     tokio::spawn(async move {
         let _ = axum::serve(listener, router).await;
     })
 }
 
 async fn reserve_local_addr() -> std::net::SocketAddr {
-    let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+    let probe = match tokio::net::TcpListener::bind("127.0.0.1:0").await {
+        Ok(listener) => listener,
+        Err(error) => panic!("reserve local addr: {error}"),
+    };
+    let addr = match probe.local_addr() {
+        Ok(addr) => addr,
+        Err(error) => panic!("read reserved local addr: {error}"),
+    };
     drop(probe);
     addr
 }
@@ -128,15 +95,16 @@ async fn mcp_pool_list_tools_hard_timeout_returns_promptly() {
     let addr = reserve_local_addr().await;
     let server = spawn_hanging_server(addr).await;
     let url = format!("http://{addr}/sse");
-    let pool = connect_pool(&url, hard_timeout_test_config())
-        .await
-        .expect("connect pool");
+    let pool = connect_pool(&url, hard_timeout_test_config()).await;
+    let pool = match pool {
+        Ok(pool) => pool,
+        Err(error) => panic!("connect pool: {error}"),
+    };
 
     let started = Instant::now();
-    let error = pool
-        .list_tools(None)
-        .await
-        .expect_err("list_tools should timeout");
+    let Err(error) = pool.list_tools(None).await else {
+        panic!("list_tools should timeout");
+    };
     let elapsed = started.elapsed();
     let message = format!("{error:#}");
 

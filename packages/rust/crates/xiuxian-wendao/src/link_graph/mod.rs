@@ -44,8 +44,9 @@ pub use models::{
     LinkGraphPassage, LinkGraphPlannedSearchPayload, LinkGraphPprSubgraphMode,
     LinkGraphPromotedOverlayTelemetry, LinkGraphRelatedFilter, LinkGraphRelatedPprDiagnostics,
     LinkGraphRelatedPprOptions, LinkGraphRetrievalBudget, LinkGraphRetrievalMode,
-    LinkGraphRetrievalPlanRecord, LinkGraphScope, LinkGraphSearchFilters, LinkGraphSearchOptions,
-    LinkGraphSortField, LinkGraphSortOrder, LinkGraphSortTerm, LinkGraphStats, LinkGraphTagFilter,
+    LinkGraphRetrievalPlanInput, LinkGraphRetrievalPlanRecord, LinkGraphScope,
+    LinkGraphSearchFilters, LinkGraphSearchOptions, LinkGraphSortField, LinkGraphSortOrder,
+    LinkGraphSortTerm, LinkGraphStats, LinkGraphTagFilter,
 };
 pub use narrator::narrate_subgraph;
 pub use query::{ParsedLinkGraphQuery, parse_search_query};

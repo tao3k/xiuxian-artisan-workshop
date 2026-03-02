@@ -3,10 +3,10 @@
 //! Provides synchronous and asynchronous interfaces for consuming events
 //! from the Rust tokio broadcast channel.
 
-use omni_events::{EventBus, GLOBAL_BUS, OmniEvent};
 use pyo3::prelude::*;
 use serde_json::json;
 use std::sync::Arc;
+use xiuxian_event::{EventBus, GLOBAL_BUS, OmniEvent};
 
 fn millis_to_seconds_f64(millis: i64) -> f64 {
     millis.to_string().parse::<f64>().unwrap_or(0.0) / 1_000.0
@@ -162,41 +162,41 @@ pub fn publish_event(source: String, topic: String, payload_json: String) -> PyR
 #[pyfunction]
 /// Returns "file/changed" topic string
 pub fn topic_file_changed() -> String {
-    omni_events::topics::FILE_CHANGED.to_string()
+    xiuxian_event::topics::FILE_CHANGED.to_string()
 }
 
 /// Returns "file/created" topic string
 #[pyfunction]
 pub fn topic_file_created() -> String {
-    omni_events::topics::FILE_CREATED.to_string()
+    xiuxian_event::topics::FILE_CREATED.to_string()
 }
 
 /// Returns "file/deleted" topic string
 #[pyfunction]
 pub fn topic_file_deleted() -> String {
-    omni_events::topics::FILE_DELETED.to_string()
+    xiuxian_event::topics::FILE_DELETED.to_string()
 }
 
 /// Returns "agent/think" topic string
 #[pyfunction]
 pub fn topic_agent_think() -> String {
-    omni_events::topics::AGENT_THINK.to_string()
+    xiuxian_event::topics::AGENT_THINK.to_string()
 }
 
 /// Returns "agent/action" topic string
 #[pyfunction]
 pub fn topic_agent_action() -> String {
-    omni_events::topics::AGENT_ACTION.to_string()
+    xiuxian_event::topics::AGENT_ACTION.to_string()
 }
 
 /// Returns "agent/result" topic string
 #[pyfunction]
 pub fn topic_agent_result() -> String {
-    omni_events::topics::AGENT_RESULT.to_string()
+    xiuxian_event::topics::AGENT_RESULT.to_string()
 }
 
 /// Returns "system/ready" topic string
 #[pyfunction]
 pub fn topic_system_ready() -> String {
-    omni_events::topics::SYSTEM_READY.to_string()
+    xiuxian_event::topics::SYSTEM_READY.to_string()
 }

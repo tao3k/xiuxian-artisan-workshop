@@ -1,9 +1,18 @@
+use std::time::Instant;
+
+use crate::agent::Agent;
+use crate::session::ChatMessage;
+use omni_tokenizer::count_tokens;
+
 use super::super::types::{MemoryRecallPlanContext, MemoryRecallTuning};
-#[allow(clippy::wildcard_imports)]
-use super::super::*;
+use crate::agent::memory_recall::{
+    MemoryRecallInput, estimate_messages_tokens, plan_memory_recall,
+};
+use crate::agent::memory_recall_feedback::apply_feedback_to_plan;
+use crate::observability::SessionEvent;
 
 impl Agent {
-    pub(super) async fn build_memory_recall_plan_context(
+    pub(super) fn build_memory_recall_plan_context(
         &self,
         session_id: &str,
         user_message: &str,
@@ -29,7 +38,7 @@ impl Agent {
             window_max_turns: self.config.window_max_turns,
             summary_segment_count,
         });
-        let recall_feedback_bias = self.recall_feedback_bias(session_id).await;
+        let recall_feedback_bias = self.recall_feedback_bias(session_id);
         let recall_plan = apply_feedback_to_plan(recall_plan, recall_feedback_bias);
 
         tracing::debug!(

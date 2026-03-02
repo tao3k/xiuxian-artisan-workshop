@@ -35,7 +35,7 @@ impl PyPersonaRegistry {
     pub fn get(&self, id: &str) -> Option<PyPersonaProfile> {
         self.inner
             .get(id)
-            .map(|p| PyPersonaProfile { inner: p.clone() })
+            .map(|profile| PyPersonaProfile { inner: profile })
     }
 }
 

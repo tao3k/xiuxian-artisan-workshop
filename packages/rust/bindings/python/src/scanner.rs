@@ -9,12 +9,12 @@
 //! Enhanced with PySkillScanner for configurable scanning.
 
 use crate::vector::PyToolRecord;
-use omni_scanner::{
+use pyo3::prelude::*;
+use std::path::Path;
+use xiuxian_skills::{
     IndexToolEntry, SkillMetadata, SkillScanner as OmniSkillScanner, SkillStructure, ToolRecord,
     ToolsScanner as OmniToolsScanner, calculate_sync_ops,
 };
-use pyo3::prelude::*;
-use std::path::Path;
 
 /// Python wrapper for SkillMetadata
 #[pyclass]
@@ -382,8 +382,8 @@ pub struct PySyncReport {
     pub unchanged_count: usize,
 }
 
-impl From<omni_scanner::SyncReport> for PySyncReport {
-    fn from(report: omni_scanner::SyncReport) -> Self {
+impl From<xiuxian_skills::SyncReport> for PySyncReport {
+    fn from(report: xiuxian_skills::SyncReport) -> Self {
         Self {
             added: report.added.into_iter().map(Into::into).collect(),
             updated: report.updated.into_iter().map(Into::into).collect(),

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Agent Native Development Guide"
+---
+
 # Agent Native Development Guide
 
 > **Code is Mechanism, Prompt is Policy**
@@ -232,7 +238,7 @@ Result: LLM "sees" git status without tool calls.
 
 ### Dynamic Skill Loading
 
-Skills are configured in `packages/conf/settings.yaml` and `packages/conf/skills.yaml` (user overrides: `$PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml`):
+Skills are configured in `packages/conf/settings.yaml` and `packages/conf/skills.yaml` (user overrides: `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml`):
 
 ```yaml
 skills:
@@ -352,7 +358,7 @@ We migrated from `commit_flow.py` (old pattern) to `skill_registry.py` + `SKILL.
 | **Control**        | Python scripts call LLM        | LLM is the runtime master      |
 | **Business Logic** | Hardcoded in Python            | Defined in SKILL.md            |
 | **Flexibility**    | Restart required for changes   | LLM learns immediately         |
-| **Complexity**     | LangGraph state machines       | Atomic tools + dynamic routing |
+| **Complexity**     | Legacy graph state machines    | Atomic tools + dynamic routing |
 
 ### Key Lessons
 
@@ -398,7 +404,7 @@ def analyze_commit():
 **The Anti-Pattern (Old):**
 
 ```python
-# LangGraph state machine - overkill for simple operations
+# Legacy graph state machine - overkill for simple operations
 state_graph = StateGraph(CommitState)
 state_graph.add_node("analyze", node_analyze)
 state_graph.add_node("confirm", node_confirm)

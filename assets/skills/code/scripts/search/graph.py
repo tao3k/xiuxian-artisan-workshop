@@ -1,74 +1,67 @@
 """
-Interactive Search Graph - LangGraph Workflow
+Interactive Search Graph - Native Workflow Runtime.
 
-Orchestrates parallel search execution with:
+Orchestrates strategy-aware search execution with:
 - Intent classification for strategy selection
-- Parallel AST/Vector/Grep execution
+- AST/Vector/Grep execution with per-node gating
 - Result synthesis and XML formatting
-- State persistence via Checkpoint (for future time-travel)
+- Optional checkpoint handle injection
 """
 
 from datetime import datetime
 from typing import Any
 
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, StateGraph
+from omni.tracer.pipeline_checkpoint import compile_workflow
+from omni.tracer.workflow_engine import END_NODE, NativeStateGraph
 
 from .nodes import classifier, engines, formatter
 from .state import SearchGraphState
 
 
-def create_search_graph() -> StateGraph:
-    """Create the Interactive Search Graph.
+def _gated_ast_search(state: SearchGraphState) -> dict[str, Any]:
+    """Execute AST engine only when selected by classifier."""
+    strategies = state.get("strategies", [])
+    if "ast" not in strategies:
+        return {}
+    return engines.node_run_ast_search(state)
 
-    Flow:
-        Input -> Classify -> Parallel Exec -> Synthesize -> Output
-                      |              |
-                      +-> AST ------+
-                      +-> Vector ----+
-                      +-> Grep ------+
-    """
-    # Create the state graph
-    workflow = StateGraph(SearchGraphState)
+
+def _gated_vector_search(state: SearchGraphState) -> dict[str, Any]:
+    """Execute vector engine only when selected by classifier."""
+    strategies = state.get("strategies", [])
+    if "vector" not in strategies:
+        return {}
+    return engines.node_run_vector_search(state)
+
+
+def _gated_grep_search(state: SearchGraphState) -> dict[str, Any]:
+    """Execute grep engine only when selected by classifier."""
+    strategies = state.get("strategies", [])
+    if "grep" not in strategies:
+        return {}
+    return engines.node_run_grep_search(state)
+
+
+def create_search_graph() -> NativeStateGraph:
+    """Create the interactive native search graph."""
+    workflow = NativeStateGraph(SearchGraphState)
 
     # Add nodes
     workflow.add_node("classify", classifier.classify_intent)
-    workflow.add_node("run_ast", engines.node_run_ast_search)
-    workflow.add_node("run_vector", engines.node_run_vector_search)
-    workflow.add_node("run_grep", engines.node_run_grep_search)
+    workflow.add_node("run_ast", _gated_ast_search)
+    workflow.add_node("run_vector", _gated_vector_search)
+    workflow.add_node("run_grep", _gated_grep_search)
     workflow.add_node("synthesize", formatter.synthesize_results)
 
     # Set entry point
     workflow.set_entry_point("classify")
 
-    # Classify -> Route to appropriate engines (parallel)
-    def route_after_classify(state: SearchGraphState) -> list[str]:
-        """Route to search engines based on classification."""
-        strategies = state.get("strategies", [])
-        branches = []
-        if "ast" in strategies:
-            branches.append("run_ast")
-        if "vector" in strategies:
-            branches.append("run_vector")
-        if "grep" in strategies:
-            branches.append("run_grep")
-
-        # Fallback to vector if no strategies
-        if not branches:
-            branches.append("run_vector")
-
-        return branches
-
-    workflow.add_conditional_edges(
-        "classify", route_after_classify, ["run_ast", "run_vector", "run_grep"]
-    )
-
-    # Parallel branches -> Synthesize
-    for node in ["run_ast", "run_vector", "run_grep"]:
-        workflow.add_edge(node, "synthesize")
-
-    # Synthesize -> END
-    workflow.add_edge("synthesize", END)
+    # Sequential execution with gating wrappers.
+    workflow.add_edge("classify", "run_ast")
+    workflow.add_edge("run_ast", "run_vector")
+    workflow.add_edge("run_vector", "run_grep")
+    workflow.add_edge("run_grep", "synthesize")
+    workflow.add_edge("synthesize", END_NODE)
 
     return workflow
 
@@ -89,11 +82,11 @@ def create_initial_state(query: str, thread_id: str = "default") -> SearchGraphS
 
 
 # Global search graph state (lazily initialized).
-_search_graph: StateGraph | None = None
+_search_graph: NativeStateGraph | None = None
 _compiled_search_graph: Any | None = None
 
 
-def get_search_graph() -> StateGraph:
+def get_search_graph() -> NativeStateGraph:
     """Get or create the compiled search graph."""
     global _search_graph
     if _search_graph is None:
@@ -103,11 +96,11 @@ def get_search_graph() -> StateGraph:
 
 
 def get_compiled_search_graph() -> Any:
-    """Get or create the compiled search graph with in-memory checkpointing."""
+    """Get or create the compiled search graph with checkpoint support."""
     global _compiled_search_graph
     if _compiled_search_graph is None:
         graph = get_search_graph()
-        _compiled_search_graph = graph.compile(checkpointer=MemorySaver())
+        _compiled_search_graph = compile_workflow(graph, use_memory_saver=True)
     return _compiled_search_graph
 
 

@@ -1,5 +1,5 @@
 """
-logging.py - Pretty Console Output for OmniLoop
+logging.py - Pretty Console Output for ReAct execution
 
 Provides clean, human-readable logging for tool execution:
 - Smart truncation: Shows a one-line preview for large content

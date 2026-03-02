@@ -32,12 +32,16 @@ pub(crate) async fn run_channel_command(
     req: ChannelCommandRequest,
     runtime_settings: &RuntimeSettings,
 ) -> anyhow::Result<()> {
-    match req.provider {
-        ChannelProvider::Telegram => {
-            telegram::run_telegram_channel_command(req, runtime_settings).await
-        }
+    let command_future: std::pin::Pin<
+        Box<dyn std::future::Future<Output = anyhow::Result<()>> + Send + '_>,
+    > = match req.provider {
+        ChannelProvider::Telegram => Box::pin(telegram::run_telegram_channel_command(
+            req,
+            runtime_settings,
+        )),
         ChannelProvider::Discord => {
-            discord::run_discord_channel_command(req, runtime_settings).await
+            Box::pin(discord::run_discord_channel_command(req, runtime_settings))
         }
-    }
+    };
+    command_future.await
 }

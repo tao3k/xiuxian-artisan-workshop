@@ -1,4 +1,5 @@
 ---
+type: skill
 name: _template
 description: Template skill for creating new capabilities - demonstrates Trinity Architecture v4.0 with scripts/commands.py pattern.
 metadata:

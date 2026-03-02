@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Chunk Extraction"
+---
+
 # Chunk Extraction
 
 ## Overview

@@ -6,7 +6,7 @@ from .graph import build_graph
 @skill_command(
     name="robust_task",
     category="workflow",
-    description="Executes a robust task workflow with LangGraph and XML Q&A",
+    description="Executes a robust task workflow with native state-machine runtime and XML Q&A",
 )
 async def run_robust_task(request: str) -> str:
     """

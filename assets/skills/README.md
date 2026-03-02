@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Skills Directory"
+---
+
 # Skills Directory
 
 > @skill_command Pattern - No tools.py Required
@@ -181,5 +187,5 @@ metadata:
 ## Related Documentation
 
 - [Skill Standard](../../docs/human/architecture/skill-standard.md) - Living Skill Architecture
-- [Skill Lifecycle](../../docs/human/architecture/skill-lifecycle.md) - LangGraph workflow support
+- [Skill Lifecycle](../../docs/human/architecture/skill-lifecycle.md) - Workflow runtime support
 - [Trinity Architecture](../../docs/explanation/trinity-architecture.md) - Technical deep dive

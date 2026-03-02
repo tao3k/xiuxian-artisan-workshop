@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Session Summarization"
+---
+
 # Session Summarization
 
 ## Overview

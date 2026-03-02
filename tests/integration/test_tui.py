@@ -23,7 +23,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 AGENT_SRC = PROJECT_ROOT / "packages" / "python" / "agent" / "src"
 sys.path.append(str(AGENT_SRC))
 
-SOCKET_PATH = "/tmp/omni-tui-test.sock"
+SOCKET_PATH = "/tmp/xiuxian-tui-test.sock"
 
 
 def wait_for_socket(path: Path, timeout: float = 5.0) -> bool:
@@ -64,10 +64,10 @@ def test_socket_events():
 
     # Check if Rust TUI binary exists
     # Path relative to project root
-    tui_path = PROJECT_ROOT / "target" / "debug" / "omni-tui"
+    tui_path = PROJECT_ROOT / "target" / "debug" / "xiuxian-tui"
     if not tui_path.exists():
         print(f"[-] TUI binary not found at {tui_path}")
-        print("    Run: cd packages/rust/crates/omni-tui && cargo build")
+        print("    Run: cd packages/rust/crates/xiuxian-tui && cargo build")
         return False
 
     # Clean up existing socket
@@ -145,7 +145,7 @@ def test_tui_bridge():
     try:
         from omni.agent.cli.console import TUIBridge, init_tui, shutdown_tui
 
-        socket_path = "/tmp/omni-tui-bridge-test.sock"
+        socket_path = "/tmp/xiuxian-tui-bridge-test.sock"
 
         print(f"[*] Initializing TUI bridge on {socket_path}")
         init_tui(socket_path)

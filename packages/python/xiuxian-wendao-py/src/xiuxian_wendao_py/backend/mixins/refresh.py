@@ -161,11 +161,13 @@ class RefreshMixin:
             )
             raise RuntimeError("Wendao rust engine missing refresh API")
 
-        strategy = "full" if force_full or path_count >= threshold else "delta"
+        strategy = "full" if force_full else "delta"
         plan_reason = (
             "force_full"
             if force_full
-            else ("threshold_exceeded" if path_count >= threshold else "delta_requested")
+            else (
+                "threshold_exceeded_incremental" if path_count >= threshold else "delta_requested"
+            )
         )
         if strategy == "delta" and not has_delta_refresh:
             strategy = "full"

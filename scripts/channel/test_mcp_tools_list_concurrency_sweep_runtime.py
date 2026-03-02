@@ -17,6 +17,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 runtime = importlib.import_module("mcp_tools_list_concurrency_sweep_runtime")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_parse_concurrency_values_sorts_and_deduplicates() -> None:
@@ -50,7 +51,7 @@ def test_nearest_rank_percentile_handles_bounds() -> None:
 
 def test_build_markdown_includes_recommendation() -> None:
     markdown = runtime.build_markdown(
-        base_url="http://127.0.0.1:3002",
+        base_url=endpoints.http_url(3002),
         points=[
             SweepPoint(
                 concurrency=40,
@@ -83,7 +84,7 @@ def test_run_benchmark_collects_errors_and_percentiles() -> None:
     result = asyncio.run(
         runtime.run_benchmark(
             client=object(),
-            rpc_url="http://127.0.0.1:3002/",
+            rpc_url=f"{endpoints.http_url(3002)}/",
             total=6,
             concurrency=3,
             start_id=1,

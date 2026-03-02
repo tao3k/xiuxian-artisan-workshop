@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Omni-Agent Live Multi-Group Runbook"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - omni
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Omni-Agent Live Multi-Group Runbook"
 ---
 
 # Omni-Agent Live Multi-Group Runbook
@@ -127,7 +130,30 @@ Pass condition:
 - quality score is `100.0`
 - no reconstruction errors.
 
-## 6. Release Artifact Checklist
+## 6. Live ReAct Resilience & Memory Evolution Scenarios (Manual Validation)
+
+To prove that the features `R-01`, `R-02`, and `R-03` work in a real-world environment (like Telegram), execute the following manual test scenarios in your test groups.
+
+### Scenario A: Reflection-Driven Correction (R-01)
+
+1. **Trigger Error:** Send a message to the bot asking it to execute a tool with intentionally invalid or malformed parameters (e.g., asking it to read a file that doesn't exist using `file_read` but formatting the JSON terribly).
+2. **Observe Failure:** Wait for the bot to reply with a failure message or a hallucinated response.
+3. **Trigger Correction:** Immediately reply with: `"Try that again, but pay attention to the error you just made."`
+4. **Validation:** In the `.run/logs/omni-agent-webhook.log`, search for `agent.next_turn_hint`. You should see that `omni-memory` caught the previous failure, generated a reflection hint, and `xiuxian-qianhuan` successfully injected it into this second turn's prompt, causing the bot to correct its behavior.
+
+### Scenario B: ReAct Budget Pressure & Anchor Survival (R-02)
+
+1. **Trigger Token Explosion:** Send a message asking the bot to run a command that produces a massive output (e.g., `"Run the 'ls -R /' command or read the entire cargo.lock file and print it."`).
+2. **Observe Truncation:** The bot should reply, but it shouldn't crash or "forget who it is".
+3. **Validation:** Check the logs for `session.injection.snapshot_created`. Look at the `dropped_blocks` or `truncated_blocks` metrics. You should see that the massive tool output was truncated by `omni-window` to respect the `max_chars` budget, but the core XML tags like `<genesis_rules>` were preserved.
+
+### Scenario C: Dynamic Role-Mix Switching (R-03)
+
+1. **Trigger Recovery Mode:** Induce a severe failure (similar to Scenario A) that causes the tool loop to fail completely.
+2. **Observe Tone Shift:** In the very next interaction, ask the bot `"What happened?"`.
+3. **Validation:** The bot's response should shift from its normal helpful tone to a strict, analytical "Recovery/Debug" persona. In the logs, verify that Omega selected the `role_mix_profile=recovery` and Qianhuan injected it successfully.
+
+## 7. Release Artifact Checklist
 
 Attach these files to the release/test evidence set:
 

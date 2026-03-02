@@ -7,7 +7,6 @@ impl VectorStore {
     /// # Errors
     ///
     /// Returns an error if parent directories cannot be created.
-    #[allow(clippy::unused_async, clippy::collapsible_if)]
     pub async fn new(path: &str, dimension: Option<usize>) -> Result<Self, VectorStoreError> {
         let base_path = PathBuf::from(path);
         let memory_mode_id = if path == ":memory:" {
@@ -15,19 +14,20 @@ impl VectorStore {
         } else {
             None
         };
-        if path != ":memory:" {
-            // Only create the parent directory, not the table directory itself
-            // The table directory will be created when we actually write data
-            if let Some(parent) = base_path.parent() {
-                if !parent.exists() {
-                    std::fs::create_dir_all(parent)?;
-                }
-            }
+        if path != ":memory:"
+            && let Some(parent) = base_path.parent()
+            && !parent.exists()
+        {
+            // Only create the parent directory, not the table directory itself.
+            // The table directory will be created when we actually write data.
+            tokio::fs::create_dir_all(parent).await?;
         }
 
         Ok(Self {
             base_path,
-            datasets: Arc::new(Mutex::new(DatasetCache::new(DatasetCacheConfig::default()))),
+            datasets: Arc::new(RwLock::new(
+                DatasetCache::new(DatasetCacheConfig::default()),
+            )),
             dimension: dimension.unwrap_or(DEFAULT_DIMENSION),
             keyword_index: None,
             keyword_backend: KeywordSearchBackend::Tantivy,
@@ -49,7 +49,7 @@ impl VectorStore {
         cache_config: DatasetCacheConfig,
     ) -> Result<Self, VectorStoreError> {
         let mut store = Self::new(path, dimension).await?;
-        store.datasets = Arc::new(Mutex::new(DatasetCache::new(cache_config)));
+        store.datasets = Arc::new(RwLock::new(DatasetCache::new(cache_config)));
         Ok(store)
     }
 
@@ -91,7 +91,7 @@ impl VectorStore {
     ) -> Result<Self, VectorStoreError> {
         let mut store = Self::new(path, dimension).await?;
         if let Some(c) = cache_config {
-            store.datasets = Arc::new(Mutex::new(DatasetCache::new(c)));
+            store.datasets = Arc::new(RwLock::new(DatasetCache::new(c)));
         }
         store.keyword_backend = keyword_backend;
         store.index_cache_size_bytes = index_cache_size_bytes;
@@ -254,7 +254,6 @@ impl VectorStore {
     /// # Errors
     ///
     /// Returns an error in `:memory:` mode or when keyword index initialization fails.
-    #[allow(clippy::arc_with_non_send_sync)]
     pub fn enable_keyword_index(&mut self) -> Result<(), VectorStoreError> {
         if self.keyword_backend == KeywordSearchBackend::LanceFts {
             // Lance FTS path does not require in-memory Tantivy index object.
@@ -268,7 +267,7 @@ impl VectorStore {
                 "Cannot enable keyword index in memory mode".to_string(),
             ));
         }
-        self.keyword_index = Some(Arc::new(KeywordIndex::new(&self.base_path)?));
+        self.keyword_index = Some(Rc::new(KeywordIndex::new(&self.base_path)?));
         Ok(())
     }
 

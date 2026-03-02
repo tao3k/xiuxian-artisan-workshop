@@ -3,7 +3,7 @@
 //! This module provides high-performance keyword search using Tantivy (Rust Lucene).
 //! Features:
 //! - BM25 scoring
-//! - Simple tokenization with code-specific filtering (snake_case, camelCase)
+//! - Simple tokenization with code-specific filtering (`snake_case`, camelCase)
 //! - RRF fusion with vector search results
 //! - Entity-aware search enhancement
 //! - Robust initialization (avoids destructive recreation)
@@ -34,7 +34,7 @@ pub enum KeywordSearchBackend {
 }
 
 /// Default RRF k parameter for high precision (Code Search)
-/// Based on MariaDB Engineering (2025): k=10 is optimal for precision-critical scenarios
+/// Based on `MariaDB` Engineering (2025): k=10 is optimal for precision-critical scenarios
 pub const RRF_K: f32 = 10.0;
 
 /// Semantic weight for hybrid search (vector contribution)

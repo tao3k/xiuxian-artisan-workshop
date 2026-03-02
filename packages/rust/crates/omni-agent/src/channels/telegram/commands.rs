@@ -1,5 +1,7 @@
 //! Parsing helpers for Telegram channel control commands.
 
+#[path = "commands/agenda.rs"]
+mod agenda;
 #[path = "commands/background.rs"]
 mod background;
 #[path = "commands/help.rs"]
@@ -11,6 +13,7 @@ mod session;
 
 pub(crate) use crate::channels::managed_runtime::parsing as shared;
 
+pub use agenda::is_agenda_command;
 pub use background::parse_background_prompt;
 pub use help::parse_help_command;
 pub use job::{parse_job_status_command, parse_jobs_summary_command};

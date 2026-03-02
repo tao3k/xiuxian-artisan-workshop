@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Guide: LinkGraph Precision Code Adaptation (2026)"
+---
+
 # Guide: LinkGraph Precision Code Adaptation (2026)
 
 > **Authority:** CyberXiuXian Artisan Studio  

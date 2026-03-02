@@ -1,11 +1,10 @@
-//! Skill Tool Indexing - Discover and index @skill_command decorated functions
+//! Skill Tool Indexing - Discover and index `@skill_command` decorated functions.
 //!
 //! This module provides methods for scanning skill directories and indexing
 //! tool functions discovered via `skills-scanner` crate.
 //!
-//! Uses both `SkillScanner` (for SKILL.md) and `ToolsScanner` (for scripts/)
-//! to properly enrich tool records with routing_keywords from SKILL.md.
-#![allow(clippy::doc_markdown)]
+//! Uses both `SkillScanner` (for `SKILL.md`) and `ToolsScanner` (for `scripts/`)
+//! to properly enrich tool records with `routing_keywords` from `SKILL.md`.
 
 use serde::Serialize;
 use serde_json::Value;
@@ -36,13 +35,13 @@ pub struct ToolSearchResult {
     pub tool_name: String,
     /// Source file path
     pub file_path: String,
-    /// Routing keywords for hybrid search (schema: routing_keywords)
+    /// Routing keywords for hybrid search (schema: `routing_keywords`)
     pub routing_keywords: Vec<String>,
     /// Associated intents for semantic alignment
     pub intents: Vec<String>,
     /// Tool category from decorator metadata (or inferred fallback).
     pub category: String,
-    /// Parameter names from index (for param-type boost when input_schema is empty).
+    /// Parameter names from index (for param-type boost when `input_schema` is empty).
     pub parameters: Vec<String>,
 }
 
@@ -72,6 +71,28 @@ impl Default for ToolSearchOptions {
             keyword_weight: None,
         }
     }
+}
+
+/// Request envelope for tool search operations.
+///
+/// This groups runtime controls that previously traveled as many positional arguments,
+/// making call sites explicit and easier to evolve.
+#[derive(Debug, Clone, Copy)]
+pub struct ToolSearchRequest<'a> {
+    /// Target table name (typically `"skills"`).
+    pub table_name: &'a str,
+    /// Query embedding used by vector similarity scoring.
+    pub query_vector: &'a [f32],
+    /// Optional keyword query for hybrid fusion.
+    pub query_text: Option<&'a str>,
+    /// Max number of results to return.
+    pub limit: usize,
+    /// Minimum score threshold applied before truncation.
+    pub threshold: f32,
+    /// Search ranking controls (rerank and fusion weights).
+    pub options: ToolSearchOptions,
+    /// Optional Lance where predicate, for example `skill_name = 'git'`.
+    pub where_filter: Option<&'a str>,
 }
 
 fn is_hex(c: char) -> bool {
@@ -126,7 +147,7 @@ pub fn is_routable_tool_name(value: &str) -> bool {
     true
 }
 
-/// Normalize input_schema to canonical JSON object.
+/// Normalize `input_schema` to canonical JSON object.
 ///
 /// Accepts:
 /// - object (returned as-is)

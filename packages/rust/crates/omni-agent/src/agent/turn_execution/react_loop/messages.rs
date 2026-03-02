@@ -1,6 +1,11 @@
+use anyhow::Result;
+
 use super::types::ReactPreparedMessages;
-#[allow(clippy::wildcard_imports)]
-use super::*;
+use crate::agent::system_prompt_injection_state::SYSTEM_PROMPT_INJECTION_CONTEXT_MESSAGE_NAME;
+use crate::agent::{Agent, context_budget, injection};
+use crate::session::{ChatMessage, SessionSummarySegment};
+use xiuxian_qianhuan::InjectionPolicy;
+use xiuxian_zhenfa::ZhenfaTransmuter;
 
 impl Agent {
     pub(super) async fn prepare_react_messages(
@@ -11,15 +16,30 @@ impl Agent {
         let mut summary_segments: Vec<SessionSummarySegment> = Vec::new();
         let mut messages: Vec<ChatMessage> = if let Some(ref w) = self.bounded_session {
             let limit = self.config.window_max_turns.unwrap_or(512);
-            summary_segments = w
-                .get_recent_summary_segments(session_id, self.config.summary_max_segments)
-                .await?;
-            w.get_recent_messages(session_id, limit).await?
+            let (recent_summary_segments, recent_messages) = tokio::try_join!(
+                w.get_recent_summary_segments(session_id, self.config.summary_max_segments),
+                w.get_recent_messages(session_id, limit)
+            )?;
+            summary_segments = recent_summary_segments;
+            recent_messages
         } else {
             self.session.get(session_id).await?
         };
 
         Self::prepend_summary_segments(&mut messages, &summary_segments);
+
+        // NATIVE: Inject a clear summary of built-in capabilities to the LLM
+        let native_summary = self.native_tools.get_registry_summary();
+        messages.insert(
+            0,
+            ChatMessage {
+                role: "system".to_string(),
+                content: Some(native_summary),
+                tool_calls: None,
+                tool_call_id: None,
+                name: Some("native_tools_summary".to_string()),
+            },
+        );
 
         if let Some(snapshot) = self
             .inspect_session_system_prompt_injection(session_id)
@@ -44,6 +64,8 @@ impl Agent {
             tool_call_id: None,
             name: None,
         });
+
+        let messages = Self::transmute_messages_for_llm(session_id, messages);
 
         Ok(ReactPreparedMessages {
             messages,
@@ -86,28 +108,16 @@ impl Agent {
         turn_id: u64,
         messages: Vec<ChatMessage>,
     ) -> Vec<ChatMessage> {
-        let raw_messages = messages;
-        let mut messages = match injection::normalize_messages_with_snapshot(
+        let normalized = injection::normalize_messages_with_snapshot(
             session_id,
             turn_id,
-            raw_messages.clone(),
+            messages,
             InjectionPolicy::default(),
-        ) {
-            Ok(normalized) => {
-                if let Some(snapshot) = normalized.snapshot.as_ref() {
-                    Self::record_injection_snapshot(session_id, snapshot);
-                }
-                normalized.messages
-            }
-            Err(error) => {
-                tracing::warn!(
-                    session_id,
-                    error = %error,
-                    "failed to normalize injection snapshot; context messages unchanged"
-                );
-                raw_messages
-            }
-        };
+        );
+        if let Some(snapshot) = normalized.snapshot.as_ref() {
+            Self::record_injection_snapshot(session_id, snapshot);
+        }
+        let mut messages = normalized.messages;
 
         if let Some(context_budget_tokens) = self.config.context_budget_tokens
             && context_budget_tokens > 0
@@ -171,5 +181,38 @@ impl Agent {
         } else {
             Ok(None)
         }
+    }
+
+    fn transmute_messages_for_llm(
+        session_id: &str,
+        messages: Vec<ChatMessage>,
+    ) -> Vec<ChatMessage> {
+        let mut sealed_messages = Vec::with_capacity(messages.len());
+        for mut message in messages {
+            let Some(content) = message.content.take() else {
+                sealed_messages.push(message);
+                continue;
+            };
+            match ZhenfaTransmuter::validate_and_refine(content.as_str()) {
+                Ok(refined) => {
+                    message.content = Some(refined);
+                }
+                Err(error) => {
+                    let fallback = ZhenfaTransmuter::refine_for_llm(content.as_str());
+                    tracing::warn!(
+                        event = "agent.zhenfa.transmuter.validation_failed",
+                        session_id,
+                        role = message.role.as_str(),
+                        message_name = message.name.as_deref().unwrap_or(""),
+                        llm_safe_reason = error.llm_safe_message(),
+                        error = %error,
+                        "message content failed structural validation; using refined fallback"
+                    );
+                    message.content = Some(fallback);
+                }
+            }
+            sealed_messages.push(message);
+        }
+        sealed_messages
     }
 }

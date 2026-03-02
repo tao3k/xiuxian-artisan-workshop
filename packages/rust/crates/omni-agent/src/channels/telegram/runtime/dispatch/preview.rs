@@ -67,3 +67,13 @@ pub(super) fn log_preview(s: &str) -> String {
         }
     }
 }
+
+pub(super) fn sanitize_reply_for_send(s: &str) -> String {
+    let sanitized = strip_think_sections(s);
+    let trimmed = sanitized.trim();
+    if trimmed.is_empty() {
+        s.trim().to_string()
+    } else {
+        trimmed.to_string()
+    }
+}

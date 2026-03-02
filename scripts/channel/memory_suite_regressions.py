@@ -22,7 +22,7 @@ def run_rust_memory_regressions(*, run_command_fn: Any) -> None:
             "memory_turn_store_skips_episode_when_embedding_endpoint_is_unavailable",
             "-q",
         ],
-        title="Regression: embedding endpoint down fallback (3302 unavailable)",
+        title="Regression: embedding endpoint down fallback behavior",
     )
     run_command_fn(
         [
@@ -98,7 +98,7 @@ def run_valkey_cross_instance_regression(
     ensure_valkey_cli()
     check_valkey_connectivity(valkey_url)
     env = os.environ.copy()
-    env["VALKEY_URL"] = valkey_url
+    env["XIUXIAN_WENDAO_VALKEY_URL"] = valkey_url
     env["OMNI_AGENT_SESSION_VALKEY_PREFIX"] = valkey_prefix
     env["OMNI_AGENT_MEMORY_VALKEY_KEY_PREFIX"] = f"{valkey_prefix}:memory"
     print(f"Valkey isolation prefix: {valkey_prefix}", flush=True)

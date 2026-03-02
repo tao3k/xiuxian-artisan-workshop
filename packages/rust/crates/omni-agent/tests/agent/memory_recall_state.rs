@@ -1,41 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
-
+/// Memory-recall state snapshot and persistence tests for agent sessions.
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
@@ -59,11 +22,13 @@ fn unique_id(prefix: &str) -> String {
 }
 
 async fn build_agent() -> Result<Agent> {
-    let mut config = AgentConfig::default();
-    config.inference_url = "http://127.0.0.1:4000/v1/chat/completions".to_string();
-    config.memory = None;
-    config.window_max_turns = None;
-    config.consolidation_threshold_turns = None;
+    let config = AgentConfig {
+        inference_url: "http://127.0.0.1:4000/v1/chat/completions".to_string(),
+        memory: None,
+        window_max_turns: None,
+        consolidation_threshold_turns: None,
+        ..AgentConfig::default()
+    };
     Agent::from_config(config).await
 }
 
@@ -79,11 +44,13 @@ fn live_redis_url() -> Option<String> {
 }
 
 async fn build_agent_with_shared_redis(redis_url: &str, key_prefix: &str) -> Result<Agent> {
-    let mut config = AgentConfig::default();
-    config.inference_url = "http://127.0.0.1:4000/v1/chat/completions".to_string();
-    config.memory = None;
-    config.window_max_turns = None;
-    config.consolidation_threshold_turns = None;
+    let config = AgentConfig {
+        inference_url: "http://127.0.0.1:4000/v1/chat/completions".to_string(),
+        memory: None,
+        window_max_turns: None,
+        consolidation_threshold_turns: None,
+        ..AgentConfig::default()
+    };
 
     let session = SessionStore::new_with_redis(
         redis_url.to_string(),
@@ -171,17 +138,13 @@ async fn record_and_inspect_memory_recall_snapshot_roundtrip() -> Result<()> {
         .record_memory_recall_snapshot(&session_id, second)
         .await;
 
-    let inspected = agent
-        .inspect_memory_recall_snapshot(&session_id)
-        .await
-        .expect("snapshot should be persisted");
+    let inspected = agent.inspect_memory_recall_snapshot(&session_id).await;
+    let Some(inspected) = inspected else {
+        panic!("snapshot should be persisted");
+    };
     assert_eq!(inspected, second);
 
-    let storage_messages = agent
-        .session
-        .get(&snapshot_session_id(&session_id))
-        .await
-        .expect("storage session should be readable");
+    let storage_messages = agent.session.get(&snapshot_session_id(&session_id)).await?;
     assert_eq!(
         storage_messages.len(),
         1,
@@ -198,7 +161,7 @@ async fn inspect_memory_recall_snapshot_normalizes_unknown_embedding_source() ->
     let storage_session_id = snapshot_session_id(&session_id);
 
     let payload = json!({
-        "created_at_unix_ms": 1739900000888u64,
+        "created_at_unix_ms": 1_739_900_000_888_u64,
         "query_tokens": 7,
         "recall_feedback_bias": 0.12,
         "embedding_source": "vendor-x",
@@ -237,10 +200,10 @@ async fn inspect_memory_recall_snapshot_normalizes_unknown_embedding_source() ->
         )
         .await?;
 
-    let inspected = agent
-        .inspect_memory_recall_snapshot(&session_id)
-        .await
-        .expect("snapshot should parse from persisted payload");
+    let inspected = agent.inspect_memory_recall_snapshot(&session_id).await;
+    let Some(inspected) = inspected else {
+        panic!("snapshot should parse from persisted payload");
+    };
     assert_eq!(inspected.embedding_source, EMBEDDING_SOURCE_UNKNOWN);
     assert_eq!(inspected.decision, SessionMemoryRecallDecision::Injected);
 
@@ -254,7 +217,7 @@ async fn inspect_memory_recall_snapshot_keeps_embedding_repaired_source() -> Res
     let storage_session_id = snapshot_session_id(&session_id);
 
     let payload = json!({
-        "created_at_unix_ms": 1739900001888u64,
+        "created_at_unix_ms": 1_739_900_001_888_u64,
         "query_tokens": 9,
         "recall_feedback_bias": -0.35,
         "embedding_source": "embedding_repaired",
@@ -293,10 +256,10 @@ async fn inspect_memory_recall_snapshot_keeps_embedding_repaired_source() -> Res
         )
         .await?;
 
-    let inspected = agent
-        .inspect_memory_recall_snapshot(&session_id)
-        .await
-        .expect("snapshot should parse from persisted payload");
+    let inspected = agent.inspect_memory_recall_snapshot(&session_id).await;
+    let Some(inspected) = inspected else {
+        panic!("snapshot should parse from persisted payload");
+    };
     assert_eq!(
         inspected.embedding_source,
         EMBEDDING_SOURCE_EMBEDDING_REPAIRED
@@ -354,10 +317,10 @@ async fn memory_recall_snapshot_is_shared_across_agent_instances_with_valkey() -
         .record_memory_recall_snapshot(&session_id, snapshot)
         .await;
 
-    let inspected = agent_b
-        .inspect_memory_recall_snapshot(&session_id)
-        .await
-        .expect("second agent instance should load snapshot via shared valkey backend");
+    let inspected = agent_b.inspect_memory_recall_snapshot(&session_id).await;
+    let Some(inspected) = inspected else {
+        panic!("second agent instance should load snapshot via shared valkey backend");
+    };
     assert_eq!(inspected, snapshot);
 
     Ok(())

@@ -1,6 +1,7 @@
-//! Integration tests for search result cache (get_cached, set_cached, hybrid).
+//! Integration tests for search result cache (`get_cached`, `set_cached`, hybrid).
 //!
-//! Tests share a static cache; run with: cargo test -p omni-vector --test test_search_cache -- --test-threads=1
+//! Tests share a static cache; run with:
+//! `cargo test -p omni-vector --test test_search_cache -- --test-threads=1`
 
 use omni_vector::search_cache::{
     clear_cache, get_cached, get_cached_hybrid, set_cached, set_cached_hybrid,
@@ -19,8 +20,8 @@ fn test_cache_miss_then_hit() {
     let results = vec!["a".to_string(), "b".to_string()];
     set_cached(path, table, limit, None, &vector, results.clone());
 
-    let cached = get_cached(path, table, limit, None, &vector).unwrap();
-    assert_eq!(cached, results);
+    let cached = get_cached(path, table, limit, None, &vector);
+    assert_eq!(cached, Some(results));
 }
 
 #[test]
@@ -35,8 +36,14 @@ fn test_different_vectors_different_entries() {
     set_cached(path, table, limit, None, &v1, vec!["r1".into()]);
     set_cached(path, table, limit, None, &v2, vec!["r2".into()]);
 
-    assert_eq!(get_cached(path, table, limit, None, &v1).unwrap(), ["r1"]);
-    assert_eq!(get_cached(path, table, limit, None, &v2).unwrap(), ["r2"]);
+    assert_eq!(
+        get_cached(path, table, limit, None, &v1),
+        Some(vec!["r1".to_string()])
+    );
+    assert_eq!(
+        get_cached(path, table, limit, None, &v2),
+        Some(vec!["r2".to_string()])
+    );
 }
 
 #[test]
@@ -53,6 +60,6 @@ fn test_hybrid_cache_miss_then_hit() {
     let results = vec!["git.smart_commit".into(), "git.status".into()];
     set_cached_hybrid(path, table, limit, &vector, query_text, results.clone());
 
-    let cached = get_cached_hybrid(path, table, limit, &vector, query_text).unwrap();
-    assert_eq!(cached, results);
+    let cached = get_cached_hybrid(path, table, limit, &vector, query_text);
+    assert_eq!(cached, Some(results));
 }

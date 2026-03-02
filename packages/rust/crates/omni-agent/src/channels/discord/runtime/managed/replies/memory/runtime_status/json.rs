@@ -4,9 +4,8 @@ use crate::agent::{DownstreamAdmissionRuntimeSnapshot, MemoryRuntimeStatusSnapsh
 
 use super::helpers::is_backend_ready;
 
-#[allow(clippy::needless_pass_by_value)]
 pub(in super::super) fn format_memory_runtime_status_json(
-    status: MemoryRuntimeStatusSnapshot,
+    status: &MemoryRuntimeStatusSnapshot,
 ) -> serde_json::Value {
     let backend_ready = is_backend_ready(
         status.enabled,
@@ -35,9 +34,8 @@ pub(in super::super) fn format_memory_runtime_status_json(
     })
 }
 
-#[allow(clippy::needless_pass_by_value)]
 pub(in super::super) fn format_downstream_admission_status_json(
-    status: DownstreamAdmissionRuntimeSnapshot,
+    status: &DownstreamAdmissionRuntimeSnapshot,
 ) -> serde_json::Value {
     json!({
         "enabled": status.enabled,

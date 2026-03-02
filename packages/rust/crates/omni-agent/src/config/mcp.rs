@@ -20,7 +20,7 @@ pub struct McpServerEntryFile {
     /// Transport type: "http" or "stdio".
     #[serde(rename = "type")]
     pub typ: Option<String>,
-    /// For http: base URL (e.g. `http://127.0.0.1:3002`).
+    /// For http: base URL (e.g. `http://localhost:3002`).
     pub url: Option<String>,
     /// For stdio: command to run (e.g. `omni`).
     pub command: Option<String>,

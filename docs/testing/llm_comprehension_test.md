@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "LLM Comprehension Test: Omega Architecture"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - llm_comprehension_test
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "LLM Comprehension Test: Omega Architecture"
 ---
 
 # LLM Comprehension Test: Omega Architecture

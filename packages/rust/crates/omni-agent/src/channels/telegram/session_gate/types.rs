@@ -7,6 +7,7 @@ use tokio::sync::{Mutex, OwnedMutexGuard};
 
 use super::valkey::{DistributedLeaseGuard, ValkeySessionGateBackend};
 
+/// Session-scoped concurrency gate with optional distributed lease backend.
 #[derive(Clone)]
 pub struct SessionGate {
     pub(super) inner: Arc<StdMutex<HashMap<String, Arc<SessionGateEntry>>>>,
@@ -19,6 +20,7 @@ pub(super) struct SessionGateEntry {
     pub(super) permits: AtomicUsize,
 }
 
+/// RAII guard returned by `SessionGate::acquire`.
 pub struct SessionGuard {
     pub(super) _distributed_lease: Option<DistributedLeaseGuard>,
     pub(super) _lock_guard: OwnedMutexGuard<()>,

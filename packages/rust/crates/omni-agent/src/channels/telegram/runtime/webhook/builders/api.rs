@@ -2,11 +2,89 @@ use anyhow::Result;
 use tokio::sync::mpsc;
 
 use super::super::app::TelegramWebhookApp;
-use super::core;
+use super::core::{self, TelegramWebhookCoreBuildRequest};
 use crate::channels::telegram::idempotency::WebhookDedupConfig;
 use crate::channels::telegram::session_partition::TelegramSessionPartition;
 use crate::channels::telegram::{TelegramCommandAdminRule, TelegramControlCommandPolicy};
 use crate::channels::traits::ChannelMessage;
+
+/// Request to build a webhook app with explicit control-command policy.
+pub struct TelegramWebhookControlPolicyBuildRequest {
+    /// Telegram bot token.
+    pub bot_token: String,
+    /// Allowed sender user identifiers.
+    pub allowed_users: Vec<String>,
+    /// Allowed group identifiers.
+    pub allowed_groups: Vec<String>,
+    /// Structured control/slash command policy.
+    pub control_command_policy: TelegramControlCommandPolicy,
+    /// Webhook route path.
+    pub webhook_path: String,
+    /// Optional webhook secret token.
+    pub secret_token: Option<String>,
+    /// Webhook dedup backend configuration.
+    pub dedup_config: WebhookDedupConfig,
+    /// Inbound channel sender for runtime dispatch.
+    pub tx: mpsc::Sender<ChannelMessage>,
+}
+
+/// Request to build a webhook app with explicit session partition and admin users.
+pub struct TelegramWebhookPartitionBuildRequest {
+    /// Telegram bot token.
+    pub bot_token: String,
+    /// Allowed sender user identifiers.
+    pub allowed_users: Vec<String>,
+    /// Allowed group identifiers.
+    pub allowed_groups: Vec<String>,
+    /// Fallback admin users for control/slash ACL.
+    pub admin_users: Vec<String>,
+    /// Webhook route path.
+    pub webhook_path: String,
+    /// Optional webhook secret token.
+    pub secret_token: Option<String>,
+    /// Webhook dedup backend configuration.
+    pub dedup_config: WebhookDedupConfig,
+    /// Explicit session partition strategy.
+    pub session_partition: TelegramSessionPartition,
+    /// Inbound channel sender for runtime dispatch.
+    pub tx: mpsc::Sender<ChannelMessage>,
+}
+
+struct TelegramWebhookAdminUsersBuildRequest {
+    bot_token: String,
+    allowed_users: Vec<String>,
+    allowed_groups: Vec<String>,
+    admin_users: Vec<String>,
+    webhook_path: String,
+    secret_token: Option<String>,
+    dedup_config: WebhookDedupConfig,
+    tx: mpsc::Sender<ChannelMessage>,
+}
+
+struct TelegramWebhookAdminRulesBuildRequest {
+    bot_token: String,
+    allowed_users: Vec<String>,
+    allowed_groups: Vec<String>,
+    admin_users: Vec<String>,
+    control_command_allow_from: Option<Vec<String>>,
+    control_command_rules: Vec<TelegramCommandAdminRule>,
+    webhook_path: String,
+    secret_token: Option<String>,
+    dedup_config: WebhookDedupConfig,
+    tx: mpsc::Sender<ChannelMessage>,
+}
+
+struct TelegramWebhookPartitionPolicyBuildRequest {
+    bot_token: String,
+    allowed_users: Vec<String>,
+    allowed_groups: Vec<String>,
+    control_command_policy: TelegramControlCommandPolicy,
+    webhook_path: String,
+    secret_token: Option<String>,
+    dedup_config: WebhookDedupConfig,
+    session_partition: TelegramSessionPartition,
+    tx: mpsc::Sender<ChannelMessage>,
+}
 
 /// Build a Telegram webhook app with configured dedup backend.
 ///
@@ -21,8 +99,22 @@ pub fn build_telegram_webhook_app(
     dedup_config: WebhookDedupConfig,
     tx: mpsc::Sender<ChannelMessage>,
 ) -> Result<TelegramWebhookApp> {
-    let admin_users = Vec::new();
-    build_telegram_webhook_app_with_admin_users(
+    build_telegram_webhook_app_with_admin_users(TelegramWebhookAdminUsersBuildRequest {
+        bot_token,
+        allowed_users,
+        allowed_groups,
+        admin_users: Vec::new(),
+        webhook_path: webhook_path.to_string(),
+        secret_token,
+        dedup_config,
+        tx,
+    })
+}
+
+fn build_telegram_webhook_app_with_admin_users(
+    request: TelegramWebhookAdminUsersBuildRequest,
+) -> Result<TelegramWebhookApp> {
+    let TelegramWebhookAdminUsersBuildRequest {
         bot_token,
         allowed_users,
         allowed_groups,
@@ -31,68 +123,53 @@ pub fn build_telegram_webhook_app(
         secret_token,
         dedup_config,
         tx,
-    )
-}
-
-/// Build a Telegram webhook app with explicit admin user allowlist.
-///
-/// # Errors
-/// Returns an error when channel construction or webhook app assembly fails.
-#[allow(clippy::too_many_arguments)]
-pub fn build_telegram_webhook_app_with_admin_users(
-    bot_token: String,
-    allowed_users: Vec<String>,
-    allowed_groups: Vec<String>,
-    admin_users: Vec<String>,
-    webhook_path: &str,
-    secret_token: Option<String>,
-    dedup_config: WebhookDedupConfig,
-    tx: mpsc::Sender<ChannelMessage>,
-) -> Result<TelegramWebhookApp> {
+    } = request;
     build_telegram_webhook_app_with_admin_users_and_command_rules(
+        TelegramWebhookAdminRulesBuildRequest {
+            bot_token,
+            allowed_users,
+            allowed_groups,
+            admin_users,
+            control_command_allow_from: None,
+            control_command_rules: Vec::new(),
+            webhook_path,
+            secret_token,
+            dedup_config,
+            tx,
+        },
+    )
+}
+
+fn build_telegram_webhook_app_with_admin_users_and_command_rules(
+    request: TelegramWebhookAdminRulesBuildRequest,
+) -> Result<TelegramWebhookApp> {
+    let TelegramWebhookAdminRulesBuildRequest {
         bot_token,
         allowed_users,
         allowed_groups,
         admin_users,
-        None,
-        Vec::new(),
+        control_command_allow_from,
+        control_command_rules,
         webhook_path,
         secret_token,
         dedup_config,
         tx,
-    )
-}
-
-/// Build a Telegram webhook app with explicit admin user allowlist and per-command admin rules.
-///
-/// # Errors
-/// Returns an error when channel construction or webhook app assembly fails.
-#[allow(clippy::too_many_arguments)]
-pub fn build_telegram_webhook_app_with_admin_users_and_command_rules(
-    bot_token: String,
-    allowed_users: Vec<String>,
-    allowed_groups: Vec<String>,
-    admin_users: Vec<String>,
-    control_command_allow_from: Option<Vec<String>>,
-    control_command_rules: Vec<TelegramCommandAdminRule>,
-    webhook_path: &str,
-    secret_token: Option<String>,
-    dedup_config: WebhookDedupConfig,
-    tx: mpsc::Sender<ChannelMessage>,
-) -> Result<TelegramWebhookApp> {
+    } = request;
     build_telegram_webhook_app_with_control_command_policy(
-        bot_token,
-        allowed_users,
-        allowed_groups,
-        TelegramControlCommandPolicy::new(
-            admin_users,
-            control_command_allow_from,
-            control_command_rules,
-        ),
-        webhook_path,
-        secret_token,
-        dedup_config,
-        tx,
+        TelegramWebhookControlPolicyBuildRequest {
+            bot_token,
+            allowed_users,
+            allowed_groups,
+            control_command_policy: TelegramControlCommandPolicy::new(
+                admin_users,
+                control_command_allow_from,
+                control_command_rules,
+            ),
+            webhook_path,
+            secret_token,
+            dedup_config,
+            tx,
+        },
     )
 }
 
@@ -100,18 +177,10 @@ pub fn build_telegram_webhook_app_with_admin_users_and_command_rules(
 ///
 /// # Errors
 /// Returns an error when channel construction or webhook app assembly fails.
-#[allow(clippy::too_many_arguments)]
 pub fn build_telegram_webhook_app_with_control_command_policy(
-    bot_token: String,
-    allowed_users: Vec<String>,
-    allowed_groups: Vec<String>,
-    control_command_policy: TelegramControlCommandPolicy,
-    webhook_path: &str,
-    secret_token: Option<String>,
-    dedup_config: WebhookDedupConfig,
-    tx: mpsc::Sender<ChannelMessage>,
+    request: TelegramWebhookControlPolicyBuildRequest,
 ) -> Result<TelegramWebhookApp> {
-    build_telegram_webhook_app_with_partition_and_control_command_policy(
+    let TelegramWebhookControlPolicyBuildRequest {
         bot_token,
         allowed_users,
         allowed_groups,
@@ -119,60 +188,64 @@ pub fn build_telegram_webhook_app_with_control_command_policy(
         webhook_path,
         secret_token,
         dedup_config,
-        TelegramSessionPartition::from_env(),
         tx,
+    } = request;
+    build_telegram_webhook_app_with_partition_and_control_command_policy(
+        TelegramWebhookPartitionPolicyBuildRequest {
+            bot_token,
+            allowed_users,
+            allowed_groups,
+            control_command_policy,
+            webhook_path,
+            secret_token,
+            dedup_config,
+            session_partition: TelegramSessionPartition::from_env(),
+            tx,
+        },
     )
 }
 
 /// Build a Telegram webhook app with explicit session partition strategy.
-#[doc(hidden)]
 ///
 /// # Errors
 /// Returns an error when channel construction or webhook app assembly fails.
-#[allow(clippy::too_many_arguments)]
 pub fn build_telegram_webhook_app_with_partition(
-    bot_token: String,
-    allowed_users: Vec<String>,
-    allowed_groups: Vec<String>,
-    admin_users: Vec<String>,
-    webhook_path: &str,
-    secret_token: Option<String>,
-    dedup_config: WebhookDedupConfig,
-    session_partition: TelegramSessionPartition,
-    tx: mpsc::Sender<ChannelMessage>,
+    request: TelegramWebhookPartitionBuildRequest,
 ) -> Result<TelegramWebhookApp> {
-    build_telegram_webhook_app_with_partition_and_control_command_policy(
+    let TelegramWebhookPartitionBuildRequest {
         bot_token,
         allowed_users,
         allowed_groups,
-        TelegramControlCommandPolicy::new(admin_users, None, Vec::new()),
+        admin_users,
         webhook_path,
         secret_token,
         dedup_config,
         session_partition,
         tx,
+    } = request;
+    build_telegram_webhook_app_with_partition_and_control_command_policy(
+        TelegramWebhookPartitionPolicyBuildRequest {
+            bot_token,
+            allowed_users,
+            allowed_groups,
+            control_command_policy: TelegramControlCommandPolicy::new(
+                admin_users,
+                None,
+                Vec::new(),
+            ),
+            webhook_path,
+            secret_token,
+            dedup_config,
+            session_partition,
+            tx,
+        },
     )
 }
 
-/// Build a Telegram webhook app with explicit session partition strategy and per-command admin
-/// authorization rules.
-#[doc(hidden)]
-///
-/// # Errors
-/// Returns an error when channel construction or webhook app assembly fails.
-#[allow(clippy::too_many_arguments)]
-pub fn build_telegram_webhook_app_with_partition_and_control_command_policy(
-    bot_token: String,
-    allowed_users: Vec<String>,
-    allowed_groups: Vec<String>,
-    control_command_policy: TelegramControlCommandPolicy,
-    webhook_path: &str,
-    secret_token: Option<String>,
-    dedup_config: WebhookDedupConfig,
-    session_partition: TelegramSessionPartition,
-    tx: mpsc::Sender<ChannelMessage>,
+fn build_telegram_webhook_app_with_partition_and_control_command_policy(
+    request: TelegramWebhookPartitionPolicyBuildRequest,
 ) -> Result<TelegramWebhookApp> {
-    core::build_telegram_webhook_app_with_partition_and_control_command_policy(
+    let TelegramWebhookPartitionPolicyBuildRequest {
         bot_token,
         allowed_users,
         allowed_groups,
@@ -182,5 +255,18 @@ pub fn build_telegram_webhook_app_with_partition_and_control_command_policy(
         dedup_config,
         session_partition,
         tx,
+    } = request;
+    core::build_telegram_webhook_app_with_partition_and_control_command_policy(
+        TelegramWebhookCoreBuildRequest {
+            bot_token,
+            allowed_users,
+            allowed_groups,
+            control_command_policy,
+            webhook_path,
+            secret_token,
+            dedup_config,
+            session_partition,
+            tx,
+        },
     )
 }

@@ -1,5 +1,8 @@
 ---
+type: knowledge
 description: "[MASTER] High-authority tool execution via omni MCP proxy"
+metadata:
+  title: "omni"
 ---
 
 ## `/omni` Slash Command

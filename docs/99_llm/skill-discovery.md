@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Skill Discovery (Migration Note)"
 category: "llm"
 tags:
@@ -6,6 +7,8 @@ tags:
   - skill
 saliency_base: 6.6
 decay_rate: 0.04
+metadata:
+  title: "Skill Discovery (Migration Note)"
 ---
 
 # Skill Discovery (Migration Note)

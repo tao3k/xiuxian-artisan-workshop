@@ -1,7 +1,7 @@
 //! Rust-Native File Watcher with Event Bus Integration
 //!
 //! Uses `notify` crate for cross-platform file system monitoring.
-//! Publishes file events to the global `omni-events` `EventBus` for reactive architecture.
+//! Publishes file events to the global `xiuxian-event` `EventBus` for reactive architecture.
 
 use std::path::Path;
 use std::time::Duration;
@@ -11,7 +11,7 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::mpsc;
 
 #[cfg(feature = "notify")]
-use omni_events::{GLOBAL_BUS, OmniEvent, topics};
+use xiuxian_event::{GLOBAL_BUS, OmniEvent, topics};
 
 /// Configuration for file watcher.
 #[derive(Debug, Clone)]
@@ -321,51 +321,4 @@ pub async fn watch_path<P: AsRef<Path>>(
         ..WatcherConfig::default()
     };
     start_file_watcher::<fn(WatcherResult)>(config, None).await
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::Path;
-
-    #[tokio::test]
-    async fn test_watcher_config() {
-        let config = WatcherConfig::default();
-        assert!(config.patterns.contains(&"**/*".to_string()));
-        assert!(config.exclude.iter().any(|e| e.contains("*.pyc")));
-    }
-
-    #[tokio::test]
-    async fn test_matches_patterns() {
-        let patterns = vec!["**/*.rs".to_string(), "**/*.py".to_string()];
-        let exclude = vec!["**/target/**".to_string()];
-
-        // Match Rust file
-        assert!(matches_patterns(
-            Path::new("src/main.rs"),
-            &patterns,
-            &exclude
-        ));
-
-        // Match Python file
-        assert!(matches_patterns(
-            Path::new("script.py"),
-            &patterns,
-            &exclude
-        ));
-
-        // Exclude target directory
-        assert!(!matches_patterns(
-            Path::new("target/debug/main"),
-            &patterns,
-            &exclude
-        ));
-
-        // Exclude non-matching extension
-        assert!(!matches_patterns(
-            Path::new("data.json"),
-            &patterns,
-            &exclude
-        ));
-    }
 }

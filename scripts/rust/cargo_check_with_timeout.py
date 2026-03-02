@@ -6,6 +6,8 @@ from __future__ import annotations
 import subprocess
 import sys
 
+from omni.foundation.runtime.cargo_subprocess_env import prepare_cargo_subprocess_env
+
 
 def main() -> int:
     if len(sys.argv) != 2:
@@ -14,9 +16,10 @@ def main() -> int:
 
     timeout_secs = int(sys.argv[1])
     command = ["cargo", "check", "--workspace", "--all-targets"]
+    env = prepare_cargo_subprocess_env()
 
     try:
-        subprocess.run(command, check=True, timeout=timeout_secs)
+        subprocess.run(command, check=True, timeout=timeout_secs, env=env)
     except subprocess.TimeoutExpired:
         print(
             f"ERROR: cargo check exceeded timeout ({timeout_secs}s). "

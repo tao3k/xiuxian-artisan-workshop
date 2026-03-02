@@ -37,14 +37,21 @@ parse_args = partial(
     webhook_url_default=os.environ.get("OMNI_WEBHOOK_URL")
     or _MODULES.default_telegram_webhook_url(),
 )
-build_config = partial(
-    _config_module.build_config,
-    probe_config_cls=ProbeConfig,
-    session_ids_from_runtime_log_fn=_MODULES.session_ids_from_runtime_log,
-    username_from_settings_fn=_MODULES.username_from_settings,
-    username_from_runtime_log_fn=_MODULES.username_from_runtime_log,
-    telegram_webhook_secret_token_fn=_MODULES.telegram_webhook_secret_token,
-)
+session_ids_from_runtime_log = _MODULES.session_ids_from_runtime_log
+username_from_settings = _MODULES.username_from_settings
+username_from_runtime_log = _MODULES.username_from_runtime_log
+telegram_webhook_secret_token = _MODULES.telegram_webhook_secret_token
+
+
+def build_config(args) -> ProbeConfig:
+    return _config_module.build_config(
+        args,
+        probe_config_cls=ProbeConfig,
+        session_ids_from_runtime_log_fn=session_ids_from_runtime_log,
+        username_from_settings_fn=username_from_settings,
+        username_from_runtime_log_fn=username_from_runtime_log,
+        telegram_webhook_secret_token_fn=telegram_webhook_secret_token,
+    )
 
 
 def count_lines(path: Path) -> int:

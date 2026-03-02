@@ -2,8 +2,9 @@ use super::super::super::super::{LinkGraphIndex, parse_search_query};
 use super::policy::evaluate_link_graph_policy;
 use crate::link_graph::runtime_config::resolve_link_graph_agentic_runtime;
 use crate::link_graph::{
-    LinkGraphDisplayHit, LinkGraphPlannedSearchPayload, LinkGraphPromotedOverlayTelemetry,
-    LinkGraphSuggestedLinkState, valkey_suggested_link_recent_latest,
+    LinkGraphDisplayHit, LinkGraphHit, LinkGraphPlannedSearchPayload,
+    LinkGraphPromotedOverlayTelemetry, LinkGraphSuggestedLink, LinkGraphSuggestedLinkState,
+    ParsedLinkGraphQuery, valkey_suggested_link_recent_latest,
 };
 use std::collections::HashMap;
 
@@ -19,6 +20,18 @@ impl LinkGraphIndex {
     ) -> LinkGraphPlannedSearchPayload {
         let parsed = parse_search_query(query, base_options);
         let effective_limit = parsed.limit_override.unwrap_or(limit);
+        if let Some(direct_id) = parsed.direct_id.as_deref() {
+            let rows = self.execute_direct_id_lookup(direct_id, effective_limit, &parsed.options);
+            return Self::build_planned_payload(
+                parsed,
+                effective_limit,
+                rows,
+                Vec::new(),
+                None,
+                promoted_overlay,
+            );
+        }
+
         let agentic_runtime = resolve_link_graph_agentic_runtime();
         let include_provisional =
             include_provisional.unwrap_or(agentic_runtime.search_include_provisional_default);
@@ -55,6 +68,24 @@ impl LinkGraphIndex {
                 Some(&provisional_doc_boosts)
             },
         );
+        Self::build_planned_payload(
+            parsed,
+            effective_limit,
+            rows,
+            provisional_suggestions,
+            provisional_error,
+            promoted_overlay,
+        )
+    }
+
+    fn build_planned_payload(
+        parsed: ParsedLinkGraphQuery,
+        effective_limit: usize,
+        rows: Vec<LinkGraphHit>,
+        provisional_suggestions: Vec<LinkGraphSuggestedLink>,
+        provisional_error: Option<String>,
+        promoted_overlay: Option<LinkGraphPromotedOverlayTelemetry>,
+    ) -> LinkGraphPlannedSearchPayload {
         let hit_count = rows.len();
         let section_hit_count = rows
             .iter()

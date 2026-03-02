@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use axum::{
     Json, Router,
     extract::State,
@@ -25,6 +25,26 @@ pub struct DiscordIngressApp {
     pub channel: Arc<DiscordChannel>,
     /// Normalized ingress route path.
     pub path: String,
+}
+
+/// Full configuration for building Discord ingress with explicit partition and policy.
+pub struct DiscordIngressBuildRequest {
+    /// Bot token used by outbound Discord API calls.
+    pub bot_token: String,
+    /// Optional allowlist of user ids.
+    pub allowed_users: Vec<String>,
+    /// Optional allowlist of guild ids.
+    pub allowed_guilds: Vec<String>,
+    /// Policy for control and slash managed commands.
+    pub control_command_policy: DiscordControlCommandPolicy,
+    /// Ingress route path.
+    pub ingress_path: String,
+    /// Optional shared secret token for ingress validation.
+    pub secret_token: Option<String>,
+    /// Session partition strategy.
+    pub session_partition: DiscordSessionPartition,
+    /// Inbound queue sender for parsed channel messages.
+    pub tx: mpsc::Sender<ChannelMessage>,
 }
 
 /// Build a Discord ingress app.
@@ -65,14 +85,16 @@ pub fn build_discord_ingress_app_with_control_command_policy(
     tx: mpsc::Sender<ChannelMessage>,
 ) -> Result<DiscordIngressApp> {
     build_discord_ingress_app_with_partition_and_control_command_policy(
-        bot_token,
-        allowed_users,
-        allowed_guilds,
-        control_command_policy,
-        ingress_path,
-        secret_token,
-        DiscordSessionPartition::from_env(),
-        tx,
+        DiscordIngressBuildRequest {
+            bot_token,
+            allowed_users,
+            allowed_guilds,
+            control_command_policy,
+            ingress_path: ingress_path.to_string(),
+            secret_token,
+            session_partition: DiscordSessionPartition::from_env(),
+            tx,
+        },
     )
 }
 
@@ -81,17 +103,25 @@ pub fn build_discord_ingress_app_with_control_command_policy(
 ///
 /// # Errors
 /// Returns an error when channel/runtime initialization fails.
-#[allow(clippy::too_many_arguments)]
 pub fn build_discord_ingress_app_with_partition_and_control_command_policy(
-    bot_token: String,
-    allowed_users: Vec<String>,
-    allowed_guilds: Vec<String>,
-    control_command_policy: DiscordControlCommandPolicy,
-    ingress_path: &str,
-    secret_token: Option<String>,
-    session_partition: DiscordSessionPartition,
-    tx: mpsc::Sender<ChannelMessage>,
+    request: DiscordIngressBuildRequest,
 ) -> Result<DiscordIngressApp> {
+    let DiscordIngressBuildRequest {
+        bot_token,
+        allowed_users,
+        allowed_guilds,
+        control_command_policy,
+        ingress_path,
+        secret_token,
+        session_partition,
+        tx,
+    } = request;
+
+    ensure!(
+        !bot_token.trim().is_empty(),
+        "discord bot token cannot be empty"
+    );
+
     let channel = Arc::new(
         DiscordChannel::new_with_partition_and_control_command_policy(
             bot_token,
@@ -99,7 +129,7 @@ pub fn build_discord_ingress_app_with_partition_and_control_command_policy(
             allowed_guilds,
             control_command_policy,
             session_partition,
-        )?,
+        ),
     );
     let ingress_state = DiscordIngressState {
         channel: Arc::clone(&channel),
@@ -107,7 +137,7 @@ pub fn build_discord_ingress_app_with_partition_and_control_command_policy(
         secret_token,
     };
 
-    let path = normalize_ingress_path(ingress_path);
+    let path = normalize_ingress_path(&ingress_path);
     let app = Router::new()
         .route(&path, post(discord_ingress_handler))
         .with_state(ingress_state);

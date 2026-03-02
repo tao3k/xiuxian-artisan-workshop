@@ -1,4 +1,4 @@
-//! Benchmark tests for entity_aware search performance.
+//! Benchmark tests for `entity_aware` search performance.
 
 use omni_vector::HybridSearchResult;
 use omni_vector::keyword::entity_aware::{
@@ -10,6 +10,7 @@ use serde_json::Value;
 
 const ENTITY_MATCH_ITERATIONS: usize = 100;
 const ENTITY_MATCH_MAX_DURATION_MS: u64 = 250;
+const ENTITY_CONFIDENCE_VALUES: [f32; 10] = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95];
 
 fn benchmark_budget_ms(local_ms: u64, ci_ms: u64) -> std::time::Duration {
     let budget_ms = if std::env::var_os("CI").is_some() {
@@ -27,9 +28,9 @@ fn generate_entities(count: usize) -> Vec<EntityMatch> {
 
     for i in 0..count {
         entities.push(EntityMatch {
-            entity_name: format!("entity_{}", i),
+            entity_name: format!("entity_{i}"),
             entity_type: types[i % types.len()].to_string(),
-            confidence: 0.5 + (i as f32 % 10.0) / 20.0,
+            confidence: ENTITY_CONFIDENCE_VALUES[i % ENTITY_CONFIDENCE_VALUES.len()],
             match_type: EntityMatchType::NameMatch,
         });
     }
@@ -159,28 +160,29 @@ fn test_entity_matching_with_metadata_performance() {
 #[test]
 fn test_triple_rrf_performance() {
     const RESULT_COUNT: usize = 100;
+    const RESULT_COUNT_U16: u16 = 100;
 
-    let semantic_results: Vec<(String, f32)> = (0..RESULT_COUNT)
+    let semantic_results: Vec<(String, f32)> = (0_u16..RESULT_COUNT_U16)
         .map(|i| {
             (
-                format!("tool_{}", i % 50),
-                1.0 - (i as f32 / RESULT_COUNT as f32),
+                format!("tool_{}", usize::from(i) % 50),
+                1.0 - (f32::from(i) / f32::from(RESULT_COUNT_U16)),
             )
         })
         .collect();
 
     let keyword_results = generate_keyword_results(RESULT_COUNT);
 
-    let entity_results: Vec<EntityAwareSearchResult> = (0..RESULT_COUNT)
+    let entity_results: Vec<EntityAwareSearchResult> = (0_u16..RESULT_COUNT_U16)
         .map(|i| EntityAwareSearchResult {
             base: HybridSearchResult {
-                tool_name: format!("tool_{}", i % 50),
+                tool_name: format!("tool_{}", usize::from(i) % 50),
                 rrf_score: 0.1,
                 vector_score: 0.0,
                 keyword_score: 0.0,
             },
             entity_matches: vec![EntityMatch {
-                entity_name: format!("entity_{}", i),
+                entity_name: format!("entity_{i}"),
                 entity_type: "TOOL".to_string(),
                 confidence: 0.8,
                 match_type: EntityMatchType::NameMatch,

@@ -1,8 +1,9 @@
 use super::enums::{LinkGraphEdgeType, LinkGraphPprSubgraphMode, LinkGraphScope};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Boolean tag filter.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LinkGraphTagFilter {
     /// Tags that must all be present.
@@ -17,7 +18,7 @@ pub struct LinkGraphTagFilter {
 }
 
 /// Link filter for `link_to`/`linked_by`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LinkGraphLinkFilter {
     /// Seed note ids/stems/paths.
@@ -35,7 +36,7 @@ pub struct LinkGraphLinkFilter {
 }
 
 /// PPR tuning options for related retrieval.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LinkGraphRelatedPprOptions {
     /// Teleport probability parameter in `[0, 1]`.
@@ -53,7 +54,7 @@ pub struct LinkGraphRelatedPprOptions {
 }
 
 /// Related filter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LinkGraphRelatedFilter {
     /// Seed note ids/stems/paths.
@@ -68,7 +69,7 @@ pub struct LinkGraphRelatedFilter {
 }
 
 /// Structured search filters.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LinkGraphSearchFilters {
     /// Path prefixes/files to include.

@@ -19,13 +19,49 @@ let
     text = ''
       #!/usr/bin/env bash
       # Keep a stable cargo entrypoint for uv/maturin subprocess invocation on Darwin.
+      if [[ "$(uname -s)" == "Darwin" && -n "''${DYLD_LIBRARY_PATH:-}" ]]; then
+        IFS=':' read -r -a _dyld_parts <<< "''${DYLD_LIBRARY_PATH}"
+        _kept_parts=()
+        for _p in "''${_dyld_parts[@]}"; do
+          [[ -z "''${_p}" ]] && continue
+          if [[ "''${_p}" == */.devenv/profile/lib ]]; then
+            continue
+          fi
+          _kept_parts+=("''${_p}")
+        done
+
+        if ((''${#_kept_parts[@]} > 0)); then
+          export DYLD_LIBRARY_PATH="$(IFS=:; printf '%s' "''${_kept_parts[*]}")"
+        else
+          unset DYLD_LIBRARY_PATH
+        fi
+      fi
+
+      # Ensure SDKROOT is available for build tools that rely on macOS SDK discovery.
+      if [[ "$(uname -s)" == "Darwin" && -z "''${SDKROOT:-}" ]]; then
+        if _sdkroot="$(xcrun --sdk macosx --show-sdk-path 2>/dev/null)"; then
+          if [[ -n "''${_sdkroot}" ]]; then
+            export SDKROOT="''${_sdkroot}"
+          fi
+        fi
+      fi
+
+      # Prefer precompiled Metal kernels on local macOS builds.
+      # In isolated environments where `metal` is unavailable (common in CI/Nix),
+      # auto-fallback to runtime kernel compilation for build reliability.
+      if [[ "$(uname -s)" == "Darwin" && -z "''${MISTRALRS_METAL_PRECOMPILE:-}" ]]; then
+        if ! xcrun -sdk macosx metal -v >/dev/null 2>&1; then
+          export MISTRALRS_METAL_PRECOMPILE=0
+        fi
+      fi
+
       exec ${config.languages.rust.toolchainPackage}/bin/cargo "$@"
     '';
   };
 in
 {
   packages = [
-    cargoShim
+    (pkgs.hiPrio cargoShim)
     pkgs.protobuf
     pkgs.openssl
     pkgs.pkg-config
@@ -33,6 +69,7 @@ in
     pkgs.cargo-nextest
     pkgs.cargo-audit
     pkgs.cargo-deny
+    pkgs.sccache
   ];
   # https://devenv.sh/languages/
   languages.rust = {
@@ -51,6 +88,8 @@ in
   env = {
     PYO3_PYTHON = "${config.languages.python.package}/bin/python";
     PROTOC = "${pkgs.protobuf}/bin/protoc";
+    RUSTC_WRAPPER = "sccache";
+    SCCACHE_CACHE_SIZE = "100G";
     # Fix PyO3 extension module linking for cargo test
     # Add Python library path for macOS and Linux
     # PYTHON_LIB_PATH = "${config.languages.python.package}/lib";

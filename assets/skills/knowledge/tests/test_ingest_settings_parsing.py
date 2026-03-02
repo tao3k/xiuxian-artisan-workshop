@@ -8,15 +8,14 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from _module_loader import load_script_module
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 def _import_graph_module():
-    import graph as graph_mod
-
-    return graph_mod
+    return load_script_module("graph", alias="knowledge_graph_ingest_settings_test")
 
 
 def _unwrap_skill_output(payload: Any) -> dict[str, Any]:

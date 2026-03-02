@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Benchmark Fixture"
+---
+
 # Benchmark Fixture
 
 ## Hard Constraints

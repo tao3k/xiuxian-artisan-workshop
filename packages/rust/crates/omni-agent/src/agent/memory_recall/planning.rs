@@ -1,7 +1,8 @@
+use num_traits::ToPrimitive;
+
 use super::{MemoryRecallInput, MemoryRecallPlan};
 
 /// Derive dynamic memory-recall parameters from current context pressure.
-#[allow(clippy::cast_precision_loss)]
 pub(crate) fn plan_memory_recall(input: MemoryRecallInput) -> MemoryRecallPlan {
     let mut k1 = input.base_k1.max(1);
     let mut k2 = input.base_k2.max(1).min(k1);
@@ -15,10 +16,12 @@ pub(crate) fn plan_memory_recall(input: MemoryRecallInput) -> MemoryRecallPlan {
             .max(1)
     });
     let budget_pressure = effective_budget_tokens.map_or(0.0, |effective| {
-        input.context_tokens_before_recall as f32 / effective as f32
+        ratio_usize_as_f32(input.context_tokens_before_recall, effective)
     });
     let window_pressure = match input.window_max_turns {
-        Some(max_turns) if max_turns > 0 => input.active_turns_estimate as f32 / max_turns as f32,
+        Some(max_turns) if max_turns > 0 => {
+            ratio_usize_as_f32(input.active_turns_estimate, max_turns)
+        }
         _ => 0.0,
     };
 
@@ -64,4 +67,13 @@ fn clamp_lambda(value: f32) -> f32 {
     } else {
         0.3
     }
+}
+
+fn ratio_usize_as_f32(numerator: usize, denominator: usize) -> f32 {
+    if denominator == 0 {
+        return 0.0;
+    }
+    let numerator = numerator.to_f32().unwrap_or(f32::MAX);
+    let denominator = denominator.to_f32().unwrap_or(f32::MAX);
+    numerator / denominator
 }

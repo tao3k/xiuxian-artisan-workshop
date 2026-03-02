@@ -23,24 +23,18 @@ pub(super) fn save_to_valkey(
     scope_key: &str,
     dimension: usize,
 ) -> PyResult<()> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|error| pyo3::exceptions::PyRuntimeError::new_err(error.to_string()))?;
-    runtime
-        .block_on(graph.inner.save_to_valkey(scope_key, dimension))
+    graph
+        .inner
+        .save_to_valkey(scope_key, dimension)
         .map_err(|error| pyo3::exceptions::PyIOError::new_err(error.to_string()))?;
     kg_cache::invalidate(scope_key);
     Ok(())
 }
 
 pub(super) fn load_from_valkey(graph: &mut PyKnowledgeGraph, scope_key: &str) -> PyResult<()> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|error| pyo3::exceptions::PyRuntimeError::new_err(error.to_string()))?;
-    runtime
-        .block_on(graph.inner.load_from_valkey(scope_key))
+    graph
+        .inner
+        .load_from_valkey(scope_key)
         .map_err(|error| pyo3::exceptions::PyIOError::new_err(error.to_string()))
 }
 

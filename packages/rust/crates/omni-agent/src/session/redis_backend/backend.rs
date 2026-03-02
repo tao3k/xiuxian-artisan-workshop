@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 use super::config::{DEFAULT_SESSION_KEY_PREFIX, RedisSessionConfig, RedisSessionRuntimeSnapshot};
 
@@ -20,7 +20,9 @@ pub(crate) struct RedisSessionBackend {
     pub(super) url: String,
     pub(super) key_prefix: String,
     pub(super) ttl_secs: Option<u64>,
-    pub(super) connection: Arc<Mutex<Option<redis::aio::MultiplexedConnection>>>,
+    pub(super) message_content_max_chars: Option<usize>,
+    pub(super) connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+    pub(super) reconnect_lock: Arc<Mutex<()>>,
 }
 
 impl RedisSessionBackend {
@@ -37,7 +39,9 @@ impl RedisSessionBackend {
             url: cfg.url,
             key_prefix: cfg.key_prefix,
             ttl_secs: cfg.ttl_secs,
-            connection: Arc::new(Mutex::new(None)),
+            message_content_max_chars: cfg.message_content_max_chars,
+            connection: Arc::new(RwLock::new(None)),
+            reconnect_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -54,6 +58,7 @@ impl RedisSessionBackend {
             url,
             key_prefix: prefix,
             ttl_secs: ttl_secs.filter(|value| *value > 0),
+            message_content_max_chars: None,
         })
     }
 
@@ -70,6 +75,7 @@ impl RedisSessionBackend {
             url: self.url.clone(),
             key_prefix: self.key_prefix.clone(),
             ttl_secs: self.ttl_secs,
+            message_content_max_chars: self.message_content_max_chars,
         }
     }
 

@@ -13,6 +13,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 module = importlib.import_module("discord_ingress_stress_runtime_summary")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_evaluate_quality_applies_failure_rate_and_p95_thresholds() -> None:
@@ -38,7 +39,7 @@ def test_build_report_populates_summary_and_rounds() -> None:
         requests_per_worker=3,
         timeout_secs=0.5,
         cooldown_secs=0.0,
-        ingress_url="http://127.0.0.1:18082/discord/ingress",
+        ingress_url=endpoints.discord_ingress_url(),
         channel_id="2001",
         user_id="1001",
         guild_id="3001",

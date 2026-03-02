@@ -5,6 +5,7 @@ use litellm_rs::core::types::{
     RequestContext as LiteRequestContext, ToolChoice as LiteToolChoice,
 };
 use tokio::sync::OnceCell;
+use xiuxian_macros::env_first_non_empty;
 
 use crate::llm::converters::{
     chat_message_to_litellm_message, content_from_litellm, tool_call_from_litellm,
@@ -152,18 +153,9 @@ fn resolve_litellm_api_key(
     primary_env: &str,
     fallback_env: &str,
 ) -> Option<String> {
-    explicit_api_key.map(str::to_string).or_else(|| {
-        std::env::var(primary_env)
-            .ok()
-            .map(|raw| raw.trim().to_string())
-            .filter(|raw| !raw.is_empty())
-            .or_else(|| {
-                std::env::var(fallback_env)
-                    .ok()
-                    .map(|raw| raw.trim().to_string())
-                    .filter(|raw| !raw.is_empty())
-            })
-    })
+    explicit_api_key
+        .map(str::to_string)
+        .or_else(|| env_first_non_empty!(primary_env, fallback_env))
 }
 
 fn chat_response_to_assistant(response: LiteChatResponse) -> Result<AssistantMessage> {

@@ -1,4 +1,5 @@
 use super::super::super::{LinkGraphDocument, LinkGraphIndex, LinkGraphSearchOptions};
+use super::super::context::SearchExecutionContext;
 
 impl LinkGraphIndex {
     pub(in crate::link_graph::index::search) fn matches_temporal_filters(
@@ -28,27 +29,27 @@ impl LinkGraphIndex {
         true
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(in crate::link_graph::index::search) fn matches_structured_filters(
         &self,
         doc: &LinkGraphDocument,
         options: &LinkGraphSearchOptions,
-        include_paths: &[String],
-        exclude_paths: &[String],
-        tag_all: &[String],
-        tag_any: &[String],
-        tag_not: &[String],
-        mention_filters: &[String],
+        context: &SearchExecutionContext,
     ) -> bool {
-        if !Self::matches_path_filters(doc, include_paths, exclude_paths) {
+        if !Self::matches_path_filters(doc, &context.include_paths, &context.exclude_paths) {
             return false;
         }
 
-        if !Self::matches_tag_filters(doc, options, tag_all, tag_any, tag_not) {
+        if !Self::matches_tag_filters(
+            doc,
+            options,
+            &context.tag_all,
+            &context.tag_any,
+            &context.tag_not,
+        ) {
             return false;
         }
 
-        if !self.matches_graph_state_filters(doc, options, mention_filters) {
+        if !self.matches_graph_state_filters(doc, options, &context.mention_filters) {
             return false;
         }
 

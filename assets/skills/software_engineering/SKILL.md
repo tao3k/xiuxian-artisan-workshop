@@ -1,4 +1,5 @@
 ---
+type: skill
 name: software_engineering
 description: Use when analyzing project architecture, exploring codebase structure, understanding system design, reviewing code patterns, or navigating modular components.
 metadata:

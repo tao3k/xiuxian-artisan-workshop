@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,6 +16,11 @@ def _load_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _webhook_url() -> str:
+    host = os.environ.get("XIUXIAN_WENDAO_LOCAL_HOST", "localhost").strip() or "localhost"
+    return f"http://{host}:18081/telegram/webhook"
 
 
 @dataclass(frozen=True)
@@ -50,7 +56,7 @@ class _Cfg:
 def test_build_report_render_and_write_outputs(tmp_path: Path) -> None:
     module = _load_module()
     cfg = _Cfg(
-        webhook_url="http://127.0.0.1:18081/telegram/webhook",
+        webhook_url=_webhook_url(),
         log_file=tmp_path / "runtime.log",
         chat_id=-1001,
         chat_b=-1002,

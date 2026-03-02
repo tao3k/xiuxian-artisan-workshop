@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -32,7 +13,7 @@ fn test_link_graph_neighbors_related_metadata_and_toc() -> Result<(), Box<dyn st
     )?;
     write_file(&tmp.path().join("root/sub/c.md"), "# C\n\n[[a]]\n")?;
 
-    let index = LinkGraphIndex::build(&tmp.path().join("root")).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(&tmp.path().join("root")).map_err(|e| e.clone())?;
 
     let neighbors = index.neighbors("a", LinkGraphDirection::Both, 1, 10);
     assert_eq!(neighbors.len(), 2);
@@ -68,7 +49,7 @@ fn test_link_graph_related_with_diagnostics_returns_metrics()
     write_file(&tmp.path().join("root/b.md"), "# B\n\n[[c]]\n")?;
     write_file(&tmp.path().join("root/c.md"), "# C\n\n[[d]]\n")?;
     write_file(&tmp.path().join("root/d.md"), "# D\n\nNo links.\n")?;
-    let index = LinkGraphIndex::build(&tmp.path().join("root")).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(&tmp.path().join("root")).map_err(|e| e.clone())?;
 
     let ppr = LinkGraphRelatedPprOptions {
         alpha: Some(0.9),
@@ -83,9 +64,9 @@ fn test_link_graph_related_with_diagnostics_returns_metrics()
     assert!(rows.iter().any(|row| row.stem == "d"));
 
     let metrics = diagnostics.ok_or("missing related diagnostics")?;
-    assert_eq!(metrics.alpha, 0.9);
+    assert!((metrics.alpha - 0.9_f64).abs() < 1e-12_f64);
     assert_eq!(metrics.max_iter, 64);
-    assert_eq!(metrics.tol, 1e-6);
+    assert!((metrics.tol - 1e-6_f64).abs() < 1e-12_f64);
     assert!(metrics.iteration_count >= 1);
     assert!(metrics.final_residual >= 0.0);
     assert_eq!(metrics.candidate_count, 3);
@@ -95,7 +76,7 @@ fn test_link_graph_related_with_diagnostics_returns_metrics()
     assert_eq!(metrics.subgraph_count, 1);
     assert_eq!(metrics.partition_max_node_count, 8);
     assert_eq!(metrics.partition_min_node_count, 8);
-    assert_eq!(metrics.partition_avg_node_count, 8.0);
+    assert!((metrics.partition_avg_node_count - 8.0_f64).abs() < 1e-12_f64);
     assert!(metrics.total_duration_ms >= 0.0);
     assert!(metrics.partition_duration_ms >= 0.0);
     assert!(metrics.kernel_duration_ms >= 0.0);
@@ -118,7 +99,7 @@ fn test_link_graph_related_from_seeds_with_diagnostics_partitions_when_forced()
     write_file(&tmp.path().join("root/d.md"), "# D\n\n[[e]]\n")?;
     write_file(&tmp.path().join("root/e.md"), "# E\n\n[[f]]\n")?;
     write_file(&tmp.path().join("root/f.md"), "# F\n\nNo links.\n")?;
-    let index = LinkGraphIndex::build(&tmp.path().join("root")).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(&tmp.path().join("root")).map_err(|e| e.clone())?;
 
     let seeds = vec!["b".to_string(), "e".to_string()];
     let ppr = LinkGraphRelatedPprOptions {
@@ -134,7 +115,7 @@ fn test_link_graph_related_from_seeds_with_diagnostics_partitions_when_forced()
     assert_eq!(metrics.subgraph_count, 2);
     assert_eq!(metrics.partition_max_node_count, 3);
     assert_eq!(metrics.partition_min_node_count, 3);
-    assert_eq!(metrics.partition_avg_node_count, 3.0);
+    assert!((metrics.partition_avg_node_count - 3.0_f64).abs() < 1e-12_f64);
     assert!(metrics.total_duration_ms >= 0.0);
     assert!(metrics.partition_duration_ms >= 0.0);
     assert!(metrics.kernel_duration_ms >= 0.0);

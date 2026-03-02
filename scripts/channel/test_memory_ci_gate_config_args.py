@@ -12,20 +12,22 @@ from test_omni_agent_memory_ci_gate import can_bind_tcp, parse_args, resolve_run
 if TYPE_CHECKING:
     from pathlib import Path
 
+LOOPBACK_BIND_HOST = "127.0.0.1"
+
 
 def pick_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
+        sock.bind((LOOPBACK_BIND_HOST, 0))
         return int(sock.getsockname()[1])
 
 
 def test_resolve_runtime_ports_reassigns_when_requested_ports_are_occupied() -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as first:
-        first.bind(("127.0.0.1", 0))
+        first.bind((LOOPBACK_BIND_HOST, 0))
         first.listen(1)
         first_port = int(first.getsockname()[1])
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as second:
-            second.bind(("127.0.0.1", 0))
+            second.bind((LOOPBACK_BIND_HOST, 0))
             second.listen(1)
             second_port = int(second.getsockname()[1])
 
@@ -37,13 +39,13 @@ def test_resolve_runtime_ports_reassigns_when_requested_ports_are_occupied() -> 
     assert webhook_port != first_port
     assert telegram_api_port != second_port
     assert webhook_port != telegram_api_port
-    assert can_bind_tcp("127.0.0.1", webhook_port)
-    assert can_bind_tcp("127.0.0.1", telegram_api_port)
+    assert can_bind_tcp(LOOPBACK_BIND_HOST, webhook_port)
+    assert can_bind_tcp(LOOPBACK_BIND_HOST, telegram_api_port)
 
 
 def test_resolve_runtime_ports_reassigns_when_ports_conflict() -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_holder:
-        socket_holder.bind(("127.0.0.1", 0))
+        socket_holder.bind((LOOPBACK_BIND_HOST, 0))
         socket_holder.listen(1)
         requested = int(socket_holder.getsockname()[1])
 
@@ -53,8 +55,8 @@ def test_resolve_runtime_ports_reassigns_when_ports_conflict() -> None:
     )
 
     assert webhook_port != telegram_api_port
-    assert can_bind_tcp("127.0.0.1", webhook_port)
-    assert can_bind_tcp("127.0.0.1", telegram_api_port)
+    assert can_bind_tcp(LOOPBACK_BIND_HOST, webhook_port)
+    assert can_bind_tcp(LOOPBACK_BIND_HOST, telegram_api_port)
 
 
 def test_parse_args_uses_run_scoped_default_artifacts(monkeypatch, tmp_path: Path) -> None:

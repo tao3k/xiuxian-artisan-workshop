@@ -1,3 +1,9 @@
+---
+type: prompt
+metadata:
+  title: "Crawl4ai Skill Prompts"
+---
+
 # Crawl4ai Skill Prompts
 
 ## When to Use

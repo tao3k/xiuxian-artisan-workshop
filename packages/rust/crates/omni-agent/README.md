@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "omni-agent"
+---
+
 # omni-agent
 
 Minimal Rust agent loop (Phase B): one user turn with LLM + MCP tools.

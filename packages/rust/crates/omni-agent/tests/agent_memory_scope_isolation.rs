@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Agent memory-scope isolation tests across session and channel boundaries.
 
 use std::collections::HashSet;
 use std::fs;
@@ -67,10 +31,14 @@ fn episodes_path(memory_path: &str, table_name: &str) -> String {
 }
 
 async fn reserve_local_addr() -> std::net::SocketAddr {
-    let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+    let probe = match tokio::net::TcpListener::bind("127.0.0.1:0").await {
+        Ok(listener) => listener,
+        Err(error) => panic!("reserve local addr: {error}"),
+    };
+    let addr = match probe.local_addr() {
+        Ok(addr) => addr,
+        Err(error) => panic!("read reserved local addr: {error}"),
+    };
     drop(probe);
     addr
 }
@@ -82,7 +50,7 @@ async fn embed_handler(
     let vector_count = payload
         .get("texts")
         .and_then(|value| value.as_array())
-        .map_or(1, |texts| texts.len());
+        .map_or(1, Vec::len);
     tokio::time::sleep(Duration::from_millis(1)).await;
     let vectors: Vec<Vec<f32>> = (0..vector_count)
         .map(|_| vec![0.0_f32; embedding_dim])
@@ -97,9 +65,10 @@ async fn spawn_embedding_server(
     let app = Router::new()
         .route("/embed/batch", post(embed_handler))
         .with_state(embedding_dim);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind embedding listener");
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => listener,
+        Err(error) => panic!("bind embedding listener: {error}"),
+    };
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
     })
@@ -129,9 +98,9 @@ async fn turn_memory_persistence_is_scoped_by_session_id() -> Result<()> {
 
     let raw = fs::read_to_string(&file_path)?;
     let payload: serde_json::Value = serde_json::from_str(&raw)?;
-    let episodes = payload
-        .as_array()
-        .expect("episodes persistence payload should be an array");
+    let Some(episodes) = payload.as_array() else {
+        panic!("episodes persistence payload should be an array");
+    };
     assert!(
         episodes.len() >= 2,
         "expected at least two stored episodes, got {}",
@@ -140,11 +109,11 @@ async fn turn_memory_persistence_is_scoped_by_session_id() -> Result<()> {
 
     let mut scopes: HashSet<String> = HashSet::new();
     for episode in episodes {
-        let scope = episode
-            .get("scope")
-            .and_then(serde_json::Value::as_str)
-            .expect("every persisted episode should contain scope")
-            .to_string();
+        let scope = episode.get("scope").and_then(serde_json::Value::as_str);
+        let Some(scope) = scope else {
+            panic!("every persisted episode should contain scope");
+        };
+        let scope = scope.to_string();
         scopes.insert(scope);
     }
 
@@ -188,9 +157,9 @@ async fn turn_memory_persistence_isolated_when_channel_prefix_differs() -> Resul
 
     let raw = fs::read_to_string(&file_path)?;
     let payload: serde_json::Value = serde_json::from_str(&raw)?;
-    let episodes = payload
-        .as_array()
-        .expect("episodes persistence payload should be an array");
+    let Some(episodes) = payload.as_array() else {
+        panic!("episodes persistence payload should be an array");
+    };
     assert!(
         episodes.len() >= 2,
         "expected at least two episodes for distinct channel-scoped sessions, got {}",
@@ -199,11 +168,11 @@ async fn turn_memory_persistence_isolated_when_channel_prefix_differs() -> Resul
 
     let mut scopes: HashSet<String> = HashSet::new();
     for episode in episodes {
-        let scope = episode
-            .get("scope")
-            .and_then(serde_json::Value::as_str)
-            .expect("every persisted episode should contain scope")
-            .to_string();
+        let scope = episode.get("scope").and_then(serde_json::Value::as_str);
+        let Some(scope) = scope else {
+            panic!("every persisted episode should contain scope");
+        };
+        let scope = scope.to_string();
         scopes.insert(scope);
     }
 

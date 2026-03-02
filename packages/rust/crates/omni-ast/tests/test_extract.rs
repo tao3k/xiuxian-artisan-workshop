@@ -65,14 +65,14 @@ fn goodbye() {
 
 #[test]
 fn test_extract_items_classes() {
-    let content = r#"
+    let content = r"
 class MyClass:
     def method(self):
         pass
 
 class AnotherClass:
     pass
-"#;
+";
 
     let results = extract_items(content, "class $NAME", Lang::Python, None);
     assert_eq!(results.len(), 2);

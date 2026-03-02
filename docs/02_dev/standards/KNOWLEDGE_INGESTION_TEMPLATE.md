@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Template: Knowledge Ingestion & Zettelkasten Entry"
 category: "standards"
 tags:
@@ -6,6 +7,8 @@ tags:
   - KNOWLEDGE_INGESTION_TEMPLATE
 saliency_base: 6.8
 decay_rate: 0.03
+metadata:
+  title: "Template: Knowledge Ingestion (CyberXiuXian Artisan Studio)"
 ---
 
 # Template: Knowledge Ingestion (CyberXiuXian Artisan Studio)

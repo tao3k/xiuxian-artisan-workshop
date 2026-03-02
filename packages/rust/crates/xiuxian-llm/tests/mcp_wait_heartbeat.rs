@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
+//! MCP wait-heartbeat classification tests.
 
 use xiuxian_llm::mcp::{
     HealthProbeStatus, WaitHeartbeatState, classify_wait_heartbeat, degraded_wait_warn_after_secs,

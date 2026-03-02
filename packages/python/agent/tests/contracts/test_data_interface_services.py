@@ -203,23 +203,9 @@ class TestSyncServiceContract:
 
 
 class TestRunEntryContract:
-    """Contract: omni.agent.workflows.run_entry return shapes."""
+    """Contract: removed run_entry module must stay absent."""
 
-    @pytest.mark.asyncio
-    async def test_execute_task_via_kernel_is_decommissioned(self):
-        """execute_task_via_kernel must be decommissioned in favor of Rust runtime."""
-        from omni.agent.workflows.run_entry import execute_task_via_kernel
-
-        with pytest.raises(RuntimeError, match="decommissioned"):
-            await execute_task_via_kernel("hello", max_steps=5, verbose=False)
-
-    @pytest.mark.asyncio
-    async def test_execute_task_with_session_is_decommissioned(self):
-        """execute_task_with_session must be decommissioned in favor of Rust runtime."""
-        from omni.agent.workflows.run_entry import execute_task_with_session
-
-        with pytest.raises(RuntimeError, match="decommissioned"):
-            await execute_task_with_session(
-                session_id="s1",
-                user_message="hello",
-            )
+    def test_run_entry_module_is_removed(self):
+        """run_entry module is removed after Python runtime decommission."""
+        with pytest.raises(ModuleNotFoundError):
+            __import__("omni.agent.workflows.run_entry")

@@ -5,13 +5,16 @@
 
 mod diff;
 mod discovery;
+mod incremental;
 mod manifest;
-#[cfg(test)]
-mod tests;
 mod types;
 
 use std::path::{Path, PathBuf};
 
+pub use incremental::{
+    IncrementalSyncPolicy, extension_from_path, extract_extensions_from_glob_patterns,
+    normalize_extension,
+};
 pub use types::{DiscoveryOptions, FileChange, SyncManifest, SyncResult};
 
 /// Sync engine for incremental knowledge sync.
@@ -22,7 +25,6 @@ pub struct SyncEngine {
     pub(super) options: DiscoveryOptions,
 }
 
-#[allow(clippy::missing_errors_doc)]
 impl SyncEngine {
     /// Create a new sync engine.
     pub fn new<P: AsRef<Path>>(project_root: P, manifest_path: P) -> Self {

@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
+//! LLM backend parsing tests.
 
 use xiuxian_llm::llm::backend::{LlmBackendKind, parse_llm_backend_kind};
 
@@ -28,21 +16,13 @@ fn parse_llm_backend_kind_supports_http_aliases() {
         parse_llm_backend_kind(Some("openai_http")),
         Some(LlmBackendKind::OpenAiCompatibleHttp)
     );
-}
-
-#[test]
-fn parse_llm_backend_kind_supports_mistral_aliases() {
     assert_eq!(
-        parse_llm_backend_kind(Some("mistral_server")),
-        Some(LlmBackendKind::MistralLocal)
+        parse_llm_backend_kind(Some("minimax")),
+        Some(LlmBackendKind::OpenAiCompatibleHttp)
     );
     assert_eq!(
-        parse_llm_backend_kind(Some("mistral_local")),
-        Some(LlmBackendKind::MistralLocal)
-    );
-    assert_eq!(
-        parse_llm_backend_kind(Some("mistral-rs")),
-        Some(LlmBackendKind::MistralLocal)
+        parse_llm_backend_kind(Some("minimax-compatible")),
+        Some(LlmBackendKind::OpenAiCompatibleHttp)
     );
 }
 

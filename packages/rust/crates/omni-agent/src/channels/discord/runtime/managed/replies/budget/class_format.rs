@@ -26,7 +26,7 @@ pub(super) fn compute_largest_bottlenecks(
 }
 
 pub(super) fn format_context_budget_class_json(
-    stats: SessionContextBudgetClassSnapshot,
+    stats: &SessionContextBudgetClassSnapshot,
 ) -> serde_json::Value {
     json!({
         "input_messages": stats.input_messages,

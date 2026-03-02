@@ -228,7 +228,7 @@ SKILL_DOCUMENTS = [
             "Researcher skill performs sharded deep research on large repositories. "
             "The run_research_graph() command clones repo, maps file structure, plans shards via LLM, "
             "iterates through each shard with repomix compression, then synthesizes index.md. "
-            "Architecture: Map-Plan-Loop-Synthesize using LangGraph."
+            "Architecture: Map-Plan-Loop-Synthesize using native workflow runtime."
         ),
         "metadata": {"skill": "researcher", "category": "analysis"},
     },

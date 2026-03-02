@@ -38,6 +38,9 @@ pub struct LinkGraphDocument {
     pub tags_lower: Vec<String>,
     /// Best-effort leading content snippet.
     pub lead: String,
+    /// Optional semantic document type from frontmatter (`type`/`kind`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doc_type: Option<String>,
     /// Best-effort word count of body.
     #[serde(default)]
     pub word_count: usize,

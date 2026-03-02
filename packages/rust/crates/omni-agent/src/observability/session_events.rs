@@ -178,7 +178,6 @@ impl SessionEvent {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) const ALL: [Self; 82] = [
         Self::SessionBackendEnabled,
         Self::SessionValkeyConnected,
@@ -264,3 +263,9 @@ impl SessionEvent {
         Self::DedupEvaluated,
     ];
 }
+
+fn lint_symbol_probe() {
+    let _ = &SessionEvent::ALL;
+}
+
+const _: fn() = lint_symbol_probe;

@@ -13,7 +13,11 @@ from typing import Any
 from omni.foundation.config.dirs import PRJ_RUNTIME
 from omni.foundation.utils import json_codec as json
 
-from .runner_json import get_last_run_timing, run_skills_json_local
+from .runner_json import (
+    get_daemon_request_timeout_seconds,
+    get_last_run_timing,
+    run_skills_json_local,
+)
 
 _DEFAULT_IDLE_TIMEOUT_SECONDS = 600.0
 _DEFAULT_SOCKET_FILE = "skill-runner-json.sock"
@@ -159,7 +163,7 @@ def serve(socket_path: Path) -> int:
 
             with conn:
                 last_activity = time.monotonic()
-                conn.settimeout(30.0)
+                conn.settimeout(get_daemon_request_timeout_seconds())
                 try:
                     with conn.makefile("r", encoding="utf-8") as reader:
                         line = reader.readline()

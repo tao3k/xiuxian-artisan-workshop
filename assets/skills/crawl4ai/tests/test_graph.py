@@ -13,6 +13,7 @@ which only depends on stdlib (re, json) - NOT crawl4ai itself.
 """
 
 import asyncio
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -20,7 +21,34 @@ import pytest
 
 # Add scripts directory directly (only uses stdlib, no crawl4ai dependency)
 _SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
+if str(_SCRIPTS_DIR) in sys.path:
+    sys.path.remove(str(_SCRIPTS_DIR))
 sys.path.insert(0, str(_SCRIPTS_DIR))
+
+# Prevent cross-skill import collisions in full-suite runs where other skills
+# also expose bare modules named `engine` or `graph`.
+for _module_name in ("engine", "graph"):
+    sys.modules.pop(_module_name, None)
+
+
+def _load_local_module(name: str):
+    """Load a crawl4ai local script module into sys.modules under bare name."""
+    module_path = _SCRIPTS_DIR / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Failed to load module spec for {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(autouse=True)
+def _force_local_engine_graph():
+    """Ensure `engine`/`graph` imports resolve to crawl4ai scripts for every test."""
+    _load_local_module("engine")
+    _load_local_module("graph")
+    yield
 
 
 class TestExtractSkeleton:

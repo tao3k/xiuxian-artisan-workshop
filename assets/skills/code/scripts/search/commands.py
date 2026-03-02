@@ -77,7 +77,7 @@ def _get_code_search_executor() -> Callable[[str, str], Awaitable[dict]]:
 async def code_search(query: str, session_id: str = "default") -> str:
     """Execute interactive code search.
 
-    Uses LangGraph to orchestrate parallel search execution
+    Uses native workflow runtime to orchestrate search execution
     and returns XML-formatted results.
     """
     cache_key = _code_search_cache_key(query, session_id)

@@ -1,6 +1,8 @@
+use anyhow::Result;
+
 use super::types::{ContextRepairResult, ReactConversationState, TurnRuntimeContext};
-#[allow(clippy::wildcard_imports)]
-use super::*;
+use crate::agent::{Agent, context_budget};
+use crate::session::ChatMessage;
 
 impl Agent {
     pub(super) async fn repair_context_window_and_retry(

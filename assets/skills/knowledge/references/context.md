@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Development Context"
+---
+
 # Development Context
 
 ## Overview

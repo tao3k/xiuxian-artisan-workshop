@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 /// A daily journal entry for Xiuxian-Zhixing.
 ///
-/// Captures the "Stream of Consciousness" for later alchemy/structuring.
+/// Captures the "Stream of Consciousness" for later action-compilation/structuring.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JournalEntry {
     /// Unique identifier for the journal entry.

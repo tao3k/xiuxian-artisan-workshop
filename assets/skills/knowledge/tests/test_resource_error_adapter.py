@@ -5,9 +5,15 @@ from __future__ import annotations
 import sys
 import types
 
-import link_graph_search
 import pytest
-from graph import graph_stats_resource
+from _module_loader import load_script_module
+
+link_graph_search = load_script_module(
+    "link_graph_search", alias="knowledge_link_graph_search_test"
+)
+graph_stats_resource = load_script_module(
+    "graph", alias="knowledge_graph_resource_test"
+).graph_stats_resource
 
 
 @pytest.mark.asyncio

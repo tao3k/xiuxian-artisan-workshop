@@ -1,4 +1,4 @@
-//! Episode tests.
+//! `Episode` tests.
 
 use omni_memory::Episode;
 
@@ -13,7 +13,7 @@ fn test_episode_creation() {
     );
 
     assert_eq!(episode.id, "ep-001");
-    assert_eq!(episode.q_value, 0.5);
+    assert!((episode.q_value - 0.5).abs() < f32::EPSILON);
     assert_eq!(episode.success_count, 0);
     assert_eq!(episode.failure_count, 0);
 }

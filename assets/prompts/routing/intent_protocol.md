@@ -1,3 +1,9 @@
+---
+type: prompt
+metadata:
+  title: "Examples"
+---
+
 <routing_protocol>
 You are an Intent-Driven Orchestrator.
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use tokio::sync::mpsc;
 
 use crate::channels::telegram::TelegramControlCommandPolicy;
@@ -8,20 +8,26 @@ use crate::channels::traits::{Channel, ChannelMessage};
 
 use super::super::super::channel::TelegramChannel;
 
-#[allow(clippy::type_complexity)]
+type PollingListenerRuntime = (
+    Arc<TelegramChannel>,
+    Arc<dyn Channel>,
+    mpsc::Sender<ChannelMessage>,
+    mpsc::Receiver<ChannelMessage>,
+    tokio::task::JoinHandle<()>,
+);
+
 pub(super) fn start_polling_listener(
     bot_token: String,
     allowed_users: Vec<String>,
     allowed_groups: Vec<String>,
     control_command_policy: TelegramControlCommandPolicy,
     inbound_queue_capacity: usize,
-) -> Result<(
-    Arc<TelegramChannel>,
-    Arc<dyn Channel>,
-    mpsc::Sender<ChannelMessage>,
-    mpsc::Receiver<ChannelMessage>,
-    tokio::task::JoinHandle<()>,
-)> {
+) -> Result<PollingListenerRuntime> {
+    ensure!(
+        !bot_token.trim().is_empty(),
+        "telegram bot token cannot be empty"
+    );
+
     let channel = Arc::new(
         TelegramChannel::new_with_partition_and_control_command_policy(
             bot_token,
@@ -29,7 +35,7 @@ pub(super) fn start_polling_listener(
             allowed_groups,
             control_command_policy,
             super::super::super::session_partition::TelegramSessionPartition::from_env(),
-        )?,
+        ),
     );
     let channel_for_send: Arc<dyn Channel> = channel.clone();
 

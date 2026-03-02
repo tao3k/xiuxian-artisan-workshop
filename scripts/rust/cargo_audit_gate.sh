@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cargo_bin="${CARGO_BIN:-${script_dir}/cargo_exec.sh}"
+
 # Temporary transitive exceptions for unresolved upstream advisories.
 # Remove entries as dependency chains are upgraded.
 ignore_args=(
@@ -11,4 +14,4 @@ ignore_args=(
   --ignore RUSTSEC-2026-0002
 )
 
-cargo audit --deny warnings "${ignore_args[@]}"
+"${cargo_bin}" audit --deny warnings "${ignore_args[@]}"

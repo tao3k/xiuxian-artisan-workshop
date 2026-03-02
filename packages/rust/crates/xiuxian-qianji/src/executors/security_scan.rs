@@ -59,25 +59,26 @@ impl QianjiMechanism for SecurityScanMechanism {
 
         for file_str in file_paths {
             let mut path_buf = std::path::PathBuf::from(&file_str);
-            if let Some(base) = base_dir {
-                if path_buf.is_relative() {
-                    path_buf = base.join(path_buf);
-                }
+            if let Some(base) = base_dir
+                && path_buf.is_relative()
+            {
+                path_buf = base.join(path_buf);
             }
 
             // Read file if it exists (it might be a deleted staged file, so we skip reading errors softly)
-            if path_buf.exists() && path_buf.is_file() {
-                if let Ok(content) = fs::read_to_string(&path_buf) {
-                    let file_violations = scanner.scan_all(&content);
-                    for v in file_violations {
-                        all_violations.push(json!({
-                            "file": file_str,
-                            "rule_id": v.rule_id,
-                            "description": v.description,
-                            "line": v.line,
-                            "snippet": v.snippet,
-                        }));
-                    }
+            if path_buf.exists()
+                && path_buf.is_file()
+                && let Ok(content) = fs::read_to_string(&path_buf)
+            {
+                let file_violations = scanner.scan_all(&content);
+                for v in file_violations {
+                    all_violations.push(json!({
+                        "file": file_str,
+                        "rule_id": v.rule_id,
+                        "description": v.description,
+                        "line": v.line,
+                        "snippet": v.snippet,
+                    }));
                 }
             }
         }

@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Standard: LLM Reading Guide (Project Omni)"
 category: "standards"
 tags:
@@ -6,6 +7,8 @@ tags:
   - LLM_READING_GUIDE
 saliency_base: 6.8
 decay_rate: 0.03
+metadata:
+  title: "Standard: LLM Reading Guide (CyberXiuXian Artisan Studio)"
 ---
 
 # Standard: LLM Reading Guide (CyberXiuXian Artisan Studio)

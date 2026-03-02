@@ -1,4 +1,4 @@
-"""Tests for cached LangGraph compilation in code search graph."""
+"""Tests for cached native workflow compilation in code search graph."""
 
 from __future__ import annotations
 

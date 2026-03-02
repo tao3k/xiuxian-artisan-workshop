@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
+//! MCP health endpoint derivation tests.
 
 use xiuxian_llm::mcp::derive_health_url;
 

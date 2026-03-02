@@ -21,6 +21,3 @@ impl CargoDependency {
         Self { name, version }
     }
 }
-
-#[cfg(test)]
-mod tests;

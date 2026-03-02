@@ -1,6 +1,9 @@
 ---
+type: knowledge
 description: Load a skill into semantic memory
 argument-hint: [skill_name]
+metadata:
+  title: "load-skill"
 ---
 
 Load the skill into LanceDB for semantic recall:

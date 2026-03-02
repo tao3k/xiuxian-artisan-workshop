@@ -24,6 +24,7 @@ def _runtime_config(
     *,
     cache_valkey_url: str = "redis://127.0.0.1:6379/0",
     stats_ttl: float = 120.0,
+    delta_full_rebuild_threshold: int = 256,
 ) -> WendaoRuntimeConfig:
     return WendaoRuntimeConfig(
         root_dir=None,
@@ -32,7 +33,7 @@ def _runtime_config(
         include_dirs_auto_candidates=[],
         exclude_dirs=[*DEFAULT_EXCLUDED_HIDDEN_DIRS, *DEFAULT_EXCLUDED_ADDITIONAL_DIRS],
         stats_persistent_cache_ttl_sec=stats_ttl,
-        delta_full_rebuild_threshold=256,
+        delta_full_rebuild_threshold=delta_full_rebuild_threshold,
         cache_valkey_url=cache_valkey_url,
         cache_key_prefix=None,
         cache_ttl_seconds=None,
@@ -109,16 +110,12 @@ class _FakeEngine:
         changed_paths = json.loads(changed_paths_json or "[]")
         threshold = max(1, int(full_rebuild_threshold or 256))
         changed_count = len(changed_paths)
-        strategy = (
-            "full"
-            if force_full or changed_count >= threshold
-            else ("noop" if not changed_paths else "delta")
-        )
+        strategy = "full" if force_full else ("noop" if not changed_paths else "delta")
         reason = (
             "force_full"
             if force_full
             else (
-                "threshold_exceeded"
+                "threshold_exceeded_incremental"
                 if changed_count >= threshold
                 else ("noop" if not changed_paths else "delta_requested")
             )
@@ -264,6 +261,42 @@ def test_backend_refresh_delta_fallback_to_full(tmp_path: Path) -> None:
     assert result["fallback"] is True
     assert engine.refresh_calls[0][1] is False
     assert engine.refresh_calls[1] == (None, True)
+
+
+def test_backend_refresh_threshold_exceeded_prefers_delta_without_rust_planner(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notes"
+    notebook.mkdir()
+    captured: list[tuple[str, float, dict[str, object]]] = []
+
+    class _EngineNoPlanner(_FakeEngine):
+        refresh_plan_apply = None  # type: ignore[assignment]
+
+    def _record(phase: str, duration_ms: float, **extra: object) -> None:
+        captured.append((phase, duration_ms, dict(extra)))
+
+    engine = _EngineNoPlanner()
+    backend = WendaoBackend(
+        notebook_dir=str(notebook),
+        engine=engine,
+        runtime_config=_runtime_config(delta_full_rebuild_threshold=1),
+        phase_recorder=_record,  # type: ignore[arg-type]
+    )
+
+    result = asyncio.run(backend.refresh_with_delta(["docs/a.md"]))
+
+    assert result["mode"] == "delta"
+    assert result["fallback"] is False
+    assert len(engine.refresh_calls) == 1
+    delta_payload, delta_force_full = engine.refresh_calls[0]
+    assert delta_force_full is False
+    assert isinstance(delta_payload, str)
+    assert json.loads(delta_payload) == ["docs/a.md"]
+    plan_events = [row for row in captured if row[0] == "link_graph.index.delta.plan"]
+    assert plan_events
+    assert str(plan_events[0][2].get("strategy")) == "delta"
+    assert str(plan_events[0][2].get("reason")) == "threshold_exceeded_incremental"
 
 
 def test_backend_stats_reads_persistent_cache_without_engine(tmp_path: Path) -> None:

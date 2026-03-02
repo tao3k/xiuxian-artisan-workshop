@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Quadrilateral Cognitive Architecture: The CyberXiuXian Artisan Whitepaper (2026 Ultimate Edition)"
+---
+
 # Quadrilateral Cognitive Architecture: The CyberXiuXian Artisan Whitepaper (2026 Ultimate Edition)
 
 > **Authority:** CyberXiuXian Artisan Studio  
@@ -153,15 +159,15 @@ Implementing **ContextSnap (2025)**, we provide a "Physical Sandbox" for the pro
 
 Omega is the "Commander" implementing the **HMAS (2025)** Axis-4 Governance layer. It orchestrates the **Trinity of Execution Modes**.
 
-### 5.1 The Decision Matrix: Omega-LangGraph-ReAct
+### 5.1 The Decision Matrix: Omega-Workflow-ReAct
 
 Omega decides _how_ to think based on Risk and Uncertainty.
 
-| Mode          | Core Philosophy  | Use Case                            | Governance                  |
-| :------------ | :--------------- | :---------------------------------- | :-------------------------- |
-| **LangGraph** | **Order (DAG)**  | Deterministic SOPs (Deploy, Audit). | Strict State Checkpoints.   |
-| **ReAct**     | **Chaos (Loop)** | Exploration, Debugging.             | Step-limit, Tool-whitelist. |
-| **Omega**     | **The Arbiter**  | Switching between Order/Chaos.      | Real-time Risk Assessment.  |
+| Mode                 | Core Philosophy  | Use Case                            | Governance                  |
+| :------------------- | :--------------- | :---------------------------------- | :-------------------------- |
+| **Workflow Runtime** | **Order (DAG)**  | Deterministic SOPs (Deploy, Audit). | Strict State Checkpoints.   |
+| **ReAct**            | **Chaos (Loop)** | Exploration, Debugging.             | Step-limit, Tool-whitelist. |
+| **Omega**            | **The Arbiter**  | Switching between Order/Chaos.      | Real-time Risk Assessment.  |
 
 ### 5.2 Real-Time Trajectory Auditing (Valkey Streams)
 

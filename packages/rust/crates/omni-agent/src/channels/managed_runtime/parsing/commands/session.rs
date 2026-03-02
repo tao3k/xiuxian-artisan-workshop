@@ -86,7 +86,7 @@ where
     }
 
     let sub = parts.next()?;
-    if !eq_any_ignore_ascii(sub, &["partition"]) {
+    if !is_partition_scope_alias(sub) {
         return None;
     }
 
@@ -119,6 +119,10 @@ where
         }
         _ => None,
     }
+}
+
+fn is_partition_scope_alias(token: &str) -> bool {
+    eq_any_ignore_ascii(token, &["partition", "scope"])
 }
 
 fn parse_session_context_command(input: &str) -> Option<SessionContextCommand> {

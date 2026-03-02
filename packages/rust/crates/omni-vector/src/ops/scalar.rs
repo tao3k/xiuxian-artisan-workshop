@@ -23,11 +23,15 @@ const HIGH_CARDINALITY_THRESHOLD: usize = 10_000;
 /// Sample size for cardinality estimation (distinct count over first N rows).
 const CARDINALITY_SAMPLE_LIMIT: i64 = 2000;
 
-#[allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 impl VectorStore {
-    /// Create a BTree index on a column for exact match and range queries.
+    /// Create a `BTree` index on a column for exact match and range queries.
     ///
     /// Accelerates: `column = value`, `BETWEEN`, `IN`, `IS NULL`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] if the table is missing, the dataset cannot be opened,
+    /// projection/scan setup fails, or Lance index creation fails.
     pub async fn create_btree_index(
         &self,
         table_name: &str,
@@ -72,6 +76,11 @@ impl VectorStore {
     /// Create a Bitmap index on a column for low-cardinality filters.
     ///
     /// Best for: category, status, enum-like columns (few unique values).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] if the table is missing, the dataset cannot be opened,
+    /// projection/scan setup fails, or Lance index creation fails.
     pub async fn create_bitmap_index(
         &self,
         table_name: &str,
@@ -121,7 +130,12 @@ impl VectorStore {
 
     /// Estimate the number of distinct values in a column (sample-based).
     ///
-    /// Used by `create_optimal_scalar_index` to choose BTree vs Bitmap.
+    /// Used by `create_optimal_scalar_index` to choose `BTree` vs Bitmap.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] if the table is missing, dataset scan/projection fails,
+    /// stream reads fail, or the requested column is unavailable in a scanned batch.
     pub async fn estimate_cardinality(
         &self,
         table_name: &str,
@@ -159,7 +173,11 @@ impl VectorStore {
     /// Create the best scalar index type for a column based on estimated cardinality.
     ///
     /// - Low cardinality (&lt; 100): Bitmap.
-    /// - Otherwise: BTree.
+    /// - Otherwise: `BTree`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] if cardinality estimation fails or index creation fails.
     pub async fn create_optimal_scalar_index(
         &self,
         table_name: &str,

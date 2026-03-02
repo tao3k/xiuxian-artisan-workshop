@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Shared config fallback helpers for Telegram channel black-box scripts.
+Shared config helpers for Telegram channel black-box scripts.
 
 Resolution priority:
 1) Explicit CLI / env values
-2) User settings:   $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml
-3) System settings: <repo>/packages/conf/settings.yaml
+2) User config:     $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/xiuxian.toml
+3) System config:   <repo>/packages/rust/crates/omni-agent/resources/config/xiuxian.toml
 4) Runtime log inference (when available)
 """
 

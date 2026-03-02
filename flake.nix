@@ -42,6 +42,18 @@
         debug = true;
         _module.args.workspaceRoot = ./.;
         imports = [
+          {
+            perSystem =
+              { system, ... }:
+              {
+                _module.args.pkgs = import inputs.nixpkgs {
+                  inherit system;
+                  config = {
+                    allowUnfree = true;
+                  };
+                };
+              };
+          }
           inputs.nci.flakeModule
           ./nix/modules/flake-parts/omni-core-rs.nix
           ./nix/modules/flake-parts/omni-dev-fusion.nix

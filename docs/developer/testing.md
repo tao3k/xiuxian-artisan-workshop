@@ -1,14 +1,17 @@
 ---
-title: "Omni-Dev-Fusion Testing Guide"
+type: knowledge
+title: "Xiuxian OS Testing Guide"
 category: "developer"
 tags:
   - developer
   - testing
 saliency_base: 6.3
 decay_rate: 0.04
+metadata:
+  title: "Xiuxian OS Testing Guide"
 ---
 
-# Omni-Dev-Fusion Testing Guide
+# Xiuxian OS Testing Guide
 
 > Trinity Architecture Test System - Foundation, Core, MCP-Server
 > Last Updated: 2026-01-25
@@ -51,7 +54,7 @@ The `omni-test-kit` is a dedicated testing framework that provides specialized t
 - **`SkillTester`**: Executor for modular skill testing. Handles dependency injection and context mocking.
 - **`McpTester`**: Tools for validating MCP server compliance and message formats.
 - **`GitOpsVerifier`**: State-based verification for Git operations (branches, commits, tags).
-- **`LangGraphTester`**: Visualizer and spy for LangGraph workflow state transitions.
+- **`WorkflowGraphTester`**: Visualizer and spy for workflow state transitions.
 
 ### Global Fixtures
 
@@ -190,6 +193,34 @@ uv run omni skill test git
 uv run omni skill test --all
 ```
 
+### MCP tools/list Concurrency Sweep (Snapshot Baseline)
+
+Use this gate to track MCP `tools/list` latency under concurrency and detect
+regressions against the committed baseline.
+
+```bash
+# Run sweep and generate reports only (no baseline update)
+devenv tasks run ci:mcp-tools-list-sweep
+
+# Refresh baseline snapshot (local/manual operation)
+OMNI_MCP_TOOLS_LIST_WRITE_SNAPSHOT=true devenv tasks run ci:mcp-tools-list-sweep
+
+# Enforce regression detection against snapshot baseline
+OMNI_MCP_TOOLS_LIST_STRICT_SNAPSHOT=true devenv tasks run ci:mcp-tools-list-sweep
+```
+
+Artifacts and baseline:
+
+- Report JSON: `.run/reports/mcp-tools-list-sweep/mcp_tools_list_concurrency_sweep.json`
+- Report Markdown: `.run/reports/mcp-tools-list-sweep/mcp_tools_list_concurrency_sweep.md`
+- Snapshot baseline: `assets/skills/_snapshots/benchmark/mcp_tools_list.yaml`
+
+Operational rule:
+
+- Update the snapshot only after repeated stable local runs.
+- CI runs this gate with strict snapshot mode enabled by default.
+- When strict mode fails, inspect `summary.snapshot.anomalies` in the JSON report.
+
 ### With Coverage Report
 
 ```bash
@@ -248,11 +279,11 @@ pytest -v --timeout=30 test_slow_operation.py
 
 ### Retrieval Tests (`packages/python/foundation/tests/unit/rag/`)
 
-| File                             | Purpose                                                        |
-| -------------------------------- | -------------------------------------------------------------- |
-| `test_retrieval_namespace.py`    | Validate Lance/Hybrid backend behavior and normalization       |
-| `test_retrieval_factory.py`      | Validate backend selection by `kind` (`lance`, `hybrid`)       |
-| `test_retrieval_node_factory.py` | Validate LangGraph retrieval node factory output/state mapping |
+| File                             | Purpose                                                       |
+| -------------------------------- | ------------------------------------------------------------- |
+| `test_retrieval_namespace.py`    | Validate Lance/Hybrid backend behavior and normalization      |
+| `test_retrieval_factory.py`      | Validate backend selection by `kind` (`lance`, `hybrid`)      |
+| `test_retrieval_node_factory.py` | Validate retrieval workflow node factory output/state mapping |
 
 ### Vector Schema Tests (`packages/python/foundation/tests/unit/services/`)
 
@@ -476,21 +507,23 @@ Located in `packages/rust/crates/omni-*/src/*.rs` with inline `#[cfg(test)]` mod
 
 ```bash
 # Run all Rust tests
-cargo test --workspace
+cargo nextest run --workspace
 
 # Run specific crate tests
-cargo test -p omni-vector
-cargo test -p omni-scanner
-cargo test -p omni-tags
+cargo nextest run -p omni-vector
+cargo nextest run -p xiuxian-skills
+cargo nextest run -p omni-tags
 ```
+
+Prefer crate-scoped commands during development and only expand to workspace-wide runs when needed.
 
 ### Rust Test Status
 
-| Crate        | Tests | Status  |
-| ------------ | ----- | ------- |
-| omni-vector  | 35    | PASSING |
-| omni-scanner | 55    | PASSING |
-| omni-tags    | -     | TODO    |
+| Crate          | Tests | Status  |
+| -------------- | ----- | ------- |
+| omni-vector    | 35    | PASSING |
+| xiuxian-skills | 55    | PASSING |
+| omni-tags      | -     | TODO    |
 
 ---
 
@@ -608,7 +641,7 @@ jobs:
       - run: uv run pytest packages/python/mcp-server/tests/ -q
       - run: uv run pytest packages/python/agent/tests/ -q
       - run: uv run omni skill test --all
-      - run: cargo test --workspace
+      - run: cargo nextest run --workspace
       # Optional: Coverage report
       - run: uv run pytest --cov=omni --cov-report=term-missing
 ```

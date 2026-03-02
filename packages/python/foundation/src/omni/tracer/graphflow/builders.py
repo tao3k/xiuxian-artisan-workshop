@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from .nodes import llm_analyze, llm_draft, llm_evaluate, llm_finalize, llm_reflect
-from .tracer import LangGraphTracer
-from .types import DemoState
+
+if TYPE_CHECKING:
+    from .tracer import GraphflowTracer
+    from .types import DemoState
 
 
 def default_parameters_for_scenario(scenario: str) -> dict[str, object]:
@@ -102,7 +104,7 @@ def create_initial_state(parameters: dict[str, object], scenario: str) -> DemoSt
 
 
 def register_scenario_graph(
-    workflow: object, scenario: str, tracer: LangGraphTracer, end_marker: object
+    workflow: object, scenario: str, tracer: GraphflowTracer, end_marker: object
 ) -> None:
     """Register scenario-specific nodes and edges on a StateGraph-like object."""
 

@@ -1,18 +1,21 @@
 """
-pipeline_builder.py - Compile declarative pipeline config into graph definition.
+pipeline_builder.py - Compile declarative pipeline config into workflow definition.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .engine import ExecutionTracer
 from .pipeline_schema import PipelineConfig, Segment
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
-class LangGraphPipelineBuilder:
-    """Builds graph definitions from pipeline configurations."""
+    from .engine import ExecutionTracer
+
+
+class PipelineWorkflowBuilder:
+    """Builds native workflow definitions from pipeline configurations."""
 
     def __init__(self, config: PipelineConfig, tracer: ExecutionTracer | None = None):
         self.config = config
@@ -107,7 +110,7 @@ class LangGraphPipelineBuilder:
         }
         self.nodes[after_node] = {"type": "noop"}
 
-        child_builder = LangGraphPipelineBuilder(self.config, self.tracer)
+        child_builder = PipelineWorkflowBuilder(self.config, self.tracer)
         child_builder.nodes = self.nodes
         child_builder.edges = self.edges
         child_builder.conditional_edges = self.conditional_edges
@@ -148,7 +151,7 @@ class LangGraphPipelineBuilder:
         destinations: dict[str, str] = {}
         branch_end_nodes: list[str] = []
         for branch_name, branch_steps in branches.items():
-            child_builder = LangGraphPipelineBuilder(self.config, self.tracer)
+            child_builder = PipelineWorkflowBuilder(self.config, self.tracer)
             child_builder.nodes = self.nodes
             child_builder.edges = self.edges
             child_builder.conditional_edges = self.conditional_edges
@@ -243,7 +246,7 @@ def _create_branch_condition(
 
 
 __all__ = [
-    "LangGraphPipelineBuilder",
+    "PipelineWorkflowBuilder",
     "_create_branch_condition",
     "_create_loop_condition",
 ]

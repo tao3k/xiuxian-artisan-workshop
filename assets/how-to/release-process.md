@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Release Process Guide"
+---
+
 # Release Process Guide
 
 > **Status**: Active

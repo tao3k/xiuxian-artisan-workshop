@@ -49,7 +49,7 @@ pub struct ReflectiveRuntime {
 }
 
 impl ReflectiveRuntime {
-    #[allow(dead_code)]
+    #[cfg(test)]
     #[must_use]
     pub const fn stage(self) -> Option<ReflectiveRuntimeStage> {
         self.stage

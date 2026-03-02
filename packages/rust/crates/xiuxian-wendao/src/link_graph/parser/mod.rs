@@ -10,8 +10,8 @@ use super::models::LinkGraphDocument;
 use std::path::Path;
 
 use self::content::{
-    count_words, extract_lead, extract_saliency_params, extract_tags, extract_title,
-    parse_frontmatter,
+    count_words, extract_doc_type, extract_lead, extract_saliency_params, extract_tags,
+    extract_title, parse_frontmatter,
 };
 use self::links::extract_link_targets;
 use self::paths::{normalize_slashes, relative_doc_id};
@@ -54,6 +54,7 @@ pub fn parse_note(path: &Path, root: &Path, content: &str) -> Option<ParsedNote>
     let (frontmatter, body) = parse_frontmatter(content);
     let title = extract_title(frontmatter.as_ref(), body, &stem);
     let tags = extract_tags(frontmatter.as_ref());
+    let doc_type = extract_doc_type(frontmatter.as_ref());
     let lead = extract_lead(body);
     let word_count = count_words(body);
     let (saliency_base, decay_rate) = extract_saliency_params(frontmatter.as_ref());
@@ -80,6 +81,7 @@ pub fn parse_note(path: &Path, root: &Path, content: &str) -> Option<ParsedNote>
             tags,
             tags_lower,
             lead,
+            doc_type,
             word_count,
             search_text,
             search_text_lower,

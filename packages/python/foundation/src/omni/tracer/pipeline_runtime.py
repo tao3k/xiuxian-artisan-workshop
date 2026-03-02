@@ -1,20 +1,22 @@
-"""
-pipeline_runtime.py - Runtime execution and LangGraph assembly for pipelines.
-"""
+"""pipeline_runtime.py - Native runtime execution for declarative pipelines."""
 
 from __future__ import annotations
 
 import importlib
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .async_utils import DispatchMode
-from .engine import ExecutionTracer
 from .interfaces import StepType
 from .node_factory import ToolInvoker, create_pipeline_node
-from .pipeline_builder import LangGraphPipelineBuilder
+from .pipeline_builder import PipelineWorkflowBuilder
 from .pipeline_checkpoint import compile_workflow
 from .pipeline_schema import PipelineConfig, PipelineState
+from .workflow_engine import END_NODE, NativeStateGraph
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from .engine import ExecutionTracer
 
 
 class PipelineExecutor:
@@ -31,7 +33,7 @@ class PipelineExecutor:
             self.config = PipelineConfig.from_yaml(pipeline_path)
 
         self.tracer = tracer
-        self.builder = LangGraphPipelineBuilder(self.config, tracer)
+        self.builder = PipelineWorkflowBuilder(self.config, tracer)
 
     def build_graph(self) -> dict[str, Any]:
         return self.builder.build()
@@ -95,7 +97,7 @@ class PipelineExecutor:
         return resolved
 
 
-def create_langgraph_from_pipeline(
+def create_workflow_from_pipeline(
     pipeline_config: PipelineConfig,
     tracer: ExecutionTracer | None = None,
     state_schema: type[PipelineState] | None = None,
@@ -104,14 +106,12 @@ def create_langgraph_from_pipeline(
     checkpointer: Any | None = None,
     use_memory_saver: bool = False,
 ) -> Any:
-    """Create a LangGraph from pipeline configuration."""
-    from langgraph.graph import END, START, StateGraph
-
-    builder = LangGraphPipelineBuilder(pipeline_config, tracer)
+    """Create a native compiled workflow app from pipeline configuration."""
+    builder = PipelineWorkflowBuilder(pipeline_config, tracer)
     graph_def = builder.build()
 
     schema = state_schema or PipelineState
-    workflow = StateGraph(schema)
+    workflow = NativeStateGraph(schema)
 
     for node_name, node_config in graph_def["nodes"].items():
         workflow.add_node(
@@ -126,7 +126,7 @@ def create_langgraph_from_pipeline(
 
     entry_node = graph_def.get("entry_node")
     if entry_node:
-        workflow.add_edge(START, entry_node)
+        workflow.set_entry_point(entry_node)
 
     for from_node, to_node in graph_def["edges"]:
         workflow.add_edge(from_node, to_node)
@@ -135,7 +135,7 @@ def create_langgraph_from_pipeline(
         workflow.add_conditional_edges(from_node, condition, destinations)
 
     for exit_node in graph_def.get("exit_nodes", []):
-        workflow.add_edge(exit_node, END)
+        workflow.add_edge(exit_node, END_NODE)
 
     return compile_workflow(
         workflow,
@@ -144,7 +144,7 @@ def create_langgraph_from_pipeline(
     )
 
 
-def create_langgraph_from_pipeline_with_defaults(
+def create_workflow_from_pipeline_with_defaults(
     pipeline_config: PipelineConfig,
     tracer: ExecutionTracer | None = None,
     state_schema: type[PipelineState] | None = None,
@@ -157,7 +157,7 @@ def create_langgraph_from_pipeline_with_defaults(
     checkpointer: Any | None = None,
     use_memory_saver: bool = False,
 ) -> Any:
-    """Create a LangGraph with a default invoker stack."""
+    """Create a compiled workflow with the default invoker stack."""
     if tool_invoker is None:
         from .invoker_stack import create_default_invoker_stack
 
@@ -168,7 +168,7 @@ def create_langgraph_from_pipeline_with_defaults(
             retrieval_default_backend=retrieval_default_backend,
         )
 
-    return create_langgraph_from_pipeline(
+    return create_workflow_from_pipeline(
         pipeline_config=pipeline_config,
         tracer=tracer,
         state_schema=state_schema,
@@ -207,7 +207,7 @@ def _resolve_state_schema(schema_path: str | None) -> type[PipelineState] | None
     return schema
 
 
-def create_langgraph_from_yaml(
+def create_workflow_from_yaml(
     path: str | Path,
     tracer: ExecutionTracer | None = None,
     state_schema: type[PipelineState] | None = None,
@@ -221,7 +221,7 @@ def create_langgraph_from_yaml(
     use_memory_saver: bool | None = None,
     callback_dispatch_mode: DispatchMode | str | None = None,
 ) -> Any:
-    """Create a LangGraph directly from YAML, honoring runtime config defaults."""
+    """Create a compiled workflow directly from YAML, honoring runtime defaults."""
     pipeline_config = load_pipeline(path)
     runtime = pipeline_config.runtime
 
@@ -243,7 +243,7 @@ def create_langgraph_from_yaml(
             callback_dispatch_mode or runtime.tracer.callback_dispatch_mode
         )
 
-    return create_langgraph_from_pipeline_with_defaults(
+    return create_workflow_from_pipeline_with_defaults(
         pipeline_config=pipeline_config,
         tracer=tracer,
         state_schema=resolved_state_schema,
@@ -260,9 +260,9 @@ def create_langgraph_from_yaml(
 __all__ = [
     "PipelineExecutor",
     "_resolve_state_schema",
-    "create_langgraph_from_pipeline",
-    "create_langgraph_from_pipeline_with_defaults",
-    "create_langgraph_from_yaml",
     "create_pipeline_executor",
+    "create_workflow_from_pipeline",
+    "create_workflow_from_pipeline_with_defaults",
+    "create_workflow_from_yaml",
     "load_pipeline",
 ]

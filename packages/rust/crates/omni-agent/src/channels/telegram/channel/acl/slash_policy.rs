@@ -20,46 +20,46 @@ pub(in crate::channels::telegram::channel) fn build_slash_command_policy(
     add_slash_rule(
         &mut rules,
         TELEGRAM_SLASH_SCOPE_SESSION_STATUS,
-        slash_policy.session_status_allow_from,
+        slash_policy.session_status,
         &admin_users_for_rules,
     );
     add_slash_rule(
         &mut rules,
         TELEGRAM_SLASH_SCOPE_SESSION_BUDGET,
-        slash_policy.session_budget_allow_from,
+        slash_policy.session_budget,
         &admin_users_for_rules,
     );
     add_slash_rule(
         &mut rules,
         TELEGRAM_SLASH_SCOPE_SESSION_MEMORY,
-        slash_policy.session_memory_allow_from,
+        slash_policy.session_memory,
         &admin_users_for_rules,
     );
     add_slash_rule(
         &mut rules,
         TELEGRAM_SLASH_SCOPE_SESSION_FEEDBACK,
-        slash_policy.session_feedback_allow_from,
+        slash_policy.session_feedback,
         &admin_users_for_rules,
     );
     add_slash_rule(
         &mut rules,
         TELEGRAM_SLASH_SCOPE_JOB_STATUS,
-        slash_policy.job_status_allow_from,
+        slash_policy.job_status,
         &admin_users_for_rules,
     );
     add_slash_rule(
         &mut rules,
         TELEGRAM_SLASH_SCOPE_JOBS_SUMMARY,
-        slash_policy.jobs_summary_allow_from,
+        slash_policy.jobs_summary,
         &admin_users_for_rules,
     );
     add_slash_rule(
         &mut rules,
         TELEGRAM_SLASH_SCOPE_BACKGROUND_SUBMIT,
-        slash_policy.background_submit_allow_from,
+        slash_policy.background_submit,
         &admin_users_for_rules,
     );
-    ControlCommandPolicy::new(admin_users, slash_policy.slash_command_allow_from, rules)
+    ControlCommandPolicy::new(admin_users, slash_policy.global, rules)
 }
 
 fn add_slash_rule(

@@ -7,6 +7,3 @@ mod stats;
 pub use entry::{KnowledgeCategory, KnowledgeEntry};
 pub use query::KnowledgeSearchQuery;
 pub use stats::KnowledgeStats;
-
-#[cfg(test)]
-mod tests;

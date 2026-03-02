@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Skill Templates (ODF-EP v7.0)"
+---
+
 # Skill Templates (ODF-EP v7.0)
 
 Centralized Jinja2 templates for skill generation with **Isolated Sandbox + Explicit Routing** architecture.

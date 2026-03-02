@@ -87,38 +87,47 @@ fn seed_vector_fusion_map(
 
 fn merge_keyword_fusion_scores(
     fusion_map: &mut HashMap<String, HybridSearchResult>,
-    keyword_results: &[ToolSearchResult],
+    keyword_results: Vec<ToolSearchResult>,
     k: f32,
     weights: &EffectiveFusionWeights,
-) {
+) -> HashMap<String, ToolSearchResult> {
+    let mut keyword_context: HashMap<String, ToolSearchResult> = HashMap::new();
+
     if weights.kw_weight <= 0.05 {
-        return;
+        for result in keyword_results {
+            keyword_context.insert(result.tool_name.clone(), result);
+        }
+        return keyword_context;
     }
-    for (rank, result) in keyword_results.iter().enumerate() {
+
+    for (rank, result) in keyword_results.into_iter().enumerate() {
         let rrf_score = weights.kw_weight * super::kernels::rrf_term(k, rank);
-        let tool_name = result.tool_name.as_str();
-        if let Some(entry) = fusion_map.get_mut(tool_name) {
+        let tool_name = result.tool_name.clone();
+        if let Some(entry) = fusion_map.get_mut(tool_name.as_str()) {
             entry.rrf_score += rrf_score;
             entry.keyword_score = result.score;
         } else {
             fusion_map.insert(
-                result.tool_name.clone(),
+                tool_name.clone(),
                 HybridSearchResult {
-                    tool_name: result.tool_name.clone(),
+                    tool_name: tool_name.clone(),
                     rrf_score,
                     vector_score: 0.0,
                     keyword_score: result.score,
                 },
             );
         }
+        keyword_context.insert(tool_name, result);
     }
+
+    keyword_context
 }
 
 fn compute_name_metadata_boost_deltas(
     keys_ordered: &[String],
     names_lower_array: &StringArray,
     ac_and_exact: Option<&(AhoCorasick, Option<PatternID>)>,
-    keyword_context: &HashMap<&str, &ToolSearchResult>,
+    keyword_context: &HashMap<String, ToolSearchResult>,
     query_parts: &[&str],
     file_discovery_intent: bool,
 ) -> Vec<f32> {
@@ -182,7 +191,6 @@ fn sorted_fusion_results(
 /// Algorithm: weighted vector + keyword streams, smart fallback for sparse keyword results,
 /// dynamic field boosting (name token match, exact phrase, metadata alignment).
 #[must_use]
-#[allow(clippy::needless_pass_by_value)]
 pub fn apply_weighted_rrf(
     vector_results: Vec<(String, f32)>,
     keyword_results: Vec<ToolSearchResult>,
@@ -195,15 +203,13 @@ pub fn apply_weighted_rrf(
     let query_lower = query.to_lowercase();
     let query_parts: Vec<&str> = query_lower.split_whitespace().collect();
     let file_discovery_intent = is_file_discovery_query(&query_lower, &query_parts);
-    let keyword_context: HashMap<&str, &ToolSearchResult> = keyword_results
-        .iter()
-        .map(|r| (r.tool_name.as_str(), r))
-        .collect();
+    let keyword_results_len = keyword_results.len();
     let weights =
-        compute_effective_fusion_weights(keyword_results.len(), semantic_weight, keyword_weight);
-    maybe_log_sparse_keyword_fallback(&weights, keyword_results.len(), query);
+        compute_effective_fusion_weights(keyword_results_len, semantic_weight, keyword_weight);
+    maybe_log_sparse_keyword_fallback(&weights, keyword_results_len, query);
     seed_vector_fusion_map(&mut fusion_map, vector_results, k, &weights);
-    merge_keyword_fusion_scores(&mut fusion_map, &keyword_results, k, &weights);
+    let keyword_context =
+        merge_keyword_fusion_scores(&mut fusion_map, keyword_results, k, &weights);
 
     let (keys_ordered, names_lower_array) = build_name_lower_arrow(fusion_map.keys());
     let ac_and_exact = build_name_token_automaton_with_phrase(&query_parts, &query_lower);

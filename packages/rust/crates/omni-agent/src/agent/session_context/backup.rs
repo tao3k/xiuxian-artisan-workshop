@@ -3,8 +3,7 @@ use crate::session::ChatMessage;
 use anyhow::Result;
 
 use super::types::{SessionContextBackup, SessionContextBackupMetadata};
-#[allow(clippy::wildcard_imports)]
-use super::*;
+use super::{Agent, SessionContextStats, backup_metadata_session_id, now_unix_ms};
 
 impl Agent {
     pub(super) async fn capture_session_backup(

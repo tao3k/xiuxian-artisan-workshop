@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Omni-Memory: Self-Evolving Memory Engine"
 category: "references"
 tags:
@@ -6,6 +7,8 @@ tags:
   - omni
 saliency_base: 5.5
 decay_rate: 0.05
+metadata:
+  title: "Omni-Memory: Self-Evolving Memory Engine"
 ---
 
 # Omni-Memory: Self-Evolving Memory Engine

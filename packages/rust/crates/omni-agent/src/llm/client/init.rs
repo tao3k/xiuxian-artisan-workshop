@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::Semaphore;
+use xiuxian_macros::env_non_empty;
 
 use super::super::backend::{extract_api_base_from_inference_url, parse_backend_mode};
 #[cfg(feature = "agent-provider-litellm")]
@@ -13,10 +14,7 @@ use crate::config::load_runtime_settings;
 impl LlmClient {
     pub fn new(inference_url: String, model: String, api_key: Option<String>) -> Self {
         let runtime_settings = load_runtime_settings();
-        let env_backend = std::env::var("OMNI_AGENT_LLM_BACKEND")
-            .ok()
-            .map(|raw| raw.trim().to_string())
-            .filter(|raw| !raw.is_empty());
+        let env_backend = env_non_empty!("OMNI_AGENT_LLM_BACKEND");
         let (backend_mode, backend_source) = if let Some(raw) = env_backend.as_deref() {
             (parse_backend_mode(Some(raw)), "env")
         } else {
@@ -84,7 +82,7 @@ impl LlmClient {
         }
     }
 
-    /// Active backend mode label (`litellm_rs`, `http`, or `mistral_local`).
+    /// Active backend mode label (`litellm_rs` or `http`).
     pub fn backend_mode(&self) -> &'static str {
         self.backend_mode.as_str()
     }
@@ -106,11 +104,14 @@ impl LlmClient {
 }
 
 fn build_http_client() -> reqwest::Client {
-    let builder = reqwest::Client::builder()
+    let mut builder = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(5))
         .pool_idle_timeout(Duration::from_secs(90))
         .pool_max_idle_per_host(64)
         .tcp_nodelay(true);
+    if !system_proxy_enabled() {
+        builder = builder.no_proxy();
+    }
     match builder.build() {
         Ok(client) => client,
         Err(error) => {
@@ -121,4 +122,10 @@ fn build_http_client() -> reqwest::Client {
             reqwest::Client::new()
         }
     }
+}
+
+fn system_proxy_enabled() -> bool {
+    env_non_empty!("OMNI_AGENT_HTTP_ENABLE_SYSTEM_PROXY")
+        .map(|raw| raw.trim().to_ascii_lowercase())
+        .is_some_and(|raw| matches!(raw.as_str(), "1" | "true" | "yes" | "on"))
 }

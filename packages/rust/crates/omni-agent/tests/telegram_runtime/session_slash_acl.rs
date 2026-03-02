@@ -1,44 +1,8 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram session slash-ACL enforcement tests in runtime command handling.
 
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use tokio::sync::{Mutex, mpsc};
 
@@ -59,7 +23,7 @@ impl SlashRestrictedMockChannel {
 
 #[async_trait]
 impl Channel for SlashRestrictedMockChannel {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "slash-restricted-mock"
     }
 
@@ -93,7 +57,7 @@ impl RecipientScopedSlashMockChannel {
 
 #[async_trait]
 impl Channel for RecipientScopedSlashMockChannel {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "recipient-scoped-slash-mock"
     }
 
@@ -217,7 +181,7 @@ async fn runtime_handle_inbound_plain_text_is_not_blocked_by_slash_acl() -> Resu
 
     let forwarded = foreground_rx
         .try_recv()
-        .expect("plain text turn should be forwarded");
+        .map_err(|error| anyhow!("plain text turn should be forwarded: {error}"))?;
     assert_eq!(forwarded.content, "hello from non-slash turn");
     assert_eq!(forwarded.sender, "999");
 

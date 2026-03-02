@@ -5,22 +5,26 @@ mod control_command_rule_specs;
 mod discord;
 pub(crate) mod managed_commands;
 mod managed_runtime;
+mod runtime_snapshot;
 pub(crate) mod telegram;
 mod traits;
 
 pub use discord::{
     DISCORD_MAX_MESSAGE_LENGTH, DiscordAclOverrides, DiscordChannel, DiscordCommandAdminRule,
-    DiscordControlCommandPolicy, DiscordIngressApp, DiscordIngressRunRequest, DiscordRuntimeConfig,
-    DiscordSessionPartition, DiscordSlashCommandPolicy, build_discord_acl_overrides,
-    build_discord_command_admin_rule, build_discord_ingress_app,
-    build_discord_ingress_app_with_control_command_policy,
+    DiscordControlCommandPolicy, DiscordIngressApp, DiscordIngressBuildRequest,
+    DiscordIngressRunRequest, DiscordRuntimeConfig, DiscordSessionPartition,
+    DiscordSlashCommandPolicy, build_discord_acl_overrides, build_discord_command_admin_rule,
+    build_discord_ingress_app, build_discord_ingress_app_with_control_command_policy,
     build_discord_ingress_app_with_partition_and_control_command_policy, run_discord_gateway,
     run_discord_ingress, split_message_for_discord,
 };
+pub use managed_runtime::ForegroundQueueMode;
 pub use telegram::{
     DEFAULT_REDIS_KEY_PREFIX, SessionGate, TELEGRAM_MAX_MESSAGE_LENGTH, TelegramAclOverrides,
     TelegramChannel, TelegramCommandAdminRule, TelegramControlCommandPolicy, TelegramRuntimeConfig,
-    TelegramSessionPartition, TelegramSlashCommandPolicy, TelegramWebhookApp, WebhookDedupBackend,
+    TelegramSessionPartition, TelegramSlashCommandPolicy, TelegramWebhookApp,
+    TelegramWebhookControlPolicyBuildRequest, TelegramWebhookPartitionBuildRequest,
+    TelegramWebhookPolicyRunRequest, TelegramWebhookRunRequest, WebhookDedupBackend,
     WebhookDedupConfig, build_telegram_acl_overrides, build_telegram_acl_overrides_from_settings,
     build_telegram_command_admin_rule, build_telegram_webhook_app,
     build_telegram_webhook_app_with_control_command_policy,

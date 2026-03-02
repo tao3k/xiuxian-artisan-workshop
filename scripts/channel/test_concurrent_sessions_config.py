@@ -16,6 +16,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 config_module = importlib.import_module("concurrent_sessions_config")
 models_module = importlib.import_module("concurrent_sessions_models")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_resolve_runtime_partition_mode_prefers_override() -> None:
@@ -47,7 +48,7 @@ def test_expected_session_keys_forwards_to_dependency() -> None:
 def test_build_config_rejects_identical_session_targets() -> None:
     args = argparse.Namespace(
         max_wait=30,
-        webhook_url="http://127.0.0.1:18081/telegram/webhook",
+        webhook_url=endpoints.webhook_url(),
         log_file=".run/logs/omni-agent-webhook.log",
         chat_id=130,
         chat_b=130,

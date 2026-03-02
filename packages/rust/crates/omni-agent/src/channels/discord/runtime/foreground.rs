@@ -8,6 +8,7 @@ use super::ForegroundInterruptController;
 use super::dispatch::process_discord_message_with_interrupt;
 use super::managed::push_background_completion;
 use crate::agent::{Agent, DownstreamAdmissionRuntimeSnapshot};
+use crate::channels::managed_runtime::ForegroundQueueMode;
 use crate::channels::traits::{Channel, ChannelMessage};
 use crate::jobs::{JobCompletion, JobManager, JobManagerConfig, TurnRunner};
 
@@ -20,6 +21,7 @@ pub(super) struct DiscordForegroundRuntime {
     foreground_max_in_flight_messages: usize,
     foreground_tasks: JoinSet<()>,
     turn_timeout_secs: u64,
+    foreground_queue_mode: ForegroundQueueMode,
 }
 
 pub(super) struct DiscordForegroundSnapshot {
@@ -27,6 +29,7 @@ pub(super) struct DiscordForegroundSnapshot {
     pub available_permits: usize,
     pub in_flight_messages: usize,
     pub task_count: usize,
+    pub queue_mode: ForegroundQueueMode,
 }
 
 impl DiscordForegroundRuntime {
@@ -87,6 +90,7 @@ impl DiscordForegroundRuntime {
         let job_manager = Arc::clone(&self.job_manager);
         let interrupt_controller = self.interrupt_controller.clone();
         let turn_timeout_secs = self.turn_timeout_secs;
+        let foreground_queue_mode = self.foreground_queue_mode;
         self.foreground_tasks.spawn(async move {
             let _permit = permit;
             process_discord_message_with_interrupt(
@@ -95,6 +99,7 @@ impl DiscordForegroundRuntime {
                 msg,
                 &job_manager,
                 turn_timeout_secs,
+                foreground_queue_mode,
                 &interrupt_controller,
             )
             .await;
@@ -133,6 +138,7 @@ impl DiscordForegroundRuntime {
             available_permits,
             in_flight_messages,
             task_count: self.foreground_tasks.len(),
+            queue_mode: self.foreground_queue_mode,
         }
     }
 
@@ -146,6 +152,7 @@ pub(super) fn build_foreground_runtime(
     channel_for_send: Arc<dyn Channel>,
     turn_timeout_secs: u64,
     foreground_max_in_flight_messages: usize,
+    foreground_queue_mode: ForegroundQueueMode,
 ) -> (DiscordForegroundRuntime, mpsc::Receiver<JobCompletion>) {
     let runner: Arc<dyn TurnRunner> = agent.clone();
     let (job_manager, completion_rx) = JobManager::start(runner, JobManagerConfig::default());
@@ -158,6 +165,7 @@ pub(super) fn build_foreground_runtime(
         foreground_max_in_flight_messages,
         foreground_tasks: JoinSet::new(),
         turn_timeout_secs,
+        foreground_queue_mode,
     };
     (runtime, completion_rx)
 }

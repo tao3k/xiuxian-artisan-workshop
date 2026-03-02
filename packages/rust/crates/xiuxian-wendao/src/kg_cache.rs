@@ -1,5 +1,4 @@
 //! In-process cache for `KnowledgeGraph` loaded from Valkey.
-#![allow(clippy::doc_markdown)]
 //!
 //! Avoids repeated backend reads when the same graph scope key is accessed
 //! across multiple recall operations. Cache is invalidated on save so ingest
@@ -70,13 +69,8 @@ pub fn load_from_valkey_cached(scope_key: &str) -> Result<Option<KnowledgeGraph>
 }
 
 fn load_from_valkey_impl(scope_key: &str) -> Result<KnowledgeGraph, GraphError> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| GraphError::InvalidRelation("runtime".into(), e.to_string()))?;
-
     let mut graph = KnowledgeGraph::new();
-    runtime.block_on(graph.load_from_valkey(scope_key))?;
+    graph.load_from_valkey_sync(scope_key)?;
     Ok(graph)
 }
 
@@ -91,7 +85,6 @@ pub fn invalidate(scope_key: &str) {
 }
 
 /// Invalidate all cached graphs (for testing or full reset).
-#[allow(dead_code)]
 pub fn invalidate_all() {
     if let Ok(mut cache) = KG_CACHE.lock() {
         let count = cache.len();
@@ -103,7 +96,6 @@ pub fn invalidate_all() {
 }
 
 /// Return the number of cached entries (for testing).
-#[allow(dead_code)]
 #[must_use]
 pub fn cache_len() -> usize {
     KG_CACHE.lock().map_or(0, |c| c.len())

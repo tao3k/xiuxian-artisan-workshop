@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from memory_ci_gate_runtime_artifacts import (
-    _yaml_inline_list,
+    _toml_inline_list,
     default_artifact_relpath,
     write_ci_channel_acl_settings,
 )
@@ -23,7 +23,7 @@ from memory_ci_gate_runtime_quality_gates import (
 )
 
 __all__ = [
-    "_yaml_inline_list",
+    "_toml_inline_list",
     "count_log_event",
     "default_artifact_relpath",
     "read_tail",

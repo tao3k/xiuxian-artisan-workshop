@@ -212,9 +212,9 @@ fn test_json_filtering_performance() {
             let meta = serde_json::json!({
                 "skill_name": format!("skill_{}", i % 10),
                 "tool_name": format!("tool_{}", i % 20),
-                "file_path": format!("path/to/file_{}.py", i),
+                "file_path": format!("path/to/file_{i}.py"),
                 "keywords": ["test"],
-                "score": i as f64 / 100.0
+                "score": f64::from(i) / 100.0
             });
             (meta.to_string(), meta)
         })
@@ -224,18 +224,20 @@ fn test_json_filtering_performance() {
     let filter = serde_json::json!({
         "skill_name": "skill_5"
     });
+    let Some(skill_filter) = filter.get("skill_name") else {
+        panic!("expected skill_name in benchmark filter");
+    };
 
     let start = std::time::Instant::now();
 
     for _ in 0..ITERATIONS {
         for (str_val, _) in &metadata_items {
             // Simulate filter matching
-            if let Ok(parsed_val) = serde_json::from_str::<serde_json::Value>(str_val) {
-                if let Some(skill) = parsed_val.get("skill_name") {
-                    if skill == filter.get("skill_name").unwrap() {
-                        continue;
-                    }
-                }
+            if let Ok(parsed_val) = serde_json::from_str::<serde_json::Value>(str_val)
+                && let Some(skill) = parsed_val.get("skill_name")
+                && skill == skill_filter
+            {
+                // matched skill_name
             }
         }
     }
@@ -308,7 +310,7 @@ fn test_vector_sorting_performance() {
     let mut vectors: Vec<(Vec<f32>, String)> = generate_vectors(VECTOR_COUNT, DIM)
         .into_iter()
         .enumerate()
-        .map(|(i, v)| (v, format!("vector_{}", i)))
+        .map(|(i, v)| (v, format!("vector_{i}")))
         .collect();
 
     let start = std::time::Instant::now();
@@ -345,12 +347,12 @@ fn test_l2_distance_correctness() {
     // Simple case: identical vectors should have distance 0
     let v1 = vec![1.0, 0.0, 0.0];
     let v2 = vec![1.0, 0.0, 0.0];
-    assert_eq!(compute_l2_distance(&v1, &v2), 0.0);
+    assert!((compute_l2_distance(&v1, &v2) - 0.0).abs() < f32::EPSILON);
 
     // Distance from origin
     let origin = vec![0.0, 0.0, 0.0];
     let v = vec![3.0, 4.0, 0.0];
-    assert_eq!(compute_l2_distance(&origin, &v), 5.0);
+    assert!((compute_l2_distance(&origin, &v) - 5.0).abs() < f32::EPSILON);
 
     // Symmetry
     let a = vec![1.0, 2.0, 3.0];

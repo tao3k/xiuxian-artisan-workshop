@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "omni-core"
+---
+
 # omni-core
 
 Microkernel core for omni-dev-fusion.

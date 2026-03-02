@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Self-Evolution Verification Report"
+---
+
 # Self-Evolution Verification Report
 
 **Date:** 2026-01-22 18:32

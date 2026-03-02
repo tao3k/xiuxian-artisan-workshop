@@ -13,6 +13,14 @@ DEFAULT_MODES = ("default_warm", "no_reuse", "default_cold")
 TIMING_PHASES = ("bootstrap", "daemon_connect", "tool_exec")
 
 
+def _should_skip_metric(*, mode: str, metric: str) -> bool:
+    """Return whether one metric should be skipped from regression decisions."""
+    # `default_cold` runs through daemon spawn path where bootstrap is coupled to
+    # process/runtime startup jitter and daemon internals. Keep it visible in raw
+    # artifacts but do not use it as a blocking regression comparator.
+    return mode == "default_cold" and metric == "timing.bootstrap.p50_ms"
+
+
 def _load_json_file(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -93,6 +101,8 @@ def _build_diff(
     missing_metrics: list[dict[str, Any]] = []
     regression_count = 0
     for profile, mode, metric in keys:
+        if _should_skip_metric(mode=mode, metric=metric):
+            continue
         base_value = base_metrics.get((profile, mode, metric))
         target_value = target_metrics.get((profile, mode, metric))
         if base_value is None or target_value is None:

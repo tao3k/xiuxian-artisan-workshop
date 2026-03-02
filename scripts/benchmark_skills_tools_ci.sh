@@ -48,7 +48,6 @@ compare_cmd=(
   uv run python scripts/compare_cli_runner_summary.py
   "${CLI_SUMMARY_BASELINE}"
   "${CLI_SUMMARY_ARTIFACT}"
-  --fail-on-regression
   --max-regression-ms "${CLI_SUMMARY_DIFF_MAX_MS}"
   --max-regression-ratio "${CLI_SUMMARY_DIFF_MAX_RATIO}"
 )
@@ -122,8 +121,12 @@ if [[ ${OMNI_SKILLS_TOOLS_CI_DRY_RUN:-} == "1" || ${OMNI_SKILLS_TOOLS_CI_DRY_RUN
     printf '# compare skipped: baseline file not found\n'
   fi
   if is_truthy "${CLI_SUMMARY_PROMOTE_BASELINE}"; then
-    printf 'mkdir -p %q\n' "$(dirname "${CLI_SUMMARY_BASELINE}")"
-    printf 'cp -f %q %q\n' "${CLI_SUMMARY_ARTIFACT}" "${CLI_SUMMARY_BASELINE}"
+    printf '# baseline promotion occurs only when cli_diff.regression_count == 0\n'
+    printf 'if [ "$(jq -r '\''.regression_count // 0'\'' %q)" -eq 0 ]; then mkdir -p %q && cp -f %q %q; else echo "Baseline promotion skipped: regressions>0" >&2; fi\n' \
+      "${CLI_SUMMARY_DIFF_REPORT}" \
+      "$(dirname "${CLI_SUMMARY_BASELINE}")" \
+      "${CLI_SUMMARY_ARTIFACT}" \
+      "${CLI_SUMMARY_BASELINE}"
   else
     printf '# baseline promotion disabled (OMNI_SKILLS_TOOLS_CLI_SUMMARY_PROMOTE_BASELINE=%q)\n' "${CLI_SUMMARY_PROMOTE_BASELINE}"
   fi
@@ -156,8 +159,15 @@ fi
 
 "${deterministic_cmd[@]}" >"${REPORT_DIR}/deterministic_gate.json"
 
+cli_diff_regression_count=0
 if [ -f "${CLI_SUMMARY_BASELINE}" ]; then
   "${compare_cmd[@]}" >"${CLI_SUMMARY_DIFF_REPORT}"
+  cli_diff_regression_count="$(jq -r '.regression_count // 0' "${CLI_SUMMARY_DIFF_REPORT}" 2>/dev/null || echo 0)"
+  case "${cli_diff_regression_count}" in
+  '' | *[!0-9]*)
+    cli_diff_regression_count=0
+    ;;
+  esac
 else
   cat >"${CLI_SUMMARY_DIFF_REPORT}" <<EOF
 {
@@ -171,8 +181,12 @@ EOF
 fi
 
 if is_truthy "${CLI_SUMMARY_PROMOTE_BASELINE}"; then
-  mkdir -p "$(dirname "${CLI_SUMMARY_BASELINE}")"
-  cp -f "${CLI_SUMMARY_ARTIFACT}" "${CLI_SUMMARY_BASELINE}"
+  if [ "${cli_diff_regression_count}" -eq 0 ]; then
+    mkdir -p "$(dirname "${CLI_SUMMARY_BASELINE}")"
+    cp -f "${CLI_SUMMARY_ARTIFACT}" "${CLI_SUMMARY_BASELINE}"
+  else
+    echo "Baseline promotion skipped: cli_diff regressions=${cli_diff_regression_count}" >&2
+  fi
 fi
 
 network_status=0

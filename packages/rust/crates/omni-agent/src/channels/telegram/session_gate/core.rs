@@ -47,6 +47,7 @@ impl SessionGate {
         Self::from_runtime_config(&config)
     }
 
+    /// Return active backend name (`memory` or `valkey`) for diagnostics.
     #[must_use]
     pub fn backend_name(&self) -> &'static str {
         match self.backend {
@@ -125,7 +126,7 @@ impl SessionGate {
             SessionGateBackendMode::Valkey => {
                 let valkey_url = config.valkey_url.as_deref().ok_or_else(|| {
                     anyhow::anyhow!(
-                        "telegram session gate backend=valkey requires valkey url (session.valkey_url or VALKEY_URL)"
+                        "telegram session gate backend=valkey requires valkey url (session.valkey_url, XIUXIAN_WENDAO_VALKEY_URL, or VALKEY_URL)"
                     )
                 })?;
                 let backend = ValkeySessionGateBackend::new(

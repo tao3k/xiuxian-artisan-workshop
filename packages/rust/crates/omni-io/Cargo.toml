@@ -19,7 +19,7 @@ omni-tokenizer = { path = "../omni-tokenizer" }
 # Tracing for instrumentation
 tracing = { workspace = true }
 # Event Bus for reactive file watching (optional)
-omni-events = { path = "../omni-events", optional = true }
+xiuxian-event = { path = "../xiuxian-event", optional = true }
 # File watching crate (optional, requires notify feature)
 notify = { version = "6.0", features = ["serde"], optional = true }
 # Glob pattern matching (optional, for notify feature)
@@ -28,7 +28,7 @@ globset = { workspace = true, optional = true }
 [features]
 default = []
 assembler = []  # Enable context assembly functionality
-notify = ["omni-events", "dep:notify", "dep:globset"]  # Enable file watching with event publishing
+notify = ["xiuxian-event", "dep:notify", "dep:globset"]  # Enable file watching with event publishing
 
 [dev-dependencies]
 tempfile = { workspace = true }

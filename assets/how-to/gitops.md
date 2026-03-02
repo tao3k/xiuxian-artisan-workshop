@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Git Workflow Guide"
+---
+
 # Git Workflow Guide
 
 > **TL;DR**: Use `git_commit` tool directly. Git status is auto-injected via Context Injection.

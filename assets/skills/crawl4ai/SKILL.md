@@ -1,4 +1,5 @@
 ---
+type: skill
 name: crawl4ai
 description: Use when crawling web pages, extracting markdown content, or scraping website data with intelligent chunking and skeleton planning. Use when the user provides a URL or link to fetch or crawl.
 metadata:
@@ -45,7 +46,7 @@ High-performance web crawler with intelligent chunking. Crawls web pages and ext
 
 ### `crawl_url` (alias: `webCrawl`)
 
-Crawl a web page with LangGraph workflow and LLM-based intelligent chunking.
+Crawl a web page with native workflow execution and LLM-based intelligent chunking.
 
 **Parameters:**
 | Parameter | Type | Default | Description |

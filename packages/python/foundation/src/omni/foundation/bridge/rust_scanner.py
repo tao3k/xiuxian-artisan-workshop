@@ -1,7 +1,7 @@
 """
 rust_scanner.py - Skill Scanner Implementation
 
-Rust-powered skill discovery using omni-scanner crate.
+Rust-powered skill discovery using xiuxian-skills crate.
 Provides high-performance batch scanning for fast startup.
 """
 

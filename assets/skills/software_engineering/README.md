@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Skill: Software Engineering (The Architect)"
+---
+
 # Skill: Software Engineering (The Architect)
 
 ## Philosophy

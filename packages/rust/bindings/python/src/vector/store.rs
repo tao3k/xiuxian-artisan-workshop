@@ -625,10 +625,7 @@ pub(crate) fn store_get_query_metrics(
         )
         .await
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-        let metrics = store
-            .get_query_metrics(&table_name)
-            .await
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let metrics = store.get_query_metrics(&table_name);
         serde_json::to_string(&metrics)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     })

@@ -1,7 +1,7 @@
 """
 conftest.py - Pytest Configuration and Shared Fixtures for Agent Tests
 
-Provides common fixtures for testing OmniLoop, ContextManager, and CLI commands.
+Provides common fixtures for runtime decommission, context, and CLI command tests.
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -12,14 +12,7 @@ import pytest
 @pytest.fixture
 def mock_inference_client():
     """
-    Create a mock InferenceClient for testing OmniLoop without actual LLM calls.
-
-    Usage:
-        async def test_example(mock_inference_client):
-            with patch("omni.agent.core.omni.InferenceClient", return_value=mock_inference_client):
-                loop = OmniLoop()
-                result = await loop.run("Test task")
-                assert result == "Mock response"
+    Create a mock InferenceClient payload for unit tests.
     """
     mock = MagicMock()
     mock.complete = AsyncMock(
@@ -66,14 +59,7 @@ def mock_inference_client_with_content(content="Mock response"):
 @pytest.fixture
 def mock_failing_inference():
     """
-    Create a mock InferenceClient that simulates LLM failure.
-
-    Usage:
-        async def test_failure_handling(mock_failing_inference):
-            with patch("omni.agent.core.omni.InferenceClient", return_value=mock_failing_inference):
-                loop = OmniLoop()
-                result = await loop.run("Test")
-                assert result == ""
+    Create a mock InferenceClient payload that simulates LLM failure.
     """
     mock = MagicMock()
     mock.complete = AsyncMock(
@@ -152,13 +138,6 @@ class MockInferenceContext:
 def mock_inference_context():
     """
     Create a mock InferenceClient that captures context for verification.
-
-    Usage:
-        async def test_context_passed(mock_inference_context):
-            with patch("omni.agent.core.omni.InferenceClient", return_value=mock_inference_context):
-                loop = OmniLoop()
-                await loop.run("Test task")
-                assert mock_inference_context.get_last_user_query() == "Test task"
     """
     return MockInferenceContext()
 

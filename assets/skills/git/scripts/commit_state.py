@@ -2,7 +2,7 @@
 assets/skills/git/scripts/commit_state.py
 Commit-Specific State Schema for Smart Commit Workflow
 
-Defines the structured state for LangGraph-driven commit workflow
+Defines the structured state for workflow-driven commit execution
 with Human-in-the-Loop (HITL) approval.
 
 Architecture: Tool provides data, LLM provides intelligence.

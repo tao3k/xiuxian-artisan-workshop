@@ -101,6 +101,10 @@ pub(crate) fn parse_relation_type_str(raw: &str) -> RelationType {
         "IMPLEMENTS" => RelationType::Implements,
         "EXTENDS" => RelationType::Extends,
         "CONTAINS" => RelationType::Contains,
+        "REFERENCES" => RelationType::References,
+        "GOVERNS" => RelationType::Governs,
+        "MANIFESTS" => RelationType::Manifests,
+        "ATTACHED_TO" => RelationType::AttachedTo,
         _ => RelationType::Other(raw.to_string()),
     }
 }

@@ -67,11 +67,7 @@ pub async fn run_telegram_with_control_command_policy(
         foreground_dispatcher,
         job_manager,
         mut completion_rx,
-    ) = start_telegram_runtime(
-        Arc::clone(&agent),
-        Arc::clone(&channel_for_send),
-        runtime_config,
-    )?;
+    ) = start_telegram_runtime(&agent, &channel_for_send, runtime_config)?;
 
     println!("Telegram channel listening... (polling, Ctrl+C to stop)");
     println!("Session partition: {}", channel.session_partition());

@@ -126,7 +126,7 @@ def skill_list(
     List installed skills and their commands.
 
     Displays a hierarchical inventory of all available capabilities,
-    including command aliases defined in settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml).
+    including command aliases defined in settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml).
 
     Uses Rust DB (LanceDB) only - no filesystem scan, no kernel/sniffer/watcher init.
     Use --json to get machine-readable output. Run 'omni sync' first if index is empty.

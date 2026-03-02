@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni Vector"
+---
+
 # Omni Vector
 
 > High-Performance Embedded Vector Database using LanceDB.

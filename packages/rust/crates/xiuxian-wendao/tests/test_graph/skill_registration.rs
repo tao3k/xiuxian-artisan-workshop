@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -66,7 +47,9 @@ fn test_register_skill_entities_creates_entities_and_relations() {
         },
     ];
 
-    let result = graph.register_skill_entities(&docs).unwrap();
+    let result = graph
+        .register_skill_entities(&docs)
+        .unwrap_or_else(|error| panic!("skill entity registration should succeed: {error}"));
 
     // 2 skills + 3 tools + 4 unique keywords = 9 entities
     assert!(
@@ -91,8 +74,7 @@ fn test_register_skill_entities_creates_entities_and_relations() {
     let names: Vec<String> = hops.iter().map(|e| e.name.clone()).collect();
     assert!(
         names.contains(&"git.smart_commit".to_string()),
-        "Multi-hop from 'git' should reach 'git.smart_commit', got: {:?}",
-        names
+        "Multi-hop from 'git' should reach 'git.smart_commit', got: {names:?}",
     );
 }
 
@@ -109,8 +91,12 @@ fn test_register_skill_entities_idempotent() {
         routing_keywords: vec![],
     }];
 
-    let r1 = graph.register_skill_entities(&docs).unwrap();
-    let r2 = graph.register_skill_entities(&docs).unwrap();
+    let r1 = graph
+        .register_skill_entities(&docs)
+        .unwrap_or_else(|error| panic!("first registration should succeed: {error}"));
+    let r2 = graph
+        .register_skill_entities(&docs)
+        .unwrap_or_else(|error| panic!("second registration should succeed: {error}"));
 
     assert_eq!(r1.entities_added, 1);
     assert_eq!(r2.entities_added, 0);
@@ -156,12 +142,78 @@ fn test_register_skill_entities_shared_keyword_creates_graph_connections() {
         },
     ];
 
-    graph.register_skill_entities(&docs).unwrap();
+    assert!(graph.register_skill_entities(&docs).is_ok());
 
     let search_rels = graph.get_relations(Some("keyword:search"), None);
     assert!(
         search_rels.len() >= 2,
         "keyword:search should have relations from both tools, got: {}",
         search_rels.len()
+    );
+}
+
+#[test]
+fn test_register_skill_entities_creates_qianji_flow_governs_relation() {
+    let graph = KnowledgeGraph::new();
+
+    let docs = vec![SkillDoc {
+        id: "agenda".to_string(),
+        doc_type: "skill".to_string(),
+        skill_name: "agenda".to_string(),
+        tool_name: String::new(),
+        content: "Flow mapping [[references/agenda_flow.toml#qianji-flow]]".to_string(),
+        routing_keywords: vec![],
+    }];
+
+    let result = graph
+        .register_skill_entities(&docs)
+        .unwrap_or_else(|error| panic!("qianji-flow registration should succeed: {error}"));
+    assert!(
+        result.entities_added >= 2,
+        "Expected skill + qianji flow entities, got {}",
+        result.entities_added
+    );
+
+    let flow = graph.get_entity_by_name("agenda_flow");
+    let Some(flow) = flow else {
+        panic!("QianjiFlow entity 'agenda_flow' should exist");
+    };
+    assert_eq!(
+        flow.entity_type,
+        EntityType::Other("QianjiFlow".to_string())
+    );
+
+    let governs = graph.get_relations(Some("agenda"), Some(RelationType::Governs));
+    assert!(
+        governs
+            .iter()
+            .any(|relation| relation.source == "agenda" && relation.target == "agenda_flow"),
+        "Expected GOVERNS relation agenda -> agenda_flow, got: {governs:?}"
+    );
+}
+
+#[test]
+fn test_register_skill_entities_extracts_qianji_flow_from_command_doc() {
+    let graph = KnowledgeGraph::new();
+
+    let docs = vec![SkillDoc {
+        id: "agenda.validate".to_string(),
+        doc_type: "command".to_string(),
+        skill_name: "agenda".to_string(),
+        tool_name: "agenda.validate".to_string(),
+        content: "Use [[agenda_flow.toml#qianji-flow]] for validation".to_string(),
+        routing_keywords: vec!["agenda".to_string()],
+    }];
+
+    graph
+        .register_skill_entities(&docs)
+        .unwrap_or_else(|error| panic!("command qianji-flow registration should succeed: {error}"));
+
+    let governs = graph.get_relations(Some("agenda"), Some(RelationType::Governs));
+    assert!(
+        governs
+            .iter()
+            .any(|relation| relation.source == "agenda" && relation.target == "agenda_flow"),
+        "Expected command-driven GOVERNS relation agenda -> agenda_flow, got: {governs:?}"
     );
 }

@@ -1,9 +1,9 @@
 """
-test_pipeline.py - Unit tests for YAML pipeline to LangGraph generator
+test_pipeline.py - Unit tests for YAML pipeline workflow generation.
 
-Tests pipeline configuration and LangGraph generation including:
+Tests pipeline configuration and workflow generation including:
 - PipelineConfig from YAML loading
-- LangGraphPipelineBuilder for building workflows
+- PipelineWorkflowBuilder for building workflows
 - Variable interpolation ($var, memory_var)
 """
 
@@ -13,10 +13,10 @@ import pytest
 
 from omni.tracer import (
     ExecutionTracer,
-    LangGraphPipelineBuilder,
     MappingToolInvoker,
     PipelineConfig,
     PipelineExecutor,
+    PipelineWorkflowBuilder,
 )
 
 
@@ -481,7 +481,7 @@ pipeline:
         yaml_file = tmp_path / "invalid_loop_iterations.yaml"
         yaml_file.write_text(yaml_content)
 
-        with pytest.raises(ValueError, match="`loop.max_iterations` must be an integer >= 1"):
+        with pytest.raises(ValueError, match=r"`loop.max_iterations` must be an integer >= 1"):
             PipelineConfig.from_yaml(yaml_file)
 
     def test_from_yaml_loop_times_is_rejected(self, tmp_path):
@@ -510,7 +510,7 @@ pipeline:
         yaml_file = tmp_path / "invalid_empty_loop_steps.yaml"
         yaml_file.write_text(yaml_content)
 
-        with pytest.raises(ValueError, match="`loop.steps` must contain at least one step"):
+        with pytest.raises(ValueError, match=r"`loop.steps` must contain at least one step"):
             PipelineConfig.from_yaml(yaml_file)
 
     def test_from_yaml_branch_router_must_be_non_empty_string(self, tmp_path):
@@ -526,7 +526,7 @@ pipeline:
         yaml_file = tmp_path / "invalid_branch_router.yaml"
         yaml_file.write_text(yaml_content)
 
-        with pytest.raises(ValueError, match="`branch.router` must be a non-empty string"):
+        with pytest.raises(ValueError, match=r"`branch.router` must be a non-empty string"):
             PipelineConfig.from_yaml(yaml_file)
 
     def test_from_yaml_branch_field_must_be_non_empty_string(self, tmp_path):
@@ -542,7 +542,7 @@ pipeline:
         yaml_file = tmp_path / "invalid_branch_field.yaml"
         yaml_file.write_text(yaml_content)
 
-        with pytest.raises(ValueError, match="`branch.field` must be a non-empty string"):
+        with pytest.raises(ValueError, match=r"`branch.field` must be a non-empty string"):
             PipelineConfig.from_yaml(yaml_file)
 
     def test_from_yaml_branch_keys_must_be_non_empty_strings(self, tmp_path):
@@ -556,7 +556,7 @@ pipeline:
         yaml_file = tmp_path / "invalid_branch_key.yaml"
         yaml_file.write_text(yaml_content)
 
-        with pytest.raises(ValueError, match="`branch.branches` keys must be non-empty strings"):
+        with pytest.raises(ValueError, match=r"`branch.branches` keys must be non-empty strings"):
             PipelineConfig.from_yaml(yaml_file)
 
     def test_from_yaml_branch_branches_must_not_be_empty(self, tmp_path):
@@ -622,7 +622,7 @@ pipeline:
 
         with pytest.raises(
             ValueError,
-            match="`branch.value_map` values must be lists of non-empty strings",
+            match=r"`branch.value_map` values must be lists of non-empty strings",
         ):
             PipelineConfig.from_yaml(yaml_file)
 
@@ -641,7 +641,7 @@ pipeline:
 
         with pytest.raises(
             ValueError,
-            match="`branch.router` in `server.tool` format requires both server and tool",
+            match=r"`branch.router` in `server.tool` format requires both server and tool",
         ):
             PipelineConfig.from_yaml(yaml_file)
 
@@ -754,13 +754,13 @@ pipeline:
             PipelineConfig.from_yaml(yaml_file)
 
 
-class TestLangGraphPipelineBuilder:
-    """Tests for LangGraphPipelineBuilder."""
+class TestPipelineWorkflowBuilder:
+    """Tests for PipelineWorkflowBuilder."""
 
     def test_build_empty_pipeline(self):
         """Test building empty pipeline."""
         config = PipelineConfig()
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         result = builder.build()
 
@@ -773,7 +773,7 @@ class TestLangGraphPipelineBuilder:
     def test_add_step_simple(self):
         """Test adding simple step."""
         config = PipelineConfig(servers={"retriever": "/path"})
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         node_name = builder.add_step("retriever", "search")
 
@@ -785,7 +785,7 @@ class TestLangGraphPipelineBuilder:
     def test_add_step_with_custom_name(self):
         """Test adding step with custom node name."""
         config = PipelineConfig()
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         node_name = builder.add_step("generator", "generate", node_name="my_custom_node")
 
@@ -794,7 +794,7 @@ class TestLangGraphPipelineBuilder:
     def test_add_step_auto_increment_on_duplicate(self):
         """Test auto-increment for duplicate step names."""
         config = PipelineConfig()
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         name1 = builder.add_step("retriever", "search")
         name2 = builder.add_step("retriever", "search")
@@ -807,7 +807,7 @@ class TestLangGraphPipelineBuilder:
     def test_add_edge(self):
         """Test adding edges between nodes."""
         config = PipelineConfig()
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         builder.add_step("step1", "do")
         builder.add_step("step2", "do")
@@ -818,7 +818,7 @@ class TestLangGraphPipelineBuilder:
     def test_build_sequential_simple(self):
         """Test building sequential pipeline from simple steps."""
         config = PipelineConfig(pipeline=["step1.exec", "step2.exec"])
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         step_map = builder.build_sequential(config.pipeline)
 
@@ -830,7 +830,7 @@ class TestLangGraphPipelineBuilder:
         """Test building sequential pipeline with config."""
         pipeline = [{"retriever.search": {"input": {"query": "$query"}, "output": ["docs"]}}]
         config = PipelineConfig(pipeline=pipeline)
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         builder.build_sequential(config.pipeline)
 
@@ -843,7 +843,7 @@ class TestLangGraphPipelineBuilder:
         """Test building loop structure."""
         loop_config = {"max_iterations": 3, "steps": [{"step1.exec": {}}, {"step2.exec": {}}]}
         config = PipelineConfig()
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         loop_node = builder._build_loop(loop_config, 0)
 
@@ -861,7 +861,7 @@ class TestLangGraphPipelineBuilder:
             },
         }
         config = PipelineConfig()
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         branch_node = builder._build_branch(branch_config)
 
@@ -876,7 +876,7 @@ class TestLangGraphPipelineBuilder:
             parameters={"query": "test"},
             pipeline=["retriever.search"],
         )
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
 
         result = builder.build()
 
@@ -903,7 +903,7 @@ class TestLangGraphPipelineBuilder:
                 }
             ]
         )
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
         result = builder.build()
 
         assert len(result["conditional_edges"]) == 1
@@ -923,7 +923,7 @@ class TestLangGraphPipelineBuilder:
                 }
             ]
         )
-        builder = LangGraphPipelineBuilder(config)
+        builder = PipelineWorkflowBuilder(config)
         result = builder.build()
 
         assert len(result["conditional_edges"]) == 1
@@ -1027,35 +1027,35 @@ pipeline:
         assert "$memory_previous_results" in step["test.step"]["input"]["data"]
 
 
-class TestCreateLangGraphFromPipeline:
-    """Tests for create_langgraph_from_pipeline function."""
+class TestCreateWorkflowFromPipeline:
+    """Tests for create_workflow_from_pipeline function."""
 
-    def test_creates_langgraph_from_config(self):
-        """Test creating LangGraph from pipeline config."""
-        from omni.tracer import create_langgraph_from_pipeline
+    def test_creates_workflow_from_config(self):
+        """Test creating a workflow app from pipeline config."""
+        from omni.tracer import create_workflow_from_pipeline
 
         config = PipelineConfig(servers={"test": "/path/to/test"}, pipeline=["test.step"])
 
-        # Should return a compiled LangGraph
-        app = create_langgraph_from_pipeline(config)
+        # Should return a compiled workflow app
+        app = create_workflow_from_pipeline(config)
 
         assert app is not None
 
     def test_with_tracer(self):
-        """Test creating LangGraph with tracer."""
-        from omni.tracer import create_langgraph_from_pipeline
+        """Test creating a workflow app with tracer."""
+        from omni.tracer import create_workflow_from_pipeline
 
         config = PipelineConfig(servers={"test": "/path"}, pipeline=["test.step"])
         tracer = ExecutionTracer(trace_id="graph_trace")
 
-        app = create_langgraph_from_pipeline(config, tracer=tracer)
+        app = create_workflow_from_pipeline(config, tracer=tracer)
 
         assert app is not None
 
     @pytest.mark.asyncio
     async def test_with_custom_tool_invoker(self):
-        """Test creating LangGraph with custom tool invoker and mapped outputs."""
-        from omni.tracer import create_langgraph_from_pipeline
+        """Test creating workflow with custom tool invoker and mapped outputs."""
+        from omni.tracer import create_workflow_from_pipeline
 
         config = PipelineConfig(
             servers={"retriever": "/path"},
@@ -1074,7 +1074,7 @@ class TestCreateLangGraphFromPipeline:
             return {"docs": ["doc-a", "doc-b"], "status": "ok"}
 
         invoker = MappingToolInvoker({"retriever.search": fake_search})
-        app = create_langgraph_from_pipeline(config, state_schema=dict, tool_invoker=invoker)
+        app = create_workflow_from_pipeline(config, state_schema=dict, tool_invoker=invoker)
         result = await app.ainvoke({"query": "typed languages"})
 
         assert result["docs"] == ["doc-a", "doc-b"]
@@ -1082,7 +1082,7 @@ class TestCreateLangGraphFromPipeline:
     @pytest.mark.asyncio
     async def test_with_defaults_uses_mapping_stack(self):
         """Test convenience API builds default stack and executes mapping handler."""
-        from omni.tracer import create_langgraph_from_pipeline_with_defaults
+        from omni.tracer import create_workflow_from_pipeline_with_defaults
 
         config = PipelineConfig(
             servers={"demo": "/path"},
@@ -1100,7 +1100,7 @@ class TestCreateLangGraphFromPipeline:
             assert payload["query"] == "typed languages"
             return {"docs": ["d1", "d2"]}
 
-        app = create_langgraph_from_pipeline_with_defaults(
+        app = create_workflow_from_pipeline_with_defaults(
             pipeline_config=config,
             state_schema=dict,
             mapping={"demo.run": mapped},
@@ -1112,7 +1112,7 @@ class TestCreateLangGraphFromPipeline:
     @pytest.mark.asyncio
     async def test_with_defaults_respects_explicit_tool_invoker_override(self):
         """Test explicit tool_invoker overrides default stack settings."""
-        from omni.tracer import create_langgraph_from_pipeline_with_defaults
+        from omni.tracer import create_workflow_from_pipeline_with_defaults
 
         config = PipelineConfig(
             servers={"demo": "/path"},
@@ -1131,7 +1131,7 @@ class TestCreateLangGraphFromPipeline:
 
         invoker = MappingToolInvoker({"demo.run": explicit})
 
-        app = create_langgraph_from_pipeline_with_defaults(
+        app = create_workflow_from_pipeline_with_defaults(
             pipeline_config=config,
             state_schema=dict,
             mapping={"demo.run": lambda *_: {"docs": ["stack"]}},

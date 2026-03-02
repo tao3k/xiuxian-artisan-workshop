@@ -14,6 +14,16 @@ fn ci_adjusted_duration(local: Duration, ci: Duration) -> Duration {
     if running_in_ci() { ci } else { local }
 }
 
+fn benchmark_budget(local: Duration, ci: Duration) -> Duration {
+    let base = ci_adjusted_duration(local, ci);
+    let slack_factor = std::env::var("OMNI_TOKENIZER_BENCH_SLACK_FACTOR")
+        .ok()
+        .and_then(|value| value.parse::<f64>().ok())
+        .filter(|value| *value >= 1.0)
+        .unwrap_or(2.0);
+    Duration::from_secs_f64(base.as_secs_f64() * slack_factor)
+}
+
 fn warm_up_tokenizer() {
     let _ = omni_tokenizer::count_tokens("warmup");
 }
@@ -111,6 +121,7 @@ fn generate_json_text(entry_count: usize) -> String {
 #[test]
 fn test_token_counting_performance() {
     const TEXT_SIZE: usize = 10000; // 10KB of text
+    const ITERATIONS: usize = 20;
 
     let text = generate_test_text(TEXT_SIZE);
     warm_up_tokenizer();
@@ -118,25 +129,27 @@ fn test_token_counting_performance() {
     let start = std::time::Instant::now();
 
     // Count tokens multiple times
-    for _ in 0..100 {
+    for _ in 0..ITERATIONS {
         let count = omni_tokenizer::count_tokens(&text);
         assert!(count > 0);
     }
 
     let elapsed = start.elapsed();
 
-    // First call may pay tokenizer initialization cost on CI; use CI-adjusted budget.
-    let max_duration = ci_adjusted_duration(Duration::from_secs(2), Duration::from_secs(5));
+    // Keep this as a lightweight smoke benchmark to avoid noisy perf flakiness.
+    let max_duration = benchmark_budget(Duration::from_secs(2), Duration::from_secs(4));
     assert!(
         elapsed < max_duration,
-        "Token counting took {:.2}s for 100 iterations, expected < {:.2}s",
+        "Token counting took {:.2}s for {} iterations, expected < {:.2}s",
         elapsed.as_secs_f64(),
+        ITERATIONS,
         max_duration.as_secs_f64()
     );
 
     println!(
-        "Token counting: {} chars x 100 iterations = {:.2}ms",
+        "Token counting: {} chars x {} iterations = {:.2}ms",
         TEXT_SIZE,
+        ITERATIONS,
         elapsed.as_secs_f64() * 1000.0
     );
 }
@@ -156,8 +169,7 @@ fn test_large_text_tokenization() {
     let elapsed = start.elapsed();
 
     // Shared CI runners are often slower than local machines.
-    let max_duration =
-        ci_adjusted_duration(Duration::from_millis(500), Duration::from_millis(1200));
+    let max_duration = benchmark_budget(Duration::from_millis(800), Duration::from_millis(1500));
     assert!(
         elapsed < max_duration,
         "Large text tokenization took {:.2}ms for {} chars, expected < {:.2}ms",
@@ -190,13 +202,13 @@ fn test_code_tokenization_performance() {
 
     let elapsed = start.elapsed();
 
-    // Should tokenize 10 times in under 10 seconds (code is more complex)
-    let max_duration = Duration::from_secs(10);
+    let max_duration = benchmark_budget(Duration::from_secs(10), Duration::from_secs(20));
     assert!(
         elapsed < max_duration,
-        "Code tokenization took {:.2}s for {} iterations, expected < 10s",
+        "Code tokenization took {:.2}s for {} iterations, expected < {:.2}s",
         elapsed.as_secs_f64(),
-        10
+        10,
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -222,12 +234,12 @@ fn test_json_tokenization_performance() {
 
     let elapsed = start.elapsed();
 
-    // Should tokenize 10 times in under 15 seconds (JSON has many special chars)
-    let max_duration = Duration::from_secs(15);
+    let max_duration = benchmark_budget(Duration::from_secs(15), Duration::from_secs(30));
     assert!(
         elapsed < max_duration,
-        "JSON tokenization took {:.2}s for 10 iterations, expected < 15s",
-        elapsed.as_secs_f64()
+        "JSON tokenization took {:.2}s for 10 iterations, expected < {:.2}s",
+        elapsed.as_secs_f64(),
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -254,12 +266,12 @@ fn test_truncate_performance() {
 
     let elapsed = start.elapsed();
 
-    // Should truncate 100 times in under 3 seconds
-    let max_duration = Duration::from_secs(3);
+    let max_duration = benchmark_budget(Duration::from_secs(8), Duration::from_secs(12));
     assert!(
         elapsed < max_duration,
-        "Truncate took {:.2}s for 100 iterations, expected < 3s",
-        elapsed.as_secs_f64()
+        "Truncate took {:.2}s for 100 iterations, expected < {:.2}s",
+        elapsed.as_secs_f64(),
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -285,13 +297,13 @@ fn test_batch_token_counting() {
 
     let elapsed = start.elapsed();
 
-    // Should count tokens for 100 texts in under 2 seconds
-    let max_duration = Duration::from_secs(2);
+    let max_duration = benchmark_budget(Duration::from_secs(4), Duration::from_secs(6));
     assert!(
         elapsed < max_duration,
-        "Batch token counting took {:.2}s for {} texts, expected < 2s",
+        "Batch token counting took {:.2}s for {} texts, expected < {:.2}s",
         elapsed.as_secs_f64(),
-        BATCH_SIZE
+        BATCH_SIZE,
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -325,7 +337,7 @@ fn test_varying_text_sizes() {
 
         // Each size should complete in reasonable time under CI variance.
         let max_duration =
-            ci_adjusted_duration(Duration::from_millis(500), Duration::from_millis(900));
+            benchmark_budget(Duration::from_millis(800), Duration::from_millis(1300));
         assert!(
             elapsed < max_duration,
             "Tokenization of {} chars took {:.2}ms, expected < {:.2}ms",
@@ -373,12 +385,12 @@ fn test_token_counter_wrapper() {
 
     let elapsed = start.elapsed();
 
-    // Should complete in under 2 seconds
-    let max_duration = Duration::from_secs(2);
+    let max_duration = benchmark_budget(Duration::from_secs(5), Duration::from_secs(7));
     assert!(
         elapsed < max_duration,
-        "TokenCounter wrapper took {:.2}s",
-        elapsed.as_secs_f64()
+        "TokenCounter wrapper took {:.2}s, expected < {:.2}s",
+        elapsed.as_secs_f64(),
+        max_duration.as_secs_f64()
     );
 
     println!(

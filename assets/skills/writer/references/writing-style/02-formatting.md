@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Formatting Standards"
+---
+
 # Formatting Standards
 
 ## Markdown Conventions

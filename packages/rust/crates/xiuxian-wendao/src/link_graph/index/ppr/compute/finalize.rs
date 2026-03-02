@@ -1,28 +1,15 @@
-use super::super::super::{
-    LinkGraphIndex, LinkGraphPprSubgraphMode, LinkGraphRelatedPprDiagnostics, doc_sort_key,
-};
+use super::super::super::{LinkGraphIndex, LinkGraphRelatedPprDiagnostics, doc_sort_key};
 use super::super::types::RelatedPprComputation;
-use super::RelatedPprKernelTelemetry;
+use super::{RelatedPprFinalizeContext, RelatedPprKernelTelemetry};
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use std::time::Instant;
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn finalize_related_ppr_result(
     index: &LinkGraphIndex,
     seed_ids: &HashSet<String>,
     horizon_distances: std::collections::HashMap<String, usize>,
     graph_nodes: &[String],
-    alpha: f64,
-    max_iter: usize,
-    tol: f64,
-    subgraph_mode: LinkGraphPprSubgraphMode,
-    restrict_to_horizon: bool,
-    candidate_count: usize,
-    candidate_cap: usize,
-    candidate_capped: bool,
-    time_budget_ms: f64,
-    total_start: &Instant,
+    context: &RelatedPprFinalizeContext<'_>,
     telemetry: &RelatedPprKernelTelemetry,
 ) -> RelatedPprComputation {
     let partition_max_node_count = telemetry.partition_sizes.iter().copied().max().unwrap_or(0);
@@ -64,26 +51,26 @@ pub(super) fn finalize_related_ppr_result(
     });
 
     let diagnostics = LinkGraphRelatedPprDiagnostics {
-        alpha,
-        max_iter,
-        tol,
+        alpha: context.alpha,
+        max_iter: context.max_iter,
+        tol: context.tol,
         iteration_count: telemetry.iteration_count,
         final_residual: telemetry.final_residual,
-        candidate_count,
-        candidate_cap,
-        candidate_capped,
+        candidate_count: context.candidate_count,
+        candidate_cap: context.candidate_cap,
+        candidate_capped: context.candidate_capped,
         graph_node_count: graph_nodes.len(),
         subgraph_count: telemetry.subgraph_count,
         partition_max_node_count,
         partition_min_node_count,
         partition_avg_node_count,
-        total_duration_ms: total_start.elapsed().as_secs_f64() * 1000.0,
+        total_duration_ms: context.total_start.elapsed().as_secs_f64() * 1000.0,
         partition_duration_ms: telemetry.partition_duration_ms,
         kernel_duration_ms: telemetry.kernel_duration_ms,
         fusion_duration_ms: telemetry.fusion_duration_ms,
-        subgraph_mode,
-        horizon_restricted: restrict_to_horizon,
-        time_budget_ms,
+        subgraph_mode: context.subgraph_mode,
+        horizon_restricted: context.restrict_to_horizon,
+        time_budget_ms: context.time_budget_ms,
         timed_out: telemetry.timed_out,
     };
     RelatedPprComputation {

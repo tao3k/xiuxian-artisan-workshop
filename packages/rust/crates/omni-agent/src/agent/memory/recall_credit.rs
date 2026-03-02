@@ -87,7 +87,3 @@ fn normalize_score_weight(score: f32) -> f32 {
     }
     f32::midpoint(score.clamp(-1.0, 1.0), 1.0).clamp(0.0, 1.0)
 }
-
-#[cfg(test)]
-#[path = "../../../tests/agent/memory/recall_credit.rs"]
-mod tests;

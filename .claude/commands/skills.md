@@ -1,5 +1,8 @@
 ---
+type: knowledge
 description: List available Omni Skills and MCP tools
+metadata:
+  title: "Omni Skill Management"
 ---
 
 # Omni Skill Management

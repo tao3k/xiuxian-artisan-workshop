@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Tool Router Practice"
+---
+
 # Tool Router Practice
 
 Claude tool-router practice with a driver script. Follows the cookbook pattern: router picks a tool ID, justifies the choice, and emits structured JSON.

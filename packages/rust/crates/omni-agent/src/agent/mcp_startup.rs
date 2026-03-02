@@ -71,7 +71,3 @@ fn startup_connect_config(config: &AgentConfig, strict_startup: bool) -> McpPool
         list_tools_cache_ttl_ms: config.mcp_list_tools_cache_ttl_ms,
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/agent/mcp_startup.rs"]
-mod tests;

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Git Skill - Procedural Knowledge"
+---
+
 # Git Skill - Procedural Knowledge
 
 ## Overview
@@ -13,7 +19,7 @@ assets/skills/git/
 ├── scripts/              # @skill_command decorated commands
 │   ├── __init__.py
 │   ├── commit.py         # commit operations
-│   ├── graph_workflow.py # Smart Commit workflow (LangGraph)
+│   ├── graph_workflow.py # Smart Commit workflow (native runtime)
 │   └── ...
 ├── templates/            # Cascading templates
 │   ├── commit_message.j2

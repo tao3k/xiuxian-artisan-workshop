@@ -1,5 +1,4 @@
-//! PyO3 bindings for dependency indexer.
-#![allow(clippy::doc_markdown)]
+//! `PyO3` bindings for dependency indexer.
 
 mod config;
 mod helpers;
@@ -11,6 +10,3 @@ pub use config::{PyDependencyConfig, PyExternalDependency};
 pub use indexer::{PyDependencyIndexResult, PyDependencyIndexer, PyDependencyStats};
 pub use registration::register_dependency_indexer_module;
 pub use symbols::{PyExternalSymbol, PySymbolIndex};
-
-#[cfg(test)]
-mod tests;

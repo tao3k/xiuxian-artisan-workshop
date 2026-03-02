@@ -1,4 +1,5 @@
 use crate::channels::control_command_authorization::ControlCommandPolicy;
+use xiuxian_macros::env_non_empty;
 
 use super::super::TELEGRAM_API_BASE_ENV;
 use super::super::TelegramSessionPartition;
@@ -12,10 +13,7 @@ use super::super::{
 impl TelegramChannel {
     #[must_use]
     fn default_api_base_url() -> String {
-        std::env::var(TELEGRAM_API_BASE_ENV)
-            .ok()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
+        env_non_empty!(TELEGRAM_API_BASE_ENV)
             .unwrap_or_else(|| TELEGRAM_DEFAULT_API_BASE.to_string())
     }
 
@@ -72,17 +70,14 @@ impl TelegramChannel {
 
     /// Create a new Telegram channel with explicit session partition and structured control-command
     /// authorization policy.
-    ///
-    /// # Errors
-    /// Returns an error when control-command policy normalization fails.
-    #[allow(clippy::unnecessary_wraps)]
+    #[must_use]
     pub fn new_with_partition_and_control_command_policy(
         bot_token: String,
         allowed_users: Vec<String>,
         allowed_groups: Vec<String>,
         control_command_policy: TelegramControlCommandPolicy,
         session_partition: TelegramSessionPartition,
-    ) -> anyhow::Result<Self> {
+    ) -> Self {
         let TelegramControlCommandPolicy {
             admin_users,
             control_command_allow_from,
@@ -91,28 +86,24 @@ impl TelegramChannel {
         } = control_command_policy;
         let slash_command_policy =
             build_slash_command_policy(admin_users.clone(), slash_command_policy);
-        Ok(
-            Self::new_with_base_url_and_partition_and_control_command_policy(
-                bot_token,
-                allowed_users,
-                allowed_groups,
-                Self::default_api_base_url(),
-                ControlCommandPolicy::new(
-                    admin_users,
-                    control_command_allow_from,
-                    control_command_rules,
-                ),
-                slash_command_policy,
-                session_partition,
+        Self::new_with_base_url_and_partition_and_control_command_policy(
+            bot_token,
+            allowed_users,
+            allowed_groups,
+            Self::default_api_base_url(),
+            ControlCommandPolicy::new(
+                admin_users,
+                control_command_allow_from,
+                control_command_rules,
             ),
+            slash_command_policy,
+            session_partition,
         )
     }
 
     /// Create a new Telegram channel with explicit session partition, optional control-command
     /// allowlist override, admin user allowlist, and typed per-command admin authorization rules.
-    ///
-    /// # Errors
-    /// Returns an error when control-command policy normalization fails.
+    #[must_use]
     pub fn new_with_partition_and_admin_users_and_control_command_allow_from_and_command_rules(
         bot_token: String,
         allowed_users: Vec<String>,
@@ -121,7 +112,7 @@ impl TelegramChannel {
         control_command_allow_from: Option<Vec<String>>,
         control_command_rules: Vec<TelegramCommandAdminRule>,
         session_partition: TelegramSessionPartition,
-    ) -> anyhow::Result<Self> {
+    ) -> Self {
         Self::new_with_partition_and_control_command_policy(
             bot_token,
             allowed_users,

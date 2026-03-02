@@ -2,7 +2,20 @@
 
 set -euo pipefail
 
-PORT="${1:-6379}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+resolve_valkey_field() {
+  python3 "${PROJECT_ROOT}/scripts/channel/resolve_valkey_endpoint.py" --field "$1"
+}
+
+DEFAULT_PORT="$(resolve_valkey_field port)"
+DEFAULT_HOST="$(resolve_valkey_field host)"
+DEFAULT_DB="$(resolve_valkey_field db)"
+
+PORT="${1:-${VALKEY_PORT:-${DEFAULT_PORT}}}"
+HOST="${VALKEY_HOST:-${DEFAULT_HOST}}"
+DB="${VALKEY_DB:-${DEFAULT_DB}}"
 
 if ! command -v valkey-server >/dev/null 2>&1; then
   echo "Error: valkey-server not found in PATH." >&2
@@ -17,7 +30,7 @@ RUNTIME_DIR="${PRJ_RUNTIME_DIR:-.run}/valkey"
 mkdir -p "$RUNTIME_DIR"
 PIDFILE="$RUNTIME_DIR/valkey-${PORT}.pid"
 LOGFILE="$RUNTIME_DIR/valkey-${PORT}.log"
-URL="redis://127.0.0.1:${PORT}/0"
+URL="redis://${HOST}:${PORT}/${DB}"
 
 if valkey-cli -u "$URL" ping >/dev/null 2>&1; then
   echo "Valkey is already reachable at $URL."
@@ -33,7 +46,7 @@ fi
 echo "Starting Valkey on port ${PORT}..."
 valkey-server \
   --port "$PORT" \
-  --bind 127.0.0.1 \
+  --bind "${HOST}" \
   --daemonize yes \
   --dir "$RUNTIME_DIR" \
   --pidfile "$PIDFILE" \

@@ -3,7 +3,6 @@ use std::path::PathBuf;
 
 use super::{SyncEngine, SyncManifest, SyncResult};
 
-#[allow(clippy::missing_errors_doc)]
 impl SyncEngine {
     /// Compute sync diff: added, modified, deleted files.
     #[must_use]

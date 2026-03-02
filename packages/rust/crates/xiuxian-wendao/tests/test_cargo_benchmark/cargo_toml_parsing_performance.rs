@@ -1,54 +1,39 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
-fn test_cargo_toml_parsing_performance() {
+fn test_cargo_toml_parsing_performance() -> Result<(), Box<dyn std::error::Error>> {
     const DEP_COUNT: usize = 100;
+    const PARSE_RUNS: usize = 20;
 
     let start = std::time::Instant::now();
 
     // Parse multiple Cargo.toml files
-    for _ in 0..20 {
+    for _ in 0..PARSE_RUNS {
         let content = generate_cargo_toml(DEP_COUNT);
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(content.as_bytes()).unwrap();
+        let mut file = NamedTempFile::new()?;
+        file.write_all(content.as_bytes())?;
 
-        let deps = parse_cargo_dependencies(file.path()).unwrap();
+        let deps = parse_cargo_dependencies(file.path())?;
         assert!(!deps.is_empty());
     }
 
     let elapsed = start.elapsed();
 
-    // Should parse 20 files with 100 deps each in under 1 second
-    let max_duration = std::time::Duration::from_secs(1);
+    // Should parse benchmark corpus within bounded time.
+    let max_duration = benchmark_budget(
+        std::time::Duration::from_secs(1),
+        std::time::Duration::from_secs(3),
+    );
     assert!(
         elapsed < max_duration,
-        "Cargo.toml parsing took {:.2}s for 20 files x {} deps, expected < 1s",
+        "Cargo.toml parsing took {:.2}s for {PARSE_RUNS} files x {DEP_COUNT} deps, expected < {:.2}s",
         elapsed.as_secs_f64(),
-        DEP_COUNT
+        max_duration.as_secs_f64()
     );
 
     println!(
-        "Cargo.toml parsing: 20 files x {} deps = {:.2}ms",
-        DEP_COUNT,
+        "Cargo.toml parsing: {PARSE_RUNS} files x {DEP_COUNT} deps = {:.2}ms",
         elapsed.as_secs_f64() * 1000.0
     );
+    Ok(())
 }

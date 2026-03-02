@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni Sniffer"
+---
+
 # Omni Sniffer
 
 > High-performance environment sniffer for Omni DevEnv.

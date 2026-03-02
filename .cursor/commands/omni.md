@@ -1,5 +1,8 @@
 ---
+type: knowledge
 description: "[MASTER] Call omni tools via MCP in Cursor"
+metadata:
+  title: "Omni MCP Toolset"
 ---
 
 # Omni MCP Toolset

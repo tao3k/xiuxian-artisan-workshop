@@ -1,0 +1,91 @@
+[discord]
+session_partition = "guild_channel_user"
+session_partition_persist = true
+
+[qianhuan.persona]
+persona_dirs = ["packages/rust/crates/xiuxian-qianhuan/resources/qianhuan/personas"]
+
+[qianhuan.template]
+template_dirs = ["packages/rust/crates/xiuxian-qianhuan/resources/qianhuan/templates"]
+
+[telegram]
+session_admin_persist = true
+session_partition = "chat"
+session_partition_persist = true
+
+[telegram.acl.admin]
+users = [
+    "1304799691",
+    "1304799692",
+    "1304799693",
+    "1304799694",
+]
+
+[telegram.acl.allow]
+groups = ["*"]
+users = [
+    "1304799691",
+    "1304799692",
+    "1304799693",
+    "1304799694",
+]
+
+[telegram.acl.control.allow_from]
+users = [
+    "1304799691",
+    "1304799692",
+    "1304799693",
+    "1304799694",
+]
+
+[telegram.acl.slash.global]
+users = [
+    "1304799691",
+    "1304799692",
+    "1304799693",
+    "1304799694",
+]
+
+[wendao.link_graph]
+backend = "wendao"
+exclude_dirs = [
+    "target",
+    "node_modules",
+]
+include_dirs = [
+    "docs",
+    "assets/skills",
+]
+include_dirs_auto = false
+watch_dirs = [
+    "docs",
+    "assets/skills",
+]
+watch_patterns = [
+    "**/*.md",
+    "**/*.markdown",
+    "**/*.mdx",
+    "**/SKILL.md",
+]
+
+[wendao.link_graph.cache]
+key_prefix = "xiuxian_wendao:link_graph:index"
+ttl_seconds = 300
+valkey_url = "redis://127.0.0.1:6379/0"
+
+[wendao.link_graph.index.delta]
+full_rebuild_threshold = 256
+stats_persistent_cache_ttl_sec = 120.0
+stats_response_probe_timeout_sec = 0.05
+stats_response_refresh_timeout_sec = 5.0
+
+[wendao.zhixing]
+notebook_path = ".data/xiuxian/notebook"
+persona_id = "agenda_steward"
+template_paths = ["packages/rust/crates/omni-agent/resources/zhixing/templates"]
+time_zone = "America/Los_Angeles"
+
+[wendao.zhixing.reminder_queue]
+key_prefix = "xiuxian_zhixing:heyi:reminder"
+poll_batch_size = 128
+poll_interval_seconds = 5

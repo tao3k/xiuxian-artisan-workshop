@@ -16,6 +16,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 config_module = importlib.import_module("mcp_startup_stress_config")
 models_module = importlib.import_module("mcp_startup_stress_models")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_build_config_validates_positive_rounds(tmp_path: Path) -> None:
@@ -32,7 +33,7 @@ def test_build_config_validates_positive_rounds(tmp_path: Path) -> None:
         executable=str(executable),
         mcp_config=str(mcp_config),
         project_root=str(tmp_path),
-        bind_addr="127.0.0.1:0",
+        bind_addr=f"{endpoints.DEFAULT_LOCAL_HOST}:0",
         rust_log="x",
         output_json=str(tmp_path / "out.json"),
         output_markdown=str(tmp_path / "out.md"),
@@ -62,13 +63,13 @@ def test_build_config_resolves_paths(tmp_path: Path) -> None:
         executable=str(executable),
         mcp_config=str(mcp_config),
         project_root=str(tmp_path),
-        bind_addr="127.0.0.1:0",
+        bind_addr=f"{endpoints.DEFAULT_LOCAL_HOST}:0",
         rust_log="x",
         output_json=str(tmp_path / "out.json"),
         output_markdown=str(tmp_path / "out.md"),
         restart_mcp_cmd="",
         restart_mcp_settle_secs=0.0,
-        health_url="http://127.0.0.1:3002/health",
+        health_url=endpoints.http_url(3002, "/health"),
         strict_health_check=False,
         health_probe_interval_secs=0.2,
         health_probe_timeout_secs=1.0,

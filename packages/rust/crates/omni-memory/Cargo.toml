@@ -25,6 +25,7 @@ uuid = { workspace = true }
 
 # Async stream combinators
 futures = "0.3"
+num-traits = "0.2"
 
 # Error handling
 thiserror = { workspace = true }

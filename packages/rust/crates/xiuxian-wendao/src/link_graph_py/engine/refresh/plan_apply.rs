@@ -6,13 +6,18 @@ use std::time::Instant;
 
 use crate::link_graph::LinkGraphRefreshMode;
 
-enum RefreshPlanStrategy {
+pub(super) enum RefreshPlanStrategy {
     Noop,
-    Full { reason: &'static str },
-    Delta,
+    Full {
+        reason: &'static str,
+    },
+    Delta {
+        reason: &'static str,
+        prefer_incremental: bool,
+    },
 }
 
-fn select_refresh_strategy(
+pub(super) fn select_refresh_strategy(
     force_full: bool,
     changed_count: usize,
     threshold: usize,
@@ -23,20 +28,26 @@ fn select_refresh_strategy(
         }
     } else if changed_count == 0 {
         RefreshPlanStrategy::Noop
-    } else if changed_count >= threshold {
-        RefreshPlanStrategy::Full {
-            reason: "threshold_exceeded",
+    } else if changed_count >= threshold.max(1) {
+        RefreshPlanStrategy::Delta {
+            reason: "threshold_exceeded_incremental",
+            prefer_incremental: true,
         }
     } else {
-        RefreshPlanStrategy::Delta
+        RefreshPlanStrategy::Delta {
+            reason: "delta_requested",
+            prefer_incremental: false,
+        }
     }
 }
 
-fn strategy_label_and_reason(strategy: &RefreshPlanStrategy) -> (&'static str, &'static str) {
+pub(super) fn strategy_label_and_reason(
+    strategy: &RefreshPlanStrategy,
+) -> (&'static str, &'static str) {
     match strategy {
         RefreshPlanStrategy::Noop => ("noop", "noop"),
         RefreshPlanStrategy::Full { reason } => ("full", reason),
-        RefreshPlanStrategy::Delta => ("delta", "delta_requested"),
+        RefreshPlanStrategy::Delta { reason, .. } => ("delta", reason),
     }
 }
 
@@ -243,8 +254,20 @@ impl PyLinkGraphEngine {
             RefreshPlanStrategy::Full { reason } => {
                 self.run_full_refresh_with_events(reason, changed_count, force_full, false, events)
             }
-            RefreshPlanStrategy::Delta => {
-                self.run_delta_refresh_with_events(&changed_paths, threshold, changed_count, events)
+            RefreshPlanStrategy::Delta {
+                prefer_incremental, ..
+            } => {
+                let delta_threshold = if prefer_incremental {
+                    usize::MAX
+                } else {
+                    threshold
+                };
+                self.run_delta_refresh_with_events(
+                    &changed_paths,
+                    delta_threshold,
+                    changed_count,
+                    events,
+                )
             }
         }
     }

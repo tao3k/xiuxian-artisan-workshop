@@ -51,6 +51,30 @@ runner_app = typer.Typer(help="Manage persistent local skill runner daemon")
 skill_app.add_typer(runner_app, name="runner")
 
 
+def _safe_int(value: object, default: int = 0) -> int:
+    """Parse integer-ish values from JSON report payloads."""
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    return default
+
+
+def _extract_skill_name_from_nodeid(nodeid: str, known_skill_names: set[str]) -> str | None:
+    """Extract skill name from pytest nodeid path segments ending with `<skill>/tests/...`."""
+    normalized = str(nodeid).replace("\\", "/")
+    parts = [part for part in normalized.split("/") if part and part != "."]
+    for index in range(len(parts) - 1):
+        if parts[index + 1] == "tests" and parts[index] in known_skill_names:
+            return parts[index]
+    return None
+
+
 @runner_app.command("status")
 def skill_runner_status(
     json_output: bool = typer.Option(False, "--json", "-j", help="Output status as JSON"),
@@ -160,7 +184,6 @@ def skill_test(
     import subprocess
     import tempfile
 
-    from omni.foundation.config.dirs import get_prj_dir
     from omni.foundation.config.skills import SKILLS_DIR
 
     skills_dir = SKILLS_DIR()
@@ -220,39 +243,24 @@ def skill_test(
                     report = json.load(f)
 
                 # Build results by skill
-                skill_results = {}
+                skill_results: dict[str, dict[str, object]] = {}
+                known_skill_names = {
+                    path.name
+                    for path in skills_dir.iterdir()
+                    if path.is_dir() and not path.name.startswith("_")
+                }
                 for test in report.get("tests", []):
                     nodeid = test.get("nodeid", "")
                     outcome = test.get("outcome", "unknown")
 
-                    # Extract skill name from path (handle both relative and absolute paths)
-                    skill_name = None
-                    for skill_path in sorted(skills_dir.iterdir()):
-                        if skill_path.is_dir() and not skill_path.name.startswith("_"):
-                            tests_dir = skill_path / "tests"
-                            tests_dir_str = str(tests_dir)
-                            project_relative_marker = ""
-                            try:
-                                skills_rel = skills_dir.relative_to(get_prj_dir()).as_posix()
-                                project_relative_marker = f"{skills_rel}/{skill_path.name}/tests"
-                            except ValueError:
-                                project_relative_marker = ""
-                            # Check both relative and absolute paths
-                            if (
-                                tests_dir_str in nodeid
-                                or nodeid.startswith(str(skill_path.name) + "/")
-                                or (project_relative_marker and project_relative_marker in nodeid)
-                            ):
-                                skill_name = skill_path.name
-                                break
-
                     # Skip if skill name not found
-                    if skill_name is None:
+                    detected_skill = _extract_skill_name_from_nodeid(nodeid, known_skill_names)
+                    if detected_skill is None:
                         continue
 
                     # Initialize skill results dict
-                    if skill_name not in skill_results:
-                        skill_results[skill_name] = {
+                    if detected_skill not in skill_results:
+                        skill_results[detected_skill] = {
                             "passed": 0,
                             "failed": 0,
                             "skipped": 0,
@@ -261,13 +269,15 @@ def skill_test(
 
                     # Count by outcome
                     if outcome == "passed":
-                        skill_results[skill_name]["passed"] += 1
+                        skill_results[detected_skill]["passed"] += 1
                     elif outcome == "failed":
-                        skill_results[skill_name]["failed"] += 1
+                        skill_results[detected_skill]["failed"] += 1
                         shortrepr = test.get("shortrepr", "")
-                        skill_results[skill_name]["errors"].append(shortrepr)
+                        errors = skill_results[detected_skill]["errors"]
+                        if isinstance(errors, list):
+                            errors.append(shortrepr)
                     elif outcome == "skipped":
-                        skill_results[skill_name]["skipped"] += 1
+                        skill_results[detected_skill]["skipped"] += 1
 
                 # Display results table
                 from rich.table import Table
@@ -281,28 +291,65 @@ def skill_test(
 
                 total_passed = total_failed = total_skipped = 0
                 for skill, stats in sorted(skill_results.items()):
-                    total_passed += stats["passed"]
-                    total_failed += stats["failed"]
-                    total_skipped += stats["skipped"]
+                    passed = _safe_int(stats.get("passed"))
+                    failed = _safe_int(stats.get("failed"))
+                    skipped = _safe_int(stats.get("skipped"))
+                    total_passed += passed
+                    total_failed += failed
+                    total_skipped += skipped
 
-                    status = "✅ PASS" if stats["failed"] == 0 else "❌ FAIL"
-                    style = "green" if stats["failed"] == 0 else "red"
+                    status = "✅ PASS" if failed == 0 else "❌ FAIL"
+                    style = "green" if failed == 0 else "red"
 
-                    if stats["failed"] > 0:
-                        errors = ", ".join(stats["errors"][:2])
-                        if len(stats["errors"]) > 2:
-                            errors += f"... +{len(stats['errors']) - 2} more"
-                        details = f"[{style}]{status}[/] ({errors})"
+                    errors_obj = stats.get("errors")
+                    errors = errors_obj if isinstance(errors_obj, list) else []
+                    if failed > 0:
+                        errors_text = ", ".join(str(item) for item in errors[:2])
+                        if len(errors) > 2:
+                            errors_text += f"... +{len(errors) - 2} more"
+                        details = f"[{style}]{status}[/] ({errors_text})"
                     else:
                         details = f"[{style}]{status}[/]"
 
                     table.add_row(
                         skill,
-                        str(stats["passed"]),
-                        str(stats["failed"]),
-                        str(stats["skipped"]),
+                        str(passed),
+                        str(failed),
+                        str(skipped),
                         details,
                     )
+
+                report_summary = report.get("summary")
+                report_summary_obj = report_summary if isinstance(report_summary, dict) else {}
+                report_total = _safe_int(report_summary_obj.get("total"))
+                report_passed = _safe_int(report_summary_obj.get("passed"))
+                report_failed = _safe_int(report_summary_obj.get("failed"))
+                report_skipped = _safe_int(report_summary_obj.get("skipped"))
+                if report_skipped == 0 and report_total > 0:
+                    collected = _safe_int(report_summary_obj.get("collected"))
+                    if collected > 0 and collected >= report_passed + report_failed:
+                        report_skipped = max(0, collected - report_passed - report_failed)
+
+                # Fallback path: some pytest json-report setups omit per-test rows.
+                if not skill_results and report_total > 0:
+                    summary_status = "✅ PASS" if report_failed == 0 else "❌ FAIL"
+                    summary_style = "green" if report_failed == 0 else "red"
+                    table.add_row(
+                        "all-skills",
+                        str(report_passed),
+                        str(report_failed),
+                        str(report_skipped),
+                        f"[{summary_style}]{summary_status}[/] (summary fallback)",
+                    )
+                    total_passed = report_passed
+                    total_failed = report_failed
+                    total_skipped = report_skipped
+
+                # Safety net: keep summary aligned with pytest json totals.
+                if report_total > 0 and (total_passed + total_failed + total_skipped) == 0:
+                    total_passed = report_passed
+                    total_failed = report_failed
+                    total_skipped = report_skipped
 
                 err_console.print(table)
 

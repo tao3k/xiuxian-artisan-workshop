@@ -1,4 +1,4 @@
-"""LangGraph retrieval node factory."""
+"""Workflow retrieval node factory."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def create_retriever_node(
     output_key: str = "retrieval_results",
     config: RetrievalConfig | None = None,
 ):
-    """Create a LangGraph-compatible retriever node function."""
+    """Create a workflow-compatible retriever node function."""
 
     async def node(state: dict[str, Any]) -> dict[str, Any]:
         cfg = config or RetrievalConfig()

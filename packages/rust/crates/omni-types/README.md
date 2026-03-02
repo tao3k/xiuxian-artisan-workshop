@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni Types"
+---
+
 # Omni Types
 
 > Common type definitions for Omni DevEnv.

@@ -14,6 +14,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 _runner_module = importlib.import_module("memory_ci_gate_runner")
 run_gate = _runner_module.run_gate
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 class _Handle:
@@ -55,8 +56,8 @@ def test_run_gate_quick_profile_invokes_expected_steps(tmp_path: Path) -> None:
         webhook_port=19090,
         telegram_api_port=19091,
         valkey_port=16379,
-        valkey_url="redis://127.0.0.1:16379/0",
-        valkey_prefix="omni-agent:test",
+        valkey_url=endpoints.redis_url(16379, 0),
+        valkey_prefix="xiuxian_wendao:test",
         username="tester",
         webhook_secret="secret",
         chat_id=1,
@@ -88,7 +89,7 @@ def test_run_gate_quick_profile_invokes_expected_steps(tmp_path: Path) -> None:
     def _run_command(cmd: list[str], *, title: str, cwd: Path, env: dict[str, str]) -> None:
         assert cmd
         assert str(cwd) == str(tmp_path)
-        assert env["VALKEY_URL"] == cfg.valkey_url
+        assert env["XIUXIAN_WENDAO_VALKEY_URL"] == cfg.valkey_url
         invoked_titles.append(title)
 
     def _start_background_process(
@@ -116,7 +117,7 @@ def test_run_gate_quick_profile_invokes_expected_steps(tmp_path: Path) -> None:
             path.parent.mkdir(parents=True, exist_ok=True) for path in paths
         ],
         default_run_suffix_fn=lambda: "testrun",
-        write_ci_channel_acl_settings_fn=lambda _cfg, config_home: config_home / "settings.yaml",
+        write_ci_channel_acl_settings_fn=lambda _cfg, config_home: config_home / "xiuxian.toml",
         valkey_reachable_fn=lambda _url: False,
         run_command_fn=_run_command,
         start_background_process_fn=_start_background_process,

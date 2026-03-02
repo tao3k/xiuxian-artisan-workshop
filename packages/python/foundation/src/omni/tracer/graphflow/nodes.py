@@ -1,8 +1,8 @@
-"""Graphflow LangGraph node implementations."""
+"""Graphflow workflow node implementations."""
 
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from .evaluation import (
     _build_critique_status_report,
@@ -24,12 +24,14 @@ from .evaluation import (
     _synthesize_novel_critique,
 )
 from .llm_service import get_llm_service
-from .tracer import LangGraphTracer
 from .types import DemoState, StepType
 from .ui import console, ultra_step_enter, ultra_step_exit
 
+if TYPE_CHECKING:
+    from .tracer import GraphflowTracer
 
-async def llm_analyze(state: DemoState, tracer: LangGraphTracer) -> DemoState:
+
+async def llm_analyze(state: DemoState, tracer: GraphflowTracer) -> DemoState:
     """LLM analyze node - generates analysis based on prior critiques."""
     current_iteration = len(state["reflection_labels"]) + 1
     step_id = tracer.start_step(
@@ -119,7 +121,7 @@ async def llm_analyze(state: DemoState, tracer: LangGraphTracer) -> DemoState:
         )
     )
 
-    updated_analysis_history = list(state.get("analysis_history", [])) + [analysis]
+    updated_analysis_history = [*list(state.get("analysis_history", [])), analysis]
 
     return cast(
         "DemoState",
@@ -151,7 +153,7 @@ async def llm_analyze(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     )
 
 
-async def llm_evaluate(state: DemoState, tracer: LangGraphTracer) -> DemoState:
+async def llm_evaluate(state: DemoState, tracer: GraphflowTracer) -> DemoState:
     """Evaluate analysis quality and decide whether to continue reflection."""
     step_id = tracer.start_step(
         "evaluator.evaluate",
@@ -251,7 +253,7 @@ async def llm_evaluate(state: DemoState, tracer: LangGraphTracer) -> DemoState:
         overall=new_quality,
         delta=quality_delta,
     )
-    quality_evaluations = list(state["quality_evaluations"]) + [quality_xml]
+    quality_evaluations = [*list(state["quality_evaluations"]), quality_xml]
     tracer.record_memory(
         "quality_evaluations",
         quality_xml,
@@ -356,7 +358,7 @@ async def llm_evaluate(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     )
 
 
-async def llm_reflect(state: DemoState, tracer: LangGraphTracer) -> DemoState:
+async def llm_reflect(state: DemoState, tracer: GraphflowTracer) -> DemoState:
     """LLM reflect node - generates structured critique with XML tags for cross-node context."""
     step_id = tracer.start_step(
         "reflector.reflect",
@@ -444,7 +446,7 @@ async def llm_reflect(state: DemoState, tracer: LangGraphTracer) -> DemoState:
         quality_delta=quality_delta,
         decision_hint=decision_hint,
     )
-    new_labels = list(state["reflection_labels"]) + [label]
+    new_labels = [*list(state["reflection_labels"]), label]
     current_iteration = len(new_labels)
     tracer.record_reflection(label)
 
@@ -502,7 +504,7 @@ async def llm_reflect(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     )
 
 
-async def llm_draft(state: DemoState, tracer: LangGraphTracer) -> DemoState:
+async def llm_draft(state: DemoState, tracer: GraphflowTracer) -> DemoState:
     """LLM draft node - synthesizes analysis and reflections into a draft."""
     step_id = tracer.start_step(
         "drafter.draft",
@@ -571,7 +573,7 @@ async def llm_draft(state: DemoState, tracer: LangGraphTracer) -> DemoState:
     )
 
 
-async def llm_finalize(state: DemoState, tracer: LangGraphTracer) -> DemoState:
+async def llm_finalize(state: DemoState, tracer: GraphflowTracer) -> DemoState:
     """LLM finalize node - creates the final output."""
     step_id = tracer.start_step(
         "drafter.finalize",

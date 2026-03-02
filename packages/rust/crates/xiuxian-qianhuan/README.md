@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "xiuxian-qianhuan"
+---
+
 # xiuxian-qianhuan
 
 Xiuxian-Qianhuan injection engine for Omni Rust runtime.

@@ -3,7 +3,7 @@
 API Key loading for inference module.
 
 Modularized from inference.py.
-Configuration-driven API key loading from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml).
+Configuration-driven API key loading from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml).
 Supports reading from .claude/settings.json via get_anthropic_api_key().
 """
 
@@ -12,7 +12,7 @@ from omni.foundation.config.settings import get_setting
 
 
 def get_inference_config() -> dict:
-    """Get inference configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml).
+    """Get inference configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml).
 
     Returns:
         dict with keys: api_key_env, base_url, model, timeout, max_tokens

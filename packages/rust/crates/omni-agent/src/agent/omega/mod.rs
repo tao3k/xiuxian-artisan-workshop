@@ -1,7 +1,5 @@
-mod decision;
-mod fallback;
+//! Omega: Strategic routing and quality-gating engine.
 
-pub(crate) use decision::{
-    apply_policy_hint, apply_quality_gate, decide_for_shortcut, decide_for_standard_turn,
-};
-pub(crate) use fallback::{ShortcutFallbackAction, resolve_shortcut_fallback};
+mod decision;
+
+pub(crate) use decision::{apply_policy_hint, apply_quality_gate, decide_for_standard_turn};

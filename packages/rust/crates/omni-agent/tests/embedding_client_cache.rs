@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Embedding client cache behavior tests with a mock HTTP embedding endpoint.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -48,10 +12,14 @@ struct EmbedState {
 }
 
 async fn reserve_local_addr() -> std::net::SocketAddr {
-    let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+    let probe = match tokio::net::TcpListener::bind("127.0.0.1:0").await {
+        Ok(listener) => listener,
+        Err(error) => panic!("reserve local addr: {error}"),
+    };
+    let addr = match probe.local_addr() {
+        Ok(addr) => addr,
+        Err(error) => panic!("read reserved local addr: {error}"),
+    };
     drop(probe);
     addr
 }
@@ -64,15 +32,19 @@ async fn embed_batch_handler(
     let text_count = payload
         .get("texts")
         .and_then(|value| value.as_array())
-        .map(|items| items.len())
-        .unwrap_or(0);
+        .map_or(0, Vec::len);
     let model_bias = payload
         .get("model")
         .and_then(|value| value.as_str())
-        .map(|value| value.len() as f32)
-        .unwrap_or(0.0);
+        .map_or(0.0, |value| {
+            let model_len = u16::try_from(value.len()).unwrap_or(u16::MAX);
+            f32::from(model_len)
+        });
     let vectors = (0..text_count)
-        .map(|index| vec![index as f32 + model_bias, 1.0 + model_bias])
+        .map(|index| {
+            let index_f32 = f32::from(u16::try_from(index).unwrap_or(u16::MAX));
+            vec![index_f32 + model_bias, 1.0 + model_bias]
+        })
         .collect::<Vec<Vec<f32>>>();
     Json(serde_json::json!({ "vectors": vectors }))
 }
@@ -84,9 +56,10 @@ async fn spawn_embed_server(
     let app = Router::new()
         .route("/embed/batch", post(embed_batch_handler))
         .with_state(EmbedState { calls });
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind embed listener");
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => listener,
+        Err(error) => panic!("bind embed listener: {error}"),
+    };
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
     })
@@ -105,14 +78,14 @@ async fn repeated_embedding_batch_uses_local_cache() {
     );
     let texts = vec!["repeat this prompt".to_string()];
 
-    let first = client
-        .embed_batch_with_model(&texts, None)
-        .await
-        .expect("first embedding call should succeed");
-    let second = client
-        .embed_batch_with_model(&texts, None)
-        .await
-        .expect("second embedding call should use cache");
+    let first = client.embed_batch_with_model(&texts, None).await;
+    let Some(first) = first else {
+        panic!("first embedding call should succeed");
+    };
+    let second = client.embed_batch_with_model(&texts, None).await;
+    let Some(second) = second else {
+        panic!("second embedding call should use cache");
+    };
 
     assert_eq!(first, second);
     assert_eq!(
@@ -137,18 +110,20 @@ async fn embedding_cache_isolated_by_model_hint() {
     );
     let texts = vec!["same text".to_string()];
 
-    let model_a = client
-        .embed_batch_with_model(&texts, Some("m-a"))
-        .await
-        .expect("model-a embedding should succeed");
+    let model_a = client.embed_batch_with_model(&texts, Some("m-a")).await;
+    let Some(model_a) = model_a else {
+        panic!("model-a embedding should succeed");
+    };
     let model_b = client
         .embed_batch_with_model(&texts, Some("model-long"))
-        .await
-        .expect("model-b embedding should succeed");
-    let model_a_cached = client
-        .embed_batch_with_model(&texts, Some("m-a"))
-        .await
-        .expect("model-a cached embedding should succeed");
+        .await;
+    let Some(model_b) = model_b else {
+        panic!("model-b embedding should succeed");
+    };
+    let model_a_cached = client.embed_batch_with_model(&texts, Some("m-a")).await;
+    let Some(model_a_cached) = model_a_cached else {
+        panic!("model-a cached embedding should succeed");
+    };
 
     assert_eq!(model_a, model_a_cached);
     assert_ne!(

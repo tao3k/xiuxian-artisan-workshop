@@ -315,7 +315,7 @@ class TestSyncReferencesPathResolution:
     def test_resolve_references_uses_active_conf_when_present(self, monkeypatch, tmp_path: Path):
         monkeypatch.delenv("OMNI_REFERENCES_YAML", raising=False)
         monkeypatch.setenv("PRJ_CONFIG_HOME", str(tmp_path))
-        app_dir = tmp_path / "omni-dev-fusion"
+        app_dir = tmp_path / "xiuxian-artisan-workshop"
         app_dir.mkdir(parents=True, exist_ok=True)
         refs = app_dir / "references.yaml"
         refs.write_text("{}", encoding="utf-8")

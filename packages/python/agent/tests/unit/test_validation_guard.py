@@ -4,13 +4,11 @@ test_validation_guard.py - Unit Tests for ResilientReAct Components
 Tests for:
 - ArgumentValidator: Schema-based parameter validation
 - OutputCompressor: Long output compression
-- EpistemicGater: Task intent verification
 - ResilientReAct: Workflow execution with validation
 """
 
 import pytest
 
-from omni.agent.core.omni.loop import EpistemicGater
 from omni.agent.core.omni.react import (
     ArgumentValidator,
     OutputCompressor,
@@ -130,61 +128,6 @@ class TestArgumentValidator:
         schema = {"parameters": {"required": ["path"], "properties": {"path": {"type": "string"}}}}
         result = ArgumentValidator.validate(schema, {"path": "/test", "extra": "value"})
         assert result.is_valid is True
-
-
-class TestEpistemicGater:
-    """Tests for EpistemicGater."""
-
-    def setup_method(self):
-        self.gater = EpistemicGater()
-
-    def test_empty_task_rejected(self):
-        """Should reject empty task."""
-        should_proceed, reason, metadata = self.gater.evaluate("")
-        assert should_proceed is False
-
-    def test_very_short_task_rejected(self):
-        """Should reject very short task."""
-        should_proceed, reason, metadata = self.gater.evaluate("hi")
-        assert should_proceed is False
-
-    def test_vague_task_rejected(self):
-        """Should reject vague tasks like 'do something'."""
-        should_proceed, reason, metadata = self.gater.evaluate("do something")
-        assert should_proceed is False
-        assert "vague" in reason.lower()
-
-    def test_fix_it_rejected(self):
-        """Should reject 'fix it' task."""
-        should_proceed, reason, metadata = self.gater.evaluate("fix it")
-        assert should_proceed is False
-
-    def test_help_me_rejected(self):
-        """Should reject 'help me' task."""
-        should_proceed, reason, metadata = self.gater.evaluate("help me")
-        assert should_proceed is False
-
-    def test_valid_specific_task(self):
-        """Should accept specific tasks."""
-        should_proceed, reason, metadata = self.gater.evaluate("Read the file /path/to/config.json")
-        assert should_proceed is True
-
-    def test_info_seeking_allowed(self):
-        """Should allow information seeking questions."""
-        should_proceed, reason, metadata = self.gater.evaluate("What is Python?")
-        assert should_proceed is True
-        assert metadata.get("task_type") == "info_seeking"
-
-    def test_explain_allowed(self):
-        """Should allow explanation requests."""
-        should_proceed, reason, metadata = self.gater.evaluate("Explain how async/await works")
-        assert should_proceed is True
-
-    def test_context_warning_for_file(self):
-        """Should add warning when file mentioned without path."""
-        should_proceed, reason, metadata = self.gater.evaluate("Read the file and check for errors")
-        assert should_proceed is True
-        assert "context_warning" in metadata
 
 
 class TestResilientReActWorkflow:

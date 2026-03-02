@@ -1,10 +1,11 @@
 use super::enums::LinkGraphMatchStrategy;
 use super::filters::LinkGraphSearchFilters;
 use super::sort::LinkGraphSortTerm;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Search options for link-graph index retrieval.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LinkGraphSearchOptions {
     /// Matching strategy (fts/exact/re).

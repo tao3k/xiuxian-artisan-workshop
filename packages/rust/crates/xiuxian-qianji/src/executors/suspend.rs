@@ -6,7 +6,7 @@ use serde_json::json;
 
 /// Mechanism responsible for suspending the workflow and returning control.
 pub struct SuspendMechanism {
-    /// The suspension reason code (e.g., "waiting_for_approval").
+    /// The suspension reason code (e.g., "`waiting_for_approval`").
     pub reason: String,
     /// Message to prompt the user.
     pub prompt: String,
@@ -18,13 +18,13 @@ pub struct SuspendMechanism {
 impl QianjiMechanism for SuspendMechanism {
     async fn execute(&self, context: &serde_json::Value) -> Result<QianjiOutput, String> {
         // If the context already contains the resume_key, it means we have been resumed with the required data.
-        if let Some(key) = &self.resume_key {
-            if context.get(key).is_some() {
-                return Ok(QianjiOutput {
-                    data: json!({}),
-                    instruction: FlowInstruction::Continue,
-                });
-            }
+        if let Some(key) = &self.resume_key
+            && context.get(key).is_some()
+        {
+            return Ok(QianjiOutput {
+                data: json!({}),
+                instruction: FlowInstruction::Continue,
+            });
         }
 
         // Suspend aborts the local execution loop, but states are persisted via checkpointer.

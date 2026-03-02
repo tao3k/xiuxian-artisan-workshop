@@ -1,6 +1,6 @@
 use super::super::{
-    LinkGraphIndex, LinkGraphMatchStrategy, LinkGraphSearchOptions, normalize_path_filter,
-    normalize_with_case, tokenize,
+    LinkGraphIndex, LinkGraphMatchStrategy, LinkGraphScope, LinkGraphSearchOptions,
+    normalize_path_filter, normalize_with_case, tokenize,
 };
 use regex::{Regex, RegexBuilder};
 
@@ -18,6 +18,18 @@ pub(super) struct SearchExecutionContext {
     pub(super) tag_not: Vec<String>,
     pub(super) mention_filters: Vec<String>,
     pub(super) regex: Option<Regex>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct SearchRuntimePolicy {
+    pub(super) scope: LinkGraphScope,
+    pub(super) structural_edges_enabled: bool,
+    pub(super) semantic_edges_enabled: bool,
+    pub(super) collapse_to_doc: bool,
+    pub(super) per_doc_section_cap: usize,
+    pub(super) min_section_words: usize,
+    pub(super) max_heading_level: usize,
+    pub(super) max_tree_hops: Option<usize>,
 }
 
 impl LinkGraphIndex {

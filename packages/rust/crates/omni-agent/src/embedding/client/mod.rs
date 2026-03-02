@@ -43,6 +43,9 @@ pub struct EmbeddingClient {
     batch_max_size: usize,
     batch_max_concurrency: usize,
     default_model: Option<String>,
+    mistral_sdk_hf_cache_path: Option<String>,
+    mistral_sdk_hf_revision: Option<String>,
+    mistral_sdk_max_num_seqs: Option<usize>,
     #[cfg(feature = "agent-provider-litellm")]
     litellm_api_key: Option<String>,
 }
@@ -58,11 +61,15 @@ struct EmbeddingDispatchRuntime {
     timeout_secs: u64,
     max_in_flight: Option<usize>,
     in_flight_gate: Option<Arc<Semaphore>>,
+    mistral_sdk_hf_cache_path: Option<String>,
+    mistral_sdk_hf_revision: Option<String>,
+    mistral_sdk_max_num_seqs: Option<usize>,
     #[cfg(feature = "agent-provider-litellm")]
     litellm_api_key: Option<String>,
 }
 
 impl EmbeddingClient {
+    /// Return current in-flight permit usage snapshot when throttling is enabled.
     #[must_use]
     pub fn in_flight_snapshot(&self) -> Option<EmbeddingInFlightSnapshot> {
         let max_in_flight = self.max_in_flight?;

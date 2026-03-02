@@ -1,119 +1,36 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
+use std::path::Path;
 
-#[test]
-fn test_wendao_agentic_plan_uses_config_runtime_budgets() -> Result<(), Box<dyn std::error::Error>>
-{
-    let tmp = TempDir::new()?;
-    write_file(&tmp.path().join("docs/a.md"), "# A\n\nalpha\n")?;
-    write_file(&tmp.path().join("docs/b.md"), "# B\n\nalpha\n")?;
-    write_file(&tmp.path().join("docs/c.md"), "# C\n\nbeta\n")?;
-    write_file(&tmp.path().join("docs/d.md"), "# D\n\ngamma\n")?;
+type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-    let config_path = tmp.path().join("wendao.yaml");
-    fs::write(
-        &config_path,
-        "link_graph:\n  agentic:\n    expansion:\n      max_workers: 1\n      max_candidates: 4\n      max_pairs_per_worker: 1\n      time_budget_ms: 1000.0\n",
-    )?;
-
-    let output = wendao_cmd()
-        .arg("--root")
-        .arg(tmp.path())
-        .arg("--conf")
-        .arg(&config_path)
-        .arg("agentic")
-        .arg("plan")
-        .arg("--query")
-        .arg("alpha")
-        .output()?;
-
-    assert!(
-        output.status.success(),
-        "wendao agentic plan failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let stdout = String::from_utf8(output.stdout)?;
-    let payload: Value = serde_json::from_str(&stdout)?;
-    assert_eq!(
-        payload
-            .get("config")
-            .and_then(|value| value.get("max_workers"))
-            .and_then(Value::as_u64),
-        Some(1)
-    );
-    assert_eq!(
-        payload
-            .get("config")
-            .and_then(|value| value.get("max_pairs_per_worker"))
-            .and_then(Value::as_u64),
-        Some(1)
-    );
-    assert_eq!(
-        payload
-            .get("workers")
-            .and_then(Value::as_array)
-            .map(std::vec::Vec::len),
-        Some(1)
-    );
-    assert_eq!(
-        payload.get("selected_pairs").and_then(Value::as_u64),
-        Some(1)
-    );
+fn write_docs(tmp: &TempDir, docs: &[(&str, &str)]) -> TestResult {
+    for (relative_path, content) in docs {
+        write_file(&tmp.path().join(relative_path), content)?;
+    }
     Ok(())
 }
 
-#[test]
-fn test_wendao_agentic_run_uses_config_runtime_budgets_and_telemetry()
--> Result<(), Box<dyn std::error::Error>> {
-    let tmp = TempDir::new()?;
-    write_file(&tmp.path().join("docs/a.md"), "# A\n\nalpha\n")?;
-    write_file(&tmp.path().join("docs/b.md"), "# B\n\nalpha\n")?;
-    write_file(&tmp.path().join("docs/c.md"), "# C\n\nbeta\n")?;
-
-    let config_path = tmp.path().join("wendao.yaml");
-    fs::write(
-        &config_path,
-        "link_graph:\n  agentic:\n    expansion:\n      max_workers: 1\n      max_candidates: 3\n      max_pairs_per_worker: 1\n      time_budget_ms: 1000.0\n    execution:\n      worker_time_budget_ms: 1000.0\n      persist_suggestions_default: false\n      relation: \"related_to\"\n      agent_id: \"qianhuan-architect\"\n      evidence_prefix: \"agentic expansion bridge candidate\"\n",
-    )?;
-
+fn run_agentic_root_json(
+    root: &Path,
+    config_path: &Path,
+    args: &[&str],
+    context: &str,
+) -> Result<Value, Box<dyn std::error::Error>> {
     let output = wendao_cmd()
         .arg("--root")
-        .arg(tmp.path())
+        .arg(root)
         .arg("--conf")
-        .arg(&config_path)
-        .arg("agentic")
-        .arg("run")
-        .arg("--query")
-        .arg("alpha")
+        .arg(config_path)
+        .args(args)
         .output()?;
 
-    assert!(
-        output.status.success(),
-        "wendao agentic run failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{context}: {stderr}");
     let stdout = String::from_utf8(output.stdout)?;
-    let payload: Value = serde_json::from_str(&stdout)?;
+    Ok(serde_json::from_str(&stdout)?)
+}
+
+fn assert_runtime_config(payload: &Value) {
     assert_eq!(
         payload
             .get("config")
@@ -150,6 +67,9 @@ fn test_wendao_agentic_run_uses_config_runtime_budgets_and_telemetry()
             .and_then(Value::as_u64),
         Some(2000)
     );
+}
+
+fn assert_run_counters(payload: &Value) {
     assert_eq!(
         payload.get("prepared_proposals").and_then(Value::as_u64),
         Some(1)
@@ -170,6 +90,9 @@ fn test_wendao_agentic_run_uses_config_runtime_budgets_and_telemetry()
         payload.get("skipped_duplicates").and_then(Value::as_u64),
         Some(0)
     );
+}
+
+fn assert_worker_telemetry(payload: &Value) -> TestResult {
     let worker_runs = payload
         .get("worker_runs")
         .and_then(Value::as_array)
@@ -190,6 +113,88 @@ fn test_wendao_agentic_run_uses_config_runtime_budgets_and_telemetry()
         phase.get("phase").and_then(Value::as_str) == Some("worker.total")
             && phase.get("item_count").and_then(Value::as_u64) == Some(1)
     }));
+    Ok(())
+}
 
+#[test]
+fn test_wendao_agentic_plan_uses_config_runtime_budgets() -> TestResult {
+    let tmp = TempDir::new()?;
+    write_docs(
+        &tmp,
+        &[
+            ("docs/a.md", "# A\n\nalpha\n"),
+            ("docs/b.md", "# B\n\nalpha\n"),
+            ("docs/c.md", "# C\n\nbeta\n"),
+            ("docs/d.md", "# D\n\ngamma\n"),
+        ],
+    )?;
+
+    let config_path = tmp.path().join("wendao.yaml");
+    fs::write(
+        &config_path,
+        "link_graph:\n  agentic:\n    expansion:\n      max_workers: 1\n      max_candidates: 4\n      max_pairs_per_worker: 1\n      time_budget_ms: 1000.0\n",
+    )?;
+
+    let payload = run_agentic_root_json(
+        tmp.path(),
+        &config_path,
+        &["agentic", "plan", "--query", "alpha"],
+        "wendao agentic plan failed",
+    )?;
+    assert_eq!(
+        payload
+            .get("config")
+            .and_then(|value| value.get("max_workers"))
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        payload
+            .get("config")
+            .and_then(|value| value.get("max_pairs_per_worker"))
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        payload
+            .get("workers")
+            .and_then(Value::as_array)
+            .map(std::vec::Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        payload.get("selected_pairs").and_then(Value::as_u64),
+        Some(1)
+    );
+    Ok(())
+}
+
+#[test]
+fn test_wendao_agentic_run_uses_config_runtime_budgets_and_telemetry() -> TestResult {
+    let tmp = TempDir::new()?;
+    write_docs(
+        &tmp,
+        &[
+            ("docs/a.md", "# A\n\nalpha\n"),
+            ("docs/b.md", "# B\n\nalpha\n"),
+            ("docs/c.md", "# C\n\nbeta\n"),
+        ],
+    )?;
+
+    let config_path = tmp.path().join("wendao.yaml");
+    fs::write(
+        &config_path,
+        "link_graph:\n  agentic:\n    expansion:\n      max_workers: 1\n      max_candidates: 3\n      max_pairs_per_worker: 1\n      time_budget_ms: 1000.0\n    execution:\n      worker_time_budget_ms: 1000.0\n      persist_suggestions_default: false\n      relation: \"related_to\"\n      agent_id: \"qianhuan-architect\"\n      evidence_prefix: \"agentic expansion bridge candidate\"\n",
+    )?;
+
+    let payload = run_agentic_root_json(
+        tmp.path(),
+        &config_path,
+        &["agentic", "run", "--query", "alpha"],
+        "wendao agentic run failed",
+    )?;
+    assert_runtime_config(&payload);
+    assert_run_counters(&payload);
+    assert_worker_telemetry(&payload)?;
     Ok(())
 }

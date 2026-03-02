@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Rust Agent: Loop, ReAct, and Memory Testing"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - rust
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Rust Agent: Loop, ReAct, and Memory Testing"
 ---
 
 # Rust Agent: Loop, ReAct, and Memory Testing

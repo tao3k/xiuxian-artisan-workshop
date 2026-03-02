@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from omni.foundation.checkpoint import (
+from omni.foundation.workflow_state import (
     delete_workflow_state,
     load_workflow_state,
     save_workflow_state,
@@ -86,7 +86,7 @@ def validate_chunked_action(
 
 
 class WorkflowStateStore:
-    """Checkpoint-backed persistence wrapper for multi-step workflow state."""
+    """Workflow-state persistence wrapper for multi-step actions."""
 
     def __init__(self, workflow_type: str) -> None:
         self.workflow_type = workflow_type
@@ -98,7 +98,7 @@ class WorkflowStateStore:
         *,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        """Save workflow state to checkpoint store (Rust checkpoint backend)."""
+        """Save workflow state to persistent workflow-state backend."""
         wid = _normalize_workflow_id(workflow_id)
         if not wid or not isinstance(state, dict):
             return
@@ -110,7 +110,7 @@ class WorkflowStateStore:
             )
 
     def load(self, workflow_id: str) -> dict[str, Any] | None:
-        """Load workflow state from checkpoint store."""
+        """Load workflow state from persistent workflow-state backend."""
         wid = _normalize_workflow_id(workflow_id)
         if not wid:
             return None
@@ -118,7 +118,7 @@ class WorkflowStateStore:
         return raw if isinstance(raw, dict) else None
 
     def delete(self, workflow_id: str) -> None:
-        """Delete workflow state from checkpoint store."""
+        """Delete workflow state from persistent workflow-state backend."""
         wid = _normalize_workflow_id(workflow_id)
         if not wid:
             return
@@ -300,14 +300,14 @@ def _normalize_state(raw: Any, *, session_id: str) -> tuple[ChunkedSession, dict
 
 
 class ChunkedSessionStore:
-    """Persistence wrapper for chunked sessions (checkpoint-backed)."""
+    """Persistence wrapper for chunked sessions (workflow-state backend)."""
 
     def __init__(self, workflow_type: str) -> None:
         self.workflow_type = workflow_type
         self._state_store = WorkflowStateStore(workflow_type)
 
     def save(self, session: ChunkedSession, *, metadata: dict[str, Any] | None = None) -> None:
-        """Save a chunked session to checkpoint storage."""
+        """Save a chunked session to workflow-state storage."""
         state = {
             "batches": list(session.batches),
             "batch_size": int(session.batch_size),
@@ -362,7 +362,7 @@ class ChunkedSessionStore:
         return payload
 
     def load(self, session_id: str) -> tuple[ChunkedSession, dict[str, Any]] | None:
-        """Load a chunked session from checkpoint store."""
+        """Load a chunked session from workflow-state storage."""
         sid = _normalize_workflow_id(session_id)
         if not sid:
             return None

@@ -1,18 +1,6 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
 //! MCP pool reconnect integration tests.
 
+use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -139,15 +127,15 @@ impl ServerHandler for MockMcpServer {
 async fn spawn_mock_server(
     addr: std::net::SocketAddr,
     initial_list_failures: usize,
-) -> tokio::task::JoinHandle<()> {
-    let (handle, _) = spawn_mock_server_with_list_counter(addr, initial_list_failures).await;
-    handle
+) -> Result<tokio::task::JoinHandle<()>> {
+    let (handle, _) = spawn_mock_server_with_list_counter(addr, initial_list_failures).await?;
+    Ok(handle)
 }
 
 async fn spawn_mock_server_with_list_counter(
     addr: std::net::SocketAddr,
     initial_list_failures: usize,
-) -> (tokio::task::JoinHandle<()>, Arc<AtomicUsize>) {
+) -> Result<(tokio::task::JoinHandle<()>, Arc<AtomicUsize>)> {
     let list_failures_remaining = Arc::new(AtomicUsize::new(initial_list_failures));
     let list_calls_total = Arc::new(AtomicUsize::new(0));
     let service: StreamableHttpService<MockMcpServer, LocalSessionManager> =
@@ -172,18 +160,18 @@ async fn spawn_mock_server_with_list_counter(
     let router = Router::new().nest_service("/sse", service);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .expect("bind mock mcp listener");
-    (
+        .with_context(|| format!("bind mock mcp listener on {addr}"))?;
+    Ok((
         tokio::spawn(async move {
             let _ = axum::serve(listener, router).await;
         }),
         list_calls_total,
-    )
+    ))
 }
 
 async fn spawn_embedding_timeout_server(
     addr: std::net::SocketAddr,
-) -> (tokio::task::JoinHandle<()>, Arc<AtomicUsize>) {
+) -> Result<(tokio::task::JoinHandle<()>, Arc<AtomicUsize>)> {
     let call_calls_total = Arc::new(AtomicUsize::new(0));
     let service: StreamableHttpService<EmbeddingTimeoutMcpServer, LocalSessionManager> =
         StreamableHttpService::new(
@@ -205,13 +193,13 @@ async fn spawn_embedding_timeout_server(
     let router = Router::new().nest_service("/sse", service);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .expect("bind embedding-timeout mock mcp listener");
-    (
+        .with_context(|| format!("bind embedding-timeout mock mcp listener on {addr}"))?;
+    Ok((
         tokio::spawn(async move {
             let _ = axum::serve(listener, router).await;
         }),
         call_calls_total,
-    )
+    ))
 }
 
 fn reconnect_test_config(pool_size: usize) -> McpPoolConnectConfig {
@@ -225,29 +213,35 @@ fn reconnect_test_config(pool_size: usize) -> McpPoolConnectConfig {
     }
 }
 
-async fn reserve_local_addr() -> std::net::SocketAddr {
+async fn reserve_local_addr() -> Result<std::net::SocketAddr> {
     let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+        .context("reserve local addr")?;
+    let addr = probe.local_addr().context("read reserved local addr")?;
     drop(probe);
-    addr
+    Ok(addr)
 }
 
 #[tokio::test]
-async fn mcp_pool_list_tools_cache_reuses_recent_snapshot() {
-    let addr = reserve_local_addr().await;
-    let (handle, list_calls_total) = spawn_mock_server_with_list_counter(addr, 0).await;
+async fn mcp_pool_list_tools_cache_reuses_recent_snapshot() -> Result<()> {
+    let addr = reserve_local_addr().await?;
+    let (handle, list_calls_total) = spawn_mock_server_with_list_counter(addr, 0).await?;
     let url = format!("http://{addr}/sse");
     let pool = connect_pool(&url, reconnect_test_config(1), None)
         .await
-        .expect("connect pool");
+        .context("connect pool")?;
 
-    let first = pool.list_tools(None).await.expect("first list_tools");
+    let first = pool
+        .list_tools(None)
+        .await
+        .context("first list_tools call should succeed")?;
     assert_eq!(first.tools.len(), 1);
     assert_eq!(list_calls_total.load(Ordering::SeqCst), 1);
 
-    let second = pool.list_tools(None).await.expect("second list_tools");
+    let second = pool
+        .list_tools(None)
+        .await
+        .context("second list_tools call should succeed")?;
     assert_eq!(second.tools.len(), 1);
     assert_eq!(
         list_calls_total.load(Ordering::SeqCst),
@@ -256,7 +250,10 @@ async fn mcp_pool_list_tools_cache_reuses_recent_snapshot() {
     );
 
     tokio::time::sleep(Duration::from_millis(1_100)).await;
-    let third = pool.list_tools(None).await.expect("third list_tools");
+    let third = pool
+        .list_tools(None)
+        .await
+        .context("third list_tools call should succeed")?;
     assert_eq!(third.tools.len(), 1);
     assert_eq!(
         list_calls_total.load(Ordering::SeqCst),
@@ -268,22 +265,26 @@ async fn mcp_pool_list_tools_cache_reuses_recent_snapshot() {
     assert_eq!(cache_snapshot.cache_hits, 1);
     assert_eq!(cache_snapshot.cache_misses, 2);
     assert_eq!(cache_snapshot.cache_refreshes, 2);
-    assert_eq!(cache_snapshot.hit_rate_pct, 33.33);
+    assert!((cache_snapshot.hit_rate_pct - 33.33).abs() < 0.005);
 
     handle.abort();
     let _ = handle.await;
+    Ok(())
 }
 
 #[tokio::test]
-async fn mcp_pool_list_tools_recovers_after_server_restart() {
-    let addr = reserve_local_addr().await;
-    let handle_1 = spawn_mock_server(addr, 0).await;
+async fn mcp_pool_list_tools_recovers_after_server_restart() -> Result<()> {
+    let addr = reserve_local_addr().await?;
+    let handle_1 = spawn_mock_server(addr, 0).await?;
     let url = format!("http://{addr}/sse");
     let pool = connect_pool(&url, reconnect_test_config(1), None)
         .await
-        .expect("connect pool");
+        .context("connect pool")?;
 
-    let initial = pool.list_tools(None).await.expect("initial list_tools");
+    let initial = pool
+        .list_tools(None)
+        .await
+        .context("initial list_tools call should succeed")?;
     assert_eq!(initial.tools.len(), 1);
 
     handle_1.abort();
@@ -298,22 +299,25 @@ async fn mcp_pool_list_tools_recovers_after_server_restart() {
     let recovered = pool
         .list_tools(None)
         .await
-        .expect("list_tools should recover after reconnect");
+        .context("list_tools should recover after reconnect")?;
     assert_eq!(recovered.tools.len(), 1);
 
-    let handle_2 = restart.await.expect("restart task join");
+    let handle_2 = restart
+        .await
+        .map_err(|error| anyhow!("restart task join failed: {error}"))??;
     handle_2.abort();
     let _ = handle_2.await;
+    Ok(())
 }
 
 #[tokio::test]
-async fn mcp_pool_call_tool_recovers_after_server_restart() {
-    let addr = reserve_local_addr().await;
-    let handle_1 = spawn_mock_server(addr, 0).await;
+async fn mcp_pool_call_tool_recovers_after_server_restart() -> Result<()> {
+    let addr = reserve_local_addr().await?;
+    let handle_1 = spawn_mock_server(addr, 0).await?;
     let url = format!("http://{addr}/sse");
     let pool = connect_pool(&url, reconnect_test_config(1), None)
         .await
-        .expect("connect pool");
+        .context("connect pool")?;
 
     let initial = pool
         .call_tool(
@@ -321,7 +325,7 @@ async fn mcp_pool_call_tool_recovers_after_server_restart() {
             Some(serde_json::json!({ "message": "first" })),
         )
         .await
-        .expect("initial call_tool");
+        .context("initial call_tool should succeed")?;
     assert_eq!(initial.content.len(), 1);
 
     handle_1.abort();
@@ -338,30 +342,35 @@ async fn mcp_pool_call_tool_recovers_after_server_restart() {
             Some(serde_json::json!({ "message": "second" })),
         )
         .await
-        .expect("call_tool should recover after reconnect");
+        .context("call_tool should recover after reconnect")?;
     assert_eq!(recovered.content.len(), 1);
 
-    let handle_2 = restart.await.expect("restart task join");
+    let handle_2 = restart
+        .await
+        .map_err(|error| anyhow!("restart task join failed: {error}"))??;
     handle_2.abort();
     let _ = handle_2.await;
+    Ok(())
 }
 
 #[tokio::test]
-async fn mcp_pool_call_tool_embedding_timeout_is_not_retried_as_transport() {
-    let addr = reserve_local_addr().await;
-    let (handle, call_calls_total) = spawn_embedding_timeout_server(addr).await;
+async fn mcp_pool_call_tool_embedding_timeout_is_not_retried_as_transport() -> Result<()> {
+    let addr = reserve_local_addr().await?;
+    let (handle, call_calls_total) = spawn_embedding_timeout_server(addr).await?;
     let url = format!("http://{addr}/sse");
     let pool = connect_pool(&url, reconnect_test_config(1), None)
         .await
-        .expect("connect pool");
+        .context("connect pool")?;
 
-    let error = pool
+    let call_result = pool
         .call_tool(
             "mock_echo".to_string(),
             Some(serde_json::json!({ "message": "timeout" })),
         )
-        .await
-        .expect_err("embedding timeout should return an error");
+        .await;
+    let Err(error) = call_result else {
+        return Err(anyhow!("embedding timeout should return an error"));
+    };
     let message = format!("{error:#}");
     assert!(
         message.to_ascii_lowercase().contains("embedding timed out"),
@@ -375,23 +384,25 @@ async fn mcp_pool_call_tool_embedding_timeout_is_not_retried_as_transport() {
 
     handle.abort();
     let _ = handle.await;
+    Ok(())
 }
 
 #[tokio::test]
-async fn mcp_pool_list_tools_falls_back_to_next_client_on_non_transport_error() {
-    let addr = reserve_local_addr().await;
-    let handle = spawn_mock_server(addr, 1).await;
+async fn mcp_pool_list_tools_falls_back_to_next_client_on_non_transport_error() -> Result<()> {
+    let addr = reserve_local_addr().await?;
+    let handle = spawn_mock_server(addr, 1).await?;
     let url = format!("http://{addr}/sse");
     let pool = connect_pool(&url, reconnect_test_config(2), None)
         .await
-        .expect("connect pool");
+        .context("connect pool")?;
 
     let result = pool
         .list_tools(None)
         .await
-        .expect("list_tools should fall back to next client");
+        .context("list_tools should fall back to next client")?;
     assert_eq!(result.tools.len(), 1);
 
     handle.abort();
     let _ = handle.await;
+    Ok(())
 }

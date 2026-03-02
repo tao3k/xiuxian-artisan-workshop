@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Router Architecture - Omni-Dev-Fusion"
 category: "architecture"
 tags:
@@ -8,6 +9,8 @@ tags:
   - rust-native
 saliency_base: 8.0
 decay_rate: 0.01
+metadata:
+  title: "Router Architecture - Omni-Dev-Fusion"
 ---
 
 # Router Architecture - Omni-Dev-Fusion
@@ -124,7 +127,7 @@ The router index reflects a **two-level hierarchy** plus references:
 | **Skill → tools**     | One skill has many tools (commands)                        | Each row has `skill_name`; tool id is `skill_name.command_name`.       |
 | **Tool → references** | A tool can reference one or more docs in `references/*.md` | `skill_tools_refers` on each tool row (from front matter `for_tools`). |
 
-- **Parsing:** Rust scanner (`omni-scanner`) reads `SKILL.md` and `references/*.md`. In each reference file, front matter `for_tools: [skill.command_a, ...]` defines which tools that reference applies to. The scanner fills `skill_tools_refers` on each `ToolRecord`.
+- **Parsing:** Rust scanner (`xiuxian-skills`) reads `SKILL.md` and `references/*.md`. In each reference file, front matter `for_tools: [skill.command_a, ...]` defines which tools that reference applies to. The scanner fills `skill_tools_refers` on each `ToolRecord`.
 - **Index:** When skills are reindexed (Rust `index_skill_tools_dual`), each row in the skills table has `skill_name`, `tool_name`, `routing_keywords`, `intents`, and `skill_tools_refers`. So the same-skill and tool–reference structure is stored in the table.
 - **Relationship graph:** After reindex, the relationship graph (`skill_relationships.json`) is built from the table and uses:
   - **Keyword overlap** (Jaccard on `routing_keywords`) — similar intents.
@@ -185,7 +188,7 @@ skills = await router.suggest_skills("/project/path")
 
 ### Runtime Configuration
 
-`OmniRouter` reads routing search/profile from settings: system `packages/conf/settings.yaml`, user `$PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml` (user overrides system).
+`OmniRouter` reads routing search/profile from settings: system `packages/conf/settings.yaml`, user `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml` (user overrides system).
 The user-facing override mechanism is `--conf <dir>`, which sets the user config directory.
 
 ```yaml

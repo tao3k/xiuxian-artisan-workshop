@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Xiuxian-Qianhuan Paper Optimization Notes (arXiv 2025-2026)"
 category: "plans"
 tags:
@@ -6,6 +7,8 @@ tags:
   - xiuxian
 saliency_base: 7.2
 decay_rate: 0.03
+metadata:
+  title: "Xiuxian-Qianhuan Paper Optimization Notes (arXiv 2025-2026)"
 ---
 
 # Xiuxian-Qianhuan Paper Optimization Notes (arXiv 2025-2026)

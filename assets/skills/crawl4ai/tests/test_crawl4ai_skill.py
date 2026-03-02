@@ -135,14 +135,14 @@ class TestCrawl4aiCommands:
 
 
 class TestCrawl4aiScriptLoader:
-    """Tests for script loading with script_loader."""
+    """Tests for script loading with tools_loader."""
 
     def test_crawl4ai_loads_via_script_loader(self):
-        """Test that crawl4ai commands are registered via script_loader."""
-        from omni.core.skills.script_loader import ScriptLoader
+        """Test that crawl4ai commands are registered via tools_loader."""
+        from omni.core.skills.tools_loader import ToolsLoader
 
         skill_path = Path(__file__).parent.parent
-        loader = ScriptLoader(skill_path / "scripts", "crawl4ai")
+        loader = ToolsLoader(skill_path / "scripts", "crawl4ai")
         loader.load_all()
 
         # Check commands are registered
@@ -151,10 +151,10 @@ class TestCrawl4aiScriptLoader:
 
     def test_crawl4ai_commands_are_callable(self):
         """Test that registered commands are callable."""
-        from omni.core.skills.script_loader import ScriptLoader
+        from omni.core.skills.tools_loader import ToolsLoader
 
         skill_path = Path(__file__).parent.parent
-        loader = ScriptLoader(skill_path / "scripts", "crawl4ai")
+        loader = ToolsLoader(skill_path / "scripts", "crawl4ai")
         loader.load_all()
 
         crawl_cmd = loader.get_command("crawl4ai.crawl_url")
@@ -189,14 +189,11 @@ class TestCrawl4aiScriptLoader:
 
     def test_crawl_url_uses_isolation(self):
         """Test that crawl_url command uses run_skill_command (isolation pattern)."""
-        import inspect
-
         sys.path.insert(0, str(Path(__file__).parent.parent))
-        from scripts.crawl_url import crawl_url
+        from scripts import crawl_url as crawl_module
 
-        # The crawl_url function should call run_skill_command
-        # We verify this by checking that crawl_url itself doesn't import crawl4ai
-        source = inspect.getsource(crawl_url)
+        # Decorated command wrappers hide function internals; assert module source instead.
+        source = Path(crawl_module.__file__).read_text(encoding="utf-8")
         assert "run_skill_command" in source, (
             "crawl_url should call run_skill_command for isolation"
         )

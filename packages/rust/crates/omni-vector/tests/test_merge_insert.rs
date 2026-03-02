@@ -1,14 +1,14 @@
 //! Integration tests for merge-insert and version APIs.
 
+use anyhow::Result;
 use omni_vector::{SearchOptions, VectorStore};
 
 #[tokio::test]
-async fn test_merge_insert_documents_upsert_and_versions() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_merge_insert_documents_upsert_and_versions() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("merge_insert_store");
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(4))
-        .await
-        .unwrap();
+    let db_path_str = db_path.to_string_lossy().into_owned();
+    let store = VectorStore::new(db_path_str.as_str(), Some(4)).await?;
 
     let table = "skills";
     store
@@ -22,11 +22,10 @@ async fn test_merge_insert_documents_upsert_and_versions() {
                 serde_json::json!({"kind":"seed","rank":2}).to_string(),
             ],
         )
-        .await
-        .unwrap();
+        .await?;
 
-    let version_before = store.get_dataset_version(table).await.unwrap();
-    assert_eq!(store.count(table).await.unwrap(), 2);
+    let version_before = store.get_dataset_version(table).await?;
+    assert_eq!(store.count(table).await?, 2);
 
     let merge_stats = store
         .merge_insert_documents(
@@ -40,13 +39,12 @@ async fn test_merge_insert_documents_upsert_and_versions() {
             ],
             "id",
         )
-        .await
-        .unwrap();
+        .await?;
 
     assert_eq!(merge_stats.inserted, 1);
     assert_eq!(merge_stats.updated, 1);
     assert_eq!(merge_stats.deleted, 0);
-    assert_eq!(store.count(table).await.unwrap(), 3);
+    assert_eq!(store.count(table).await?, 3);
 
     let results_b = store
         .search_optimized(
@@ -58,24 +56,24 @@ async fn test_merge_insert_documents_upsert_and_versions() {
                 ..SearchOptions::default()
             },
         )
-        .await
-        .unwrap();
+        .await?;
     assert_eq!(results_b.len(), 1);
     assert_eq!(results_b[0].id, "tool.b");
     assert_eq!(results_b[0].content, "new-b");
 
-    let versions = store.list_versions(table).await.unwrap();
+    let versions = store.list_versions(table).await?;
     assert!(versions.len() >= 2);
-    let version_after = store.get_dataset_version(table).await.unwrap();
+    let version_after = store.get_dataset_version(table).await?;
     assert!(version_after > version_before);
 
-    let info = store.get_table_info(table).await.unwrap();
+    let info = store.get_table_info(table).await?;
     assert_eq!(info.num_rows, 3);
     assert!(info.fragment_count >= 1);
 
-    let frag_stats = store.get_fragment_stats(table).await.unwrap();
+    let frag_stats = store.get_fragment_stats(table).await?;
     assert!(!frag_stats.is_empty());
 
-    let old_snapshot = store.checkout_version(table, version_before).await.unwrap();
-    assert_eq!(old_snapshot.count_rows(None).await.unwrap(), 2);
+    let old_snapshot = store.checkout_version(table, version_before).await?;
+    assert_eq!(old_snapshot.count_rows(None).await?, 2);
+    Ok(())
 }

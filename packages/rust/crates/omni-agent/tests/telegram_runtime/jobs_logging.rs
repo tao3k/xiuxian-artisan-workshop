@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram runtime jobs logging tests for structured preview traces.
 
 use std::io;
 use std::sync::{Arc, Mutex};
@@ -165,6 +129,7 @@ async fn runtime_jobs_logs_structured_command_reply_event() -> Result<()> {
     assert!(output.contains("telegram.command.session_status_json.replied"));
     assert!(output.contains("json_kind"));
     assert!(output.contains("session_context"));
+    assert!(output.contains("json_audit_error"));
     assert!(output.contains("json_session_scope"));
     assert!(output.contains("json_logical_session_id"));
     assert!(output.contains("json_partition_key"));
@@ -212,6 +177,7 @@ async fn runtime_jobs_logs_structured_memory_json_summary_fields() -> Result<()>
     assert!(output.contains("telegram.command.session_memory_json.replied"));
     assert!(output.contains("json_kind"));
     assert!(output.contains("session_memory"));
+    assert!(output.contains("json_audit_error"));
     assert!(output.contains("json_available=false") || output.contains("json_available=\"false\""));
     assert!(
         output.contains("json_status=not_found") || output.contains("json_status=\"not_found\"")
@@ -258,6 +224,7 @@ async fn runtime_jobs_logs_structured_session_admin_json_summary_fields() -> Res
     assert!(output.contains("telegram command reply json summary"));
     assert!(output.contains("telegram.command.session_admin_json.replied"));
     assert!(output.contains("session_admin"));
+    assert!(output.contains("json_audit_error"));
     assert!(output.contains("json_override_admin_count"));
     Ok(())
 }

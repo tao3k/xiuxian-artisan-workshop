@@ -1,22 +1,37 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use omni_agent::{
-    DEFAULT_REDIS_KEY_PREFIX, RuntimeSettings, TelegramCommandAdminRule,
-    TelegramControlCommandPolicy, TelegramSlashCommandPolicy, WebhookDedupBackend,
+    DEFAULT_REDIS_KEY_PREFIX, RuntimeSettings, TelegramControlCommandPolicy,
+    TelegramSlashCommandPolicy, TelegramWebhookPolicyRunRequest, WebhookDedupBackend,
     WebhookDedupConfig, build_telegram_acl_overrides,
     run_telegram_webhook_with_control_command_policy, run_telegram_with_control_command_policy,
 };
+use xiuxian_macros::env_non_empty;
 
 use crate::cli::{TelegramChannelMode, WebhookDedupBackendMode};
 use crate::resolve::{
     resolve_channel_mode, resolve_dedup_backend, resolve_positive_u64, resolve_string,
+    resolve_valkey_url_env,
 };
 use crate::runtime_agent_factory::build_agent;
 
 use super::ChannelCommandRequest;
 use super::common::{log_control_command_allow_override, log_slash_command_allow_override};
 
-#[allow(clippy::similar_names)]
+struct TelegramChannelRunRequest {
+    bot_token: String,
+    allowed_users: Vec<String>,
+    allowed_groups: Vec<String>,
+    control_command_policy: TelegramControlCommandPolicy,
+    mcp_config_path: PathBuf,
+    mode: TelegramChannelMode,
+    webhook_bind: String,
+    webhook_path: String,
+    webhook_secret_token: Option<String>,
+    webhook_dedup_config: WebhookDedupConfig,
+}
+
 pub(super) async fn run_telegram_channel_command(
     req: ChannelCommandRequest,
     runtime_settings: &RuntimeSettings,
@@ -37,42 +52,29 @@ pub(super) async fn run_telegram_channel_command(
 
     let acl_overrides = build_telegram_acl_overrides(runtime_settings)?;
     let channel_mode = resolve_channel_mode(mode, runtime_settings.telegram.mode.as_deref());
-    let allowed_users = acl_overrides.allowed_users;
-    let allowed_groups = acl_overrides.allowed_groups;
-    let admin_users = acl_overrides.admin_users;
-    let control_command_allow_from = acl_overrides.control_command_allow_from;
-    let control_command_rules = acl_overrides.control_command_rules;
-    let slash_command_allow_from = acl_overrides.slash_command_allow_from;
-    let slash_session_status_allow_from = acl_overrides.slash_session_status_allow_from;
-    let slash_session_budget_allow_from = acl_overrides.slash_session_budget_allow_from;
-    let slash_session_memory_allow_from = acl_overrides.slash_session_memory_allow_from;
-    let slash_session_feedback_allow_from = acl_overrides.slash_session_feedback_allow_from;
-    let slash_job_allow_from = acl_overrides.slash_job_allow_from;
-    let slash_jobs_allow_from = acl_overrides.slash_jobs_allow_from;
-    let slash_bg_allow_from = acl_overrides.slash_bg_allow_from;
-    let webhook_bind = resolve_string(
+    let webhook_bind_addr = resolve_string(
         webhook_bind,
         "OMNI_AGENT_TELEGRAM_WEBHOOK_BIND",
         runtime_settings.telegram.webhook_bind.as_deref(),
-        "127.0.0.1:8081",
+        "localhost:8081",
     );
-    let webhook_path = resolve_string(
+    let webhook_route_path = resolve_string(
         webhook_path,
         "OMNI_AGENT_TELEGRAM_WEBHOOK_PATH",
         runtime_settings.telegram.webhook_path.as_deref(),
         "/telegram/webhook",
     );
-    let dedup_backend = resolve_dedup_backend(
+    let dedup_backend_mode = resolve_dedup_backend(
         webhook_dedup_backend,
         runtime_settings.telegram.webhook_dedup_backend.as_deref(),
     );
-    let webhook_dedup_ttl_secs = resolve_positive_u64(
+    let dedup_ttl_secs = resolve_positive_u64(
         webhook_dedup_ttl_secs,
         "OMNI_AGENT_TELEGRAM_WEBHOOK_DEDUP_TTL_SECS",
         runtime_settings.telegram.webhook_dedup_ttl_secs,
         600,
     );
-    let webhook_dedup_key_prefix = resolve_string(
+    let dedup_key_prefix = resolve_string(
         webhook_dedup_key_prefix,
         "OMNI_AGENT_TELEGRAM_WEBHOOK_DEDUP_KEY_PREFIX",
         runtime_settings
@@ -81,39 +83,52 @@ pub(super) async fn run_telegram_channel_command(
             .as_deref(),
         DEFAULT_REDIS_KEY_PREFIX,
     );
-    let token = bot_token
-        .or_else(|| std::env::var("TELEGRAM_BOT_TOKEN").ok())
+    let resolved_bot_token = bot_token
+        .or_else(|| env_non_empty!("TELEGRAM_BOT_TOKEN"))
         .ok_or_else(|| anyhow::anyhow!("--bot-token or TELEGRAM_BOT_TOKEN required"))?;
-    let secret_token = resolve_webhook_secret_token(channel_mode, webhook_secret_token)?;
+    let resolved_webhook_secret = resolve_webhook_secret_token(channel_mode, webhook_secret_token)?;
     let dedup_config = build_webhook_dedup_config(
-        dedup_backend,
+        dedup_backend_mode,
         valkey_url,
-        webhook_dedup_ttl_secs,
-        webhook_dedup_key_prefix,
+        dedup_ttl_secs,
+        dedup_key_prefix,
         runtime_settings,
     )?;
 
+    let control_command_allow_entries = acl_overrides.control_command_allow_from;
+    log_control_command_allow_override("telegram", control_command_allow_entries.as_deref());
+    let slash_global_allow_entries = acl_overrides.slash_command_allow_from;
+    log_slash_command_allow_override("telegram", slash_global_allow_entries.as_deref());
+    let slash_command_policy = TelegramSlashCommandPolicy {
+        global: slash_global_allow_entries,
+        session_status: acl_overrides.slash_session_status_allow_from,
+        session_budget: acl_overrides.slash_session_budget_allow_from,
+        session_memory: acl_overrides.slash_session_memory_allow_from,
+        session_feedback: acl_overrides.slash_session_feedback_allow_from,
+        job_status: acl_overrides.slash_job_allow_from,
+        jobs_summary: acl_overrides.slash_jobs_allow_from,
+        background_submit: acl_overrides.slash_bg_allow_from,
+    };
+    let control_command_policy = TelegramControlCommandPolicy::new(
+        acl_overrides.admin_users,
+        control_command_allow_entries,
+        acl_overrides.control_command_rules,
+    )
+    .with_slash_command_policy(slash_command_policy);
+
     run_telegram_channel_mode(
-        token,
-        allowed_users,
-        allowed_groups,
-        admin_users,
-        control_command_allow_from,
-        control_command_rules,
-        slash_command_allow_from,
-        slash_session_status_allow_from,
-        slash_session_budget_allow_from,
-        slash_session_memory_allow_from,
-        slash_session_feedback_allow_from,
-        slash_job_allow_from,
-        slash_jobs_allow_from,
-        slash_bg_allow_from,
-        mcp_config,
-        channel_mode,
-        webhook_bind,
-        webhook_path,
-        secret_token,
-        dedup_config,
+        TelegramChannelRunRequest {
+            bot_token: resolved_bot_token,
+            allowed_users: acl_overrides.allowed_users,
+            allowed_groups: acl_overrides.allowed_groups,
+            control_command_policy,
+            mcp_config_path: mcp_config,
+            mode: channel_mode,
+            webhook_bind: webhook_bind_addr,
+            webhook_path: webhook_route_path,
+            webhook_secret_token: resolved_webhook_secret,
+            webhook_dedup_config: dedup_config,
+        },
         runtime_settings,
     )
     .await
@@ -123,10 +138,7 @@ fn resolve_webhook_secret_token(
     channel_mode: TelegramChannelMode,
     cli_secret: Option<String>,
 ) -> anyhow::Result<Option<String>> {
-    let secret = cli_secret
-        .or_else(|| std::env::var("TELEGRAM_WEBHOOK_SECRET").ok())
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
+    let secret = cli_secret.or_else(|| env_non_empty!("TELEGRAM_WEBHOOK_SECRET"));
     if matches!(channel_mode, TelegramChannelMode::Webhook) && secret.is_none() {
         return Err(anyhow::anyhow!(
             "webhook mode requires TELEGRAM_WEBHOOK_SECRET (or --webhook-secret-token)"
@@ -135,55 +147,25 @@ fn resolve_webhook_secret_token(
     Ok(secret)
 }
 
-#[allow(clippy::similar_names, clippy::too_many_arguments)]
 async fn run_telegram_channel_mode(
-    bot_token: String,
-    allowed_users: Vec<String>,
-    allowed_groups: Vec<String>,
-    admin_users: Vec<String>,
-    control_command_allow_from: Option<Vec<String>>,
-    control_command_rules: Vec<TelegramCommandAdminRule>,
-    slash_command_allow_from: Option<Vec<String>>,
-    slash_session_status_allow_from: Option<Vec<String>>,
-    slash_session_budget_allow_from: Option<Vec<String>>,
-    slash_session_memory_allow_from: Option<Vec<String>>,
-    slash_session_feedback_allow_from: Option<Vec<String>>,
-    slash_job_allow_from: Option<Vec<String>>,
-    slash_jobs_allow_from: Option<Vec<String>>,
-    slash_bg_allow_from: Option<Vec<String>>,
-    mcp_config_path: std::path::PathBuf,
-    mode: TelegramChannelMode,
-    webhook_bind: String,
-    webhook_path: String,
-    webhook_secret_token: Option<String>,
-    webhook_dedup_config: WebhookDedupConfig,
+    request: TelegramChannelRunRequest,
     runtime_settings: &RuntimeSettings,
 ) -> anyhow::Result<()> {
+    let TelegramChannelRunRequest {
+        bot_token,
+        allowed_users,
+        allowed_groups,
+        control_command_policy,
+        mcp_config_path,
+        mode,
+        webhook_bind,
+        webhook_path,
+        webhook_secret_token,
+        webhook_dedup_config,
+    } = request;
+
     let agent = Arc::new(build_agent(&mcp_config_path, runtime_settings).await?);
-    let users = allowed_users;
-    let groups = allowed_groups;
-    let admins = admin_users;
-    let control_command_allow_from_entries = control_command_allow_from;
-    log_control_command_allow_override("telegram", &control_command_allow_from_entries);
-    let slash_command_allow_from_entries = slash_command_allow_from;
-    log_slash_command_allow_override("telegram", &slash_command_allow_from_entries);
-    let slash_command_policy = TelegramSlashCommandPolicy {
-        slash_command_allow_from: slash_command_allow_from_entries,
-        session_status_allow_from: slash_session_status_allow_from,
-        session_budget_allow_from: slash_session_budget_allow_from,
-        session_memory_allow_from: slash_session_memory_allow_from,
-        session_feedback_allow_from: slash_session_feedback_allow_from,
-        job_status_allow_from: slash_job_allow_from,
-        jobs_summary_allow_from: slash_jobs_allow_from,
-        background_submit_allow_from: slash_bg_allow_from,
-    };
-    let control_command_policy = TelegramControlCommandPolicy::new(
-        admins,
-        control_command_allow_from_entries,
-        control_command_rules,
-    )
-    .with_slash_command_policy(slash_command_policy);
-    if users.is_empty() && groups.is_empty() {
+    if allowed_users.is_empty() && allowed_groups.is_empty() {
         tracing::warn!(
             "Telegram ACL allowlist is empty; all inbound will be rejected. \
              Configure `telegram.acl.allow.users` or `telegram.acl.allow.groups` to allow traffic."
@@ -194,24 +176,24 @@ async fn run_telegram_channel_mode(
             run_telegram_with_control_command_policy(
                 Arc::clone(&agent),
                 bot_token,
-                users,
-                groups,
-                control_command_policy.clone(),
+                allowed_users,
+                allowed_groups,
+                control_command_policy,
             )
             .await
         }
         TelegramChannelMode::Webhook => {
-            run_telegram_webhook_with_control_command_policy(
-                Arc::clone(&agent),
+            run_telegram_webhook_with_control_command_policy(TelegramWebhookPolicyRunRequest {
+                agent: Arc::clone(&agent),
                 bot_token,
-                users,
-                groups,
+                allowed_users,
+                allowed_groups,
                 control_command_policy,
-                &webhook_bind,
-                &webhook_path,
-                webhook_secret_token,
-                webhook_dedup_config,
-            )
+                bind_addr: webhook_bind,
+                webhook_path,
+                secret_token: webhook_secret_token,
+                dedup_config: webhook_dedup_config,
+            })
             .await
         }
     }
@@ -229,10 +211,10 @@ fn build_webhook_dedup_config(
         WebhookDedupBackendMode::Valkey => {
             let url = valkey_url
                 .or_else(|| runtime_settings.session.valkey_url.clone())
-                .or_else(|| std::env::var("VALKEY_URL").ok())
+                .or_else(resolve_valkey_url_env)
                 .ok_or_else(|| {
                     anyhow::anyhow!(
-                        "valkey dedup backend requires valkey url (explicit --valkey-url, session.valkey_url, or VALKEY_URL)"
+                        "valkey dedup backend requires valkey url (explicit --valkey-url, session.valkey_url, XIUXIAN_WENDAO_VALKEY_URL, or VALKEY_URL)"
                     )
                 })?;
             if url.trim().is_empty() {

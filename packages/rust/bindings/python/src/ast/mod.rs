@@ -330,7 +330,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_items_python() {
+    fn test_extract_items_python() -> Result<(), Box<dyn std::error::Error>> {
         let content = r#"
 def hello(name: str) -> str:
     return f"Hello, {name}!"
@@ -345,9 +345,10 @@ def goodbye():
             "python".to_string(),
             None,
         )
-        .unwrap();
+        .map_err(|error| std::io::Error::other(error.to_string()))?;
 
-        let results: Vec<PyExtractResult> = serde_json::from_str(&json).unwrap();
+        let results: Vec<PyExtractResult> = serde_json::from_str(&json)?;
         assert_eq!(results.len(), 2);
+        Ok(())
     }
 }

@@ -6,13 +6,14 @@ import types
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-# conftest adds skill scripts to path
-import recall
+from _module_loader import load_script_module
 
 import omni.rag.retrieval.executor as retrieval_executor
 from omni.foundation.runtime.skill_optimization import is_markdown_index_chunk
 from omni.rag.retrieval import filter_recall_rows
+
+# Force skill-local recall module to avoid cross-skill `recall` collisions.
+recall = load_script_module("recall", alias="knowledge_recall_test")
 
 
 @pytest.fixture(autouse=True)

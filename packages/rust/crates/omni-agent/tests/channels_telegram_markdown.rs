@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram markdown rendering tests for escaping and formatting semantics.
 
 use omni_agent::{markdown_to_telegram_html, markdown_to_telegram_markdown_v2};
 
@@ -67,6 +31,23 @@ fn markdown_renderer_formats_ordered_and_task_lists() {
     assert!(rendered.contains("2\\. second"));
     assert!(rendered.contains("\\[x\\]"));
     assert!(rendered.contains("\\[ \\]"));
+}
+
+#[test]
+fn markdown_renderer_converts_tables_into_readable_bullets() {
+    let rendered = markdown_to_telegram_markdown_v2(
+        "| Time | Task |\n| --- | --- |\n| 2:00 PM | Heavy Coding Task 1 |\n| 3:00 PM | Heavy Coding Task 2 |",
+    );
+    let rendered = normalize(&rendered);
+
+    assert!(
+        rendered.contains("• Time: 2:00 PM \\| Task: Heavy Coding Task 1"),
+        "rendered={rendered}"
+    );
+    assert!(
+        rendered.contains("• Time: 3:00 PM \\| Task: Heavy Coding Task 2"),
+        "rendered={rendered}"
+    );
 }
 
 #[test]
@@ -185,4 +166,22 @@ fn html_renderer_keeps_cjk_fullwidth_punctuation_in_code_block() {
     assert!(rendered.contains("print(\"买入：BTC\")"));
     assert!(rendered.contains("<pre><code>"));
     assert!(rendered.contains("</code></pre>"));
+}
+
+#[test]
+fn html_renderer_preserves_table_row_boundaries() {
+    let rendered = markdown_to_telegram_html(
+        "| Time | Task |\n| --- | --- |\n| 2:00 PM | Heavy Coding Task 1 |\n| 3:00 PM | Heavy Coding Task 2 |",
+    );
+    let rendered = normalize(&rendered);
+
+    assert!(rendered.contains("| Time | Task |"), "rendered={rendered}");
+    assert!(
+        rendered.contains("| 2:00 PM | Heavy Coding Task 1 |"),
+        "rendered={rendered}"
+    );
+    assert!(
+        rendered.contains("| 3:00 PM | Heavy Coding Task 2 |"),
+        "rendered={rendered}"
+    );
 }

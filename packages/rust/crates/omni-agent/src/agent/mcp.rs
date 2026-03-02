@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 
 use super::Agent;
@@ -11,24 +13,27 @@ pub(super) struct ToolCallOutput {
 }
 
 impl Agent {
-    #[allow(clippy::unused_self)]
     pub(super) fn soft_fail_mcp_tool_error_output(
-        &self,
         name: &str,
         error: &anyhow::Error,
     ) -> Option<ToolCallOutput> {
         soft_fail_mcp_tool_error_output(name, error)
     }
 
+    /// List all tools (Native + Zhenfa + MCP) for the LLM.
     pub(super) async fn mcp_tools_for_llm(&self) -> Result<Option<Vec<serde_json::Value>>> {
-        let Some(ref mcp) = self.mcp else {
-            return Ok(None);
-        };
-        let list = mcp.list_tools(None).await?;
-        let tools: Vec<serde_json::Value> = list
-            .tools
-            .iter()
-            .map(|t| {
+        let mut tools = self.native_tools.list_for_llm();
+        let mut seen_tool_names = collect_seen_tool_names(&tools);
+
+        if let Some(ref zhenfa_tools) = self.zhenfa_tools {
+            for tool in zhenfa_tools.list_for_llm() {
+                push_unique_tool(&mut tools, &mut seen_tool_names, tool);
+            }
+        }
+
+        if let Some(ref mcp) = self.mcp {
+            let list = mcp.list_tools(None).await?;
+            for t in list.tools {
                 let mut obj = serde_json::Map::new();
                 obj.insert(
                     "name".to_string(),
@@ -40,24 +45,73 @@ impl Agent {
                         serde_json::Value::String(d.to_string()),
                     );
                 }
-                let schema = serde_json::Value::Object(t.input_schema.as_ref().clone());
-                obj.insert("parameters".to_string(), schema);
-                serde_json::Value::Object(obj)
-            })
-            .collect();
+                obj.insert(
+                    "parameters".to_string(),
+                    serde_json::Value::Object(t.input_schema.as_ref().clone()),
+                );
+                push_unique_tool(
+                    &mut tools,
+                    &mut seen_tool_names,
+                    serde_json::Value::Object(obj),
+                );
+            }
+        }
+
         if tools.is_empty() {
             return Ok(None);
         }
         Ok(Some(tools))
     }
 
+    /// Primary tool dispatcher: Native first, then Zhenfa bridge, then MCP.
     pub(super) async fn call_mcp_tool_with_diagnostics(
         &self,
+        session_id: Option<&str>,
         name: &str,
         arguments: Option<serde_json::Value>,
     ) -> Result<ToolCallOutput> {
+        // 1. Check Native Tools (internal Rust functions)
+        if let Some(native_tool) = self.native_tools.get(name) {
+            let context = super::native_tools::registry::NativeToolCallContext {
+                session_id: session_id.map(ToString::to_string),
+            };
+            match native_tool.call(arguments, &context).await {
+                Ok(text) => {
+                    return Ok(ToolCallOutput {
+                        text,
+                        is_error: false,
+                    });
+                }
+                Err(error) => {
+                    return Ok(ToolCallOutput {
+                        text: format!("Native tool error: {error}"),
+                        is_error: true,
+                    });
+                }
+            }
+        }
+
+        // 2. Optional zhenfa tool bridge (Rust matrix gateway)
+        if let Some(ref zhenfa_tools) = self.zhenfa_tools
+            && zhenfa_tools.handles_tool(name)
+        {
+            return match zhenfa_tools.call_tool(session_id, name, arguments).await {
+                Ok(text) => Ok(ToolCallOutput {
+                    text,
+                    is_error: false,
+                }),
+                Err(error) => Ok(ToolCallOutput {
+                    text: format!("Zhenfa tool error: {error}"),
+                    is_error: true,
+                }),
+            };
+        }
+
+        // 3. Fallback to MCP tools (external servers)
         let Some(ref mcp) = self.mcp else {
-            return Err(anyhow::anyhow!("no MCP client"));
+            return Err(anyhow::anyhow!(
+                "no native tool, zhenfa tool, or MCP client found for `{name}`"
+            ));
         };
         let result = mcp.call_tool(name.to_string(), arguments).await?;
         let text: String = result
@@ -76,6 +130,34 @@ impl Agent {
             is_error: result.is_error.unwrap_or(false),
         })
     }
+}
+
+fn collect_seen_tool_names(tools: &[serde_json::Value]) -> HashSet<String> {
+    tools
+        .iter()
+        .filter_map(extract_tool_name)
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn push_unique_tool(
+    tools: &mut Vec<serde_json::Value>,
+    seen_tool_names: &mut HashSet<String>,
+    tool: serde_json::Value,
+) {
+    if let Some(name) = extract_tool_name(&tool)
+        && !seen_tool_names.insert(name.to_string())
+    {
+        return;
+    }
+    tools.push(tool);
+}
+
+fn extract_tool_name(tool: &serde_json::Value) -> Option<&str> {
+    tool.get("name")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
 }
 
 fn soft_fail_mcp_tool_error_output(name: &str, error: &anyhow::Error) -> Option<ToolCallOutput> {
@@ -137,55 +219,4 @@ fn is_timeout_error_message(lowercase_error: &str) -> bool {
     lowercase_error.contains("timed out")
         || lowercase_error.contains("timeout")
         || lowercase_error.contains("mcp.pool.call.waiting")
-}
-
-#[cfg(test)]
-#[allow(clippy::expect_used)]
-mod tests {
-    use anyhow::anyhow;
-
-    use super::{MEMORY_SAVE_TOOL_NAME, MEMORY_SEARCH_TOOL_NAME, soft_fail_mcp_tool_error_output};
-
-    #[test]
-    fn soft_fail_output_is_enabled_for_memory_search_embedding_timeout() {
-        let error = anyhow!(
-            "MCP tools/call failed after reconnect retry: Mcp error: -32603: Embedding timed out after 5s"
-        );
-        let output = soft_fail_mcp_tool_error_output(MEMORY_SEARCH_TOOL_NAME, &error)
-            .expect("embedding timeout should degrade for memory.search_memory");
-        assert!(output.is_error);
-        assert!(output.text.contains("\"degraded\":true"));
-        assert!(output.text.contains(MEMORY_SEARCH_TOOL_NAME));
-    }
-
-    #[test]
-    fn soft_fail_output_is_not_enabled_for_other_tools() {
-        let error = anyhow!("Mcp error: -32603: Embedding timed out after 5s");
-        assert!(
-            soft_fail_mcp_tool_error_output("skill.discover", &error).is_none(),
-            "non-memory-search tools should keep hard-fail semantics"
-        );
-    }
-
-    #[test]
-    fn soft_fail_output_is_enabled_for_memory_save_timeout() {
-        let error = anyhow!(
-            "MCP tools/call timed out after 5s (client_index=1, tool=tools/call:memory.save_memory)"
-        );
-        let output = soft_fail_mcp_tool_error_output(MEMORY_SAVE_TOOL_NAME, &error)
-            .expect("memory.save_memory timeout should degrade");
-        assert!(output.is_error);
-        assert!(output.text.contains("\"degraded\":true"));
-        assert!(output.text.contains(MEMORY_SAVE_TOOL_NAME));
-        assert!(output.text.contains("\"error_kind\":\"timeout\""));
-    }
-
-    #[test]
-    fn soft_fail_output_is_enabled_for_memory_save_non_timeout_error() {
-        let error = anyhow!("Mcp error: -32603: write failed");
-        let output = soft_fail_mcp_tool_error_output(MEMORY_SAVE_TOOL_NAME, &error)
-            .expect("memory.save_memory failure should degrade");
-        assert!(output.is_error);
-        assert!(output.text.contains("\"error_kind\":\"save_failed\""));
-    }
 }

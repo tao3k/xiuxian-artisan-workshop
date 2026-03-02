@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Routing Architecture"
 category: "developer"
 tags:
@@ -6,6 +7,8 @@ tags:
   - routing
 saliency_base: 6.3
 decay_rate: 0.04
+metadata:
+  title: "Routing Architecture"
 ---
 
 # Routing Architecture

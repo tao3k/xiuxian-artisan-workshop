@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Zettelkasten-Based Knowledge Architecture"
+---
+
 # Zettelkasten-Based Knowledge Architecture
 
 > Discussion document - not a final decision

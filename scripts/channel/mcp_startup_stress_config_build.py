@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from path_resolver import resolve_path
+from resolve_mcp_endpoint import resolve_mcp_endpoint
 
 if TYPE_CHECKING:
     import argparse
@@ -70,6 +71,14 @@ def build_config(
     restart_cmd = args.restart_mcp_cmd.strip() or None
     health_url = args.health_url.strip() or None
 
+    bind_addr = args.bind_addr.strip()
+    if not bind_addr:
+        resolved_host = str(resolve_mcp_endpoint()["host"])
+        bind_addr = f"{resolved_host}:0"
+
+    if health_url is None:
+        health_url = str(resolve_mcp_endpoint()["health_url"])
+
     return config_cls(
         rounds=int(args.rounds),
         parallel=int(args.parallel),
@@ -78,7 +87,7 @@ def build_config(
         executable=executable,
         mcp_config=mcp_config,
         project_root=project_root,
-        bind_addr=args.bind_addr.strip(),
+        bind_addr=bind_addr,
         rust_log=args.rust_log.strip(),
         output_json=output_json,
         output_markdown=output_markdown,

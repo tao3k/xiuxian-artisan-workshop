@@ -17,7 +17,7 @@ params = { cmd = "cd '{{repo_dir}}' && find . -maxdepth 3 -not -path '*/.git/*' 
 id = "Architect"
 task_type = "llm"
 weight = 1.0
-params = { model = "MiniMax-M2.1", role = "architect", context_keys = ["repo_tree"], prompt = "Based on this repository tree, propose a logical sharding plan (3-5 subsystems) for deep architecture analysis. Return ONLY a JSON list of objects, each with 'shard_id' and 'paths' (list of directories/files)." }
+params = { model = "MiniMax-M2.5", role = "architect", output_key = "analysis_trace", parse_json_output = true, fallback_repo_tree_on_parse_failure = true, context_keys = ["repo_tree"], prompt = "Based on this repository tree, propose a logical sharding plan (3-5 subsystems) for deep architecture analysis. Return ONLY a JSON list of objects, each with 'shard_id' and 'paths' (list of directories/files)." }
 
 [[nodes]]
 id = "UserApproval"

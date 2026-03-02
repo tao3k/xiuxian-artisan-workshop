@@ -6,11 +6,11 @@ Modular CLI Architecture
 Provides:
 - err_console: stderr console for logs and UI
 - Output formatting functions (metadata panels, results)
-- TUIBridge: Real-time state sync with Rust TUI (omni-tui)
+- TUIBridge: Real-time state sync with Rust TUI (xiuxian-tui)
 
 Event System:
-- Uses omni-events format: {"source": "...", "topic": "...", "payload": {...}, "timestamp": "..."}
-- See: packages/rust/crates/omni-events/src/lib.rs
+- Uses xiuxian-event format: {"source": "...", "topic": "...", "payload": {...}, "timestamp": "..."}
+- See: packages/rust/crates/xiuxian-event/src/lib.rs
 
 UNIX Philosophy:
 - stderr: Logs, progress, UI elements (visible to user, invisible to pipes)
@@ -41,13 +41,13 @@ err_console = Console(stderr=True)
 
 class TUIBridge:
     """
-    Bridge for sending events from Python Agent to Rust TUI (omni-tui).
+    Bridge for sending events from Python Agent to Rust TUI (xiuxian-tui).
 
     Communication via Unix Domain Socket:
     - Writes JSON events to the socket
     - TUI subscribes and renders in real-time
 
-    Event Format (omni-events compatible):
+    Event Format (xiuxian-event compatible):
         {
             "source": "omega",
             "topic": "omega/mission/start",
@@ -119,7 +119,7 @@ class TUIBridge:
         Send event to TUI.
 
         Args:
-            event: Dictionary in omni-events format
+            event: Dictionary in xiuxian-event format
 
         Returns:
             True if sent successfully, False otherwise

@@ -1,4 +1,5 @@
 ---
+type: skill
 name: documentation
 description: Use when creating documentation, updating README files, writing guides, generating API docs, or documenting code changes.
 metadata:

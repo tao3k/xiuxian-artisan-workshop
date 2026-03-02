@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Discover-cache Valkey precedence tests for config and env resolution.
 
 use std::path::Path;
 use std::process::Command;
@@ -117,16 +81,16 @@ impl ServerHandler for DiscoverMockServer {
     }
 }
 
-fn write_runtime_settings(root: &Path, system_yaml: &str) -> Result<()> {
-    let system_path = root.join("packages/conf/settings.yaml");
-    let user_path = root.join(".config/omni-dev-fusion/settings.yaml");
+fn write_runtime_settings(root: &Path, system_toml: &str) -> Result<()> {
+    let system_path = root.join("packages/rust/crates/omni-agent/resources/config/xiuxian.toml");
+    let user_path = root.join(".config/xiuxian-artisan-workshop/xiuxian.toml");
     if let Some(parent) = system_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
     if let Some(parent) = user_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(system_path, system_yaml)?;
+    std::fs::write(system_path, system_toml)?;
     std::fs::write(user_path, "")?;
     Ok(())
 }
@@ -143,10 +107,14 @@ fn reconnect_test_config() -> McpPoolConnectConfig {
 }
 
 async fn reserve_local_addr() -> std::net::SocketAddr {
-    let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+    let probe = match tokio::net::TcpListener::bind("127.0.0.1:0").await {
+        Ok(listener) => listener,
+        Err(error) => panic!("reserve local addr: {error}"),
+    };
+    let addr = match probe.local_addr() {
+        Ok(addr) => addr,
+        Err(error) => panic!("read reserved local addr: {error}"),
+    };
     drop(probe);
     addr
 }
@@ -163,9 +131,10 @@ async fn spawn_mock_server(addr: std::net::SocketAddr) -> tokio::task::JoinHandl
             },
         );
     let router = Router::new().nest_service("/sse", service);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind mock mcp listener");
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => listener,
+        Err(error) => panic!("bind mock mcp listener: {error}"),
+    };
     tokio::spawn(async move {
         let _ = axum::serve(listener, router).await;
     })
@@ -205,10 +174,11 @@ fn discover_cache_valkey_url_resolution_prefers_settings_and_keeps_env_fallback(
     write_runtime_settings(
         case_settings_first.path(),
         r#"
-mcp:
-  agent_discover_cache_enabled: true
-session:
-  valkey_url: "redis://127.0.0.1:6379/0"
+[mcp]
+discover_cache_enabled = true
+
+[session]
+valkey_url = "redis://127.0.0.1:6379/0"
 "#,
     )?;
     run_child_case(
@@ -220,12 +190,10 @@ session:
     let case_env_fallback = TempDir::new()?;
     write_runtime_settings(
         case_env_fallback.path(),
-        r#"
-mcp:
-  agent_discover_cache_enabled: true
-session:
-  valkey_url: null
-"#,
+        r"
+[mcp]
+discover_cache_enabled = true
+",
     )?;
     run_child_case(
         case_env_fallback.path(),

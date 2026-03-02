@@ -2,8 +2,8 @@
 # Omni-Dev-Fusion References Configuration (System Default)
 #
 # This file is the system-level default. User overrides live in:
-#   $PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml
-# (e.g. .config/omni-dev-fusion/references.yaml or --conf <dir>).
+#   $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml
+# (e.g. .config/xiuxian-artisan-workshop/references.yaml or --conf <dir>).
 #
 # Used by ReferenceLibrary for path resolution; user config is merged on top.
 # =============================================================================

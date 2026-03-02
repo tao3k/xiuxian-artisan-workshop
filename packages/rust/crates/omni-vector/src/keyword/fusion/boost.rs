@@ -2,7 +2,7 @@
 
 use crate::ToolSearchResult;
 
-/// Boost score from metadata alignment (routing_keywords, intents, category, description).
+/// Boost score from metadata alignment (`routing_keywords`, intents, category, description).
 /// Precomputes lowercase once per field to avoid repeated allocations in the term loop.
 pub fn metadata_alignment_boost(meta: &ToolSearchResult, query_parts: &[&str]) -> f32 {
     if query_parts.is_empty() {
@@ -71,7 +71,7 @@ const FILE_DISCOVERY_TERMS: &[&str] = &[
     "filename",
 ];
 
-/// True if the tool metadata indicates file-discovery capability (e.g. smart_find).
+/// True if the tool metadata indicates file-discovery capability (e.g. `smart_find`).
 /// Uses one lowercase pass per field and Aho-Corasick for O(n+m) term matching.
 pub fn file_discovery_boost(meta: &ToolSearchResult) -> bool {
     let category = meta.category.to_lowercase();

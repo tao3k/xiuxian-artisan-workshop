@@ -1,5 +1,3 @@
-use pulldown_cmark::CodeBlockKind;
-
 pub(super) fn escape_markdown_v2_text(text: &str) -> String {
     text.chars()
         .fold(String::with_capacity(text.len()), |mut escaped, ch| {
@@ -43,10 +41,7 @@ pub(super) fn trim_trailing_blank_lines(text: &mut String) {
     }
 }
 
-pub(super) fn normalize_code_fence_language(kind: CodeBlockKind<'_>) -> Option<String> {
-    let CodeBlockKind::Fenced(info) = kind else {
-        return None;
-    };
+pub(super) fn normalize_code_fence_language(info: &str) -> Option<String> {
     let candidate = info.split_whitespace().next()?.trim();
     if candidate.is_empty() {
         return None;

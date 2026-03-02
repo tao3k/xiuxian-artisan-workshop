@@ -1,26 +1,7 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 //! Debug test for dependency parsing.
 //!
 //! Note: These tests verify the integration points. Full parsing/fetching
-//! is implemented incrementally. See indexer.rs build() for progress.
+//! is implemented incrementally. See `indexer.rs` `build()` for progress.
 
 use std::fs;
 use tempfile::TempDir;
@@ -28,22 +9,21 @@ use xiuxian_wendao::DependencyIndexer;
 
 /// Test that the dependency indexer can be created with custom config
 #[test]
-fn test_indexer_creation_with_config() {
-    let temp_dir = TempDir::new().unwrap();
-    let temp_root = temp_dir.path().to_str().unwrap();
+fn test_indexer_creation_with_config() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let temp_root = temp_dir.path().to_string_lossy().into_owned();
 
-    // Create a custom references.yaml with manifest pattern
-    let config_path = format!("{}/references.yaml", temp_root);
+    // Create a custom xiuxian.toml with manifest pattern
+    let config_path = format!("{temp_root}/xiuxian.toml");
     let config_content = r#"
-ast_symbols_external:
-  - type: rust
-    manifests:
-      - "**/Cargo.toml"
+[[ast_symbols_external]]
+type = "rust"
+manifests = ["**/Cargo.toml"]
 "#;
-    fs::write(&config_path, config_content).unwrap();
+    fs::write(&config_path, config_content)?;
 
     // Create indexer with config - should not panic
-    let indexer = DependencyIndexer::new(temp_root, Some(&config_path));
+    let indexer = DependencyIndexer::new(&temp_root, Some(&config_path));
 
     // Verify indexer is created correctly
     let crates = indexer.get_indexed();
@@ -51,13 +31,14 @@ ast_symbols_external:
         crates.is_empty(),
         "New indexer should have no indexed crates"
     );
+    Ok(())
 }
 
 /// Test that build returns a valid result structure
 #[test]
-fn test_build_returns_valid_structure() {
-    let temp_dir = TempDir::new().unwrap();
-    let temp_root = temp_dir.path().to_str().unwrap();
+fn test_build_returns_valid_structure() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let temp_root = temp_dir.path().to_string_lossy().into_owned();
 
     // Create a minimal Cargo.toml
     let cargo_content = r#"[package]
@@ -67,21 +48,20 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1.0.100"
 "#;
-    let cargo_path = format!("{}/Cargo.toml", temp_root);
-    fs::write(&cargo_path, cargo_content).unwrap();
+    let cargo_path = format!("{temp_root}/Cargo.toml");
+    fs::write(&cargo_path, cargo_content)?;
 
     // Provide explicit config so this test is independent from workspace defaults
-    let config_path = format!("{}/references.yaml", temp_root);
+    let config_path = format!("{temp_root}/xiuxian.toml");
     let config_content = r#"
-ast_symbols_external:
-  - type: rust
-    manifests:
-      - "**/Cargo.toml"
+[[ast_symbols_external]]
+type = "rust"
+manifests = ["**/Cargo.toml"]
 "#;
-    fs::write(&config_path, config_content).unwrap();
+    fs::write(&config_path, config_content)?;
 
     // Create indexer
-    let mut indexer = DependencyIndexer::new(temp_root, Some(&config_path));
+    let mut indexer = DependencyIndexer::new(&temp_root, Some(&config_path));
 
     // Build should return a valid result (placeholder returns zeros)
     let result = indexer.build(true);
@@ -99,15 +79,16 @@ ast_symbols_external:
         result.total_symbols, 0,
         "No source files in fixture means no extracted symbols"
     );
+    Ok(())
 }
 
 /// Test that search methods work on empty index
 #[test]
-fn test_search_on_empty_index() {
-    let temp_dir = TempDir::new().unwrap();
-    let temp_root = temp_dir.path().to_str().unwrap();
+fn test_search_on_empty_index() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let temp_root = temp_dir.path().to_string_lossy().into_owned();
 
-    let indexer = DependencyIndexer::new(temp_root, None);
+    let indexer = DependencyIndexer::new(&temp_root, None);
 
     // Search should return empty on new index
     let results = indexer.search("anyhow", 10);
@@ -121,30 +102,31 @@ fn test_search_on_empty_index() {
         crate_results.is_empty(),
         "Crate search on empty index should return empty"
     );
+    Ok(())
 }
 
 /// Test config loading from file
 #[test]
-fn test_config_loading() {
+fn test_config_loading() -> Result<(), Box<dyn std::error::Error>> {
     use xiuxian_wendao::DependencyBuildConfig;
 
-    let temp_dir = TempDir::new().unwrap();
-    let temp_root = temp_dir.path().to_str().unwrap();
+    let temp_dir = TempDir::new()?;
+    let temp_root = temp_dir.path().to_string_lossy().into_owned();
 
-    // Create a custom references.yaml
-    let config_path = format!("{}/references.yaml", temp_root);
+    // Create a custom xiuxian.toml
+    let config_path = format!("{temp_root}/xiuxian.toml");
     let config_content = r#"
-ast_symbols_external:
-  - type: rust
-    registry: cargo
-    manifests:
-      - "**/Cargo.toml"
-  - type: python
-    registry: pip
-    manifests:
-      - "**/pyproject.toml"
+[[ast_symbols_external]]
+type = "rust"
+registry = "cargo"
+manifests = ["**/Cargo.toml"]
+
+[[ast_symbols_external]]
+type = "python"
+registry = "pip"
+manifests = ["**/pyproject.toml"]
 "#;
-    fs::write(&config_path, config_content).unwrap();
+    fs::write(&config_path, config_content)?;
 
     // Load config
     let config = DependencyBuildConfig::load(&config_path);
@@ -153,6 +135,9 @@ ast_symbols_external:
     assert!(!config.manifests.is_empty(), "Config should have manifests");
 
     let rust_dep = config.manifests.iter().find(|d| d.pkg_type == "rust");
-    assert!(rust_dep.is_some(), "Should have rust dependency config");
-    assert_eq!(rust_dep.unwrap().registry, Some("cargo".to_string()));
+    let Some(rust_dep) = rust_dep else {
+        panic!("Should have rust dependency config");
+    };
+    assert_eq!(rust_dep.registry, Some("cargo".to_string()));
+    Ok(())
 }

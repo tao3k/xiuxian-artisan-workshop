@@ -87,23 +87,17 @@ impl VectorStore {
     /// Return per-table query metrics. In-process counts and last latency from `agentic_search`;
     /// when Lance provides per-query tracing, this can be wired to that instead.
     ///
-    /// # Errors
-    ///
-    /// This currently returns `Ok` unconditionally; the `Result` type is kept for API consistency.
-    #[allow(clippy::unused_async)]
-    pub async fn get_query_metrics(
-        &self,
-        table_name: &str,
-    ) -> Result<QueryMetrics, VectorStoreError> {
+    #[must_use]
+    pub fn get_query_metrics(&self, table_name: &str) -> QueryMetrics {
         if let Some(cell) = self.query_metrics.get(table_name) {
             let count = cell.0.load(Ordering::Relaxed);
             let last_ms = cell.1.load(Ordering::Relaxed);
-            Ok(QueryMetrics {
+            QueryMetrics {
                 query_count: count,
                 last_query_ms: if last_ms == 0 { None } else { Some(last_ms) },
-            })
+            }
         } else {
-            Ok(QueryMetrics::default())
+            QueryMetrics::default()
         }
     }
 

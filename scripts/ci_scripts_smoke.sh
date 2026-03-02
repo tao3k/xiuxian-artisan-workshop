@@ -31,3 +31,5 @@ just --dry-run telegram-session-isolation-rust >/dev/null
 just --dry-run valkey-live >/dev/null
 just --dry-run memory-gate-nightly >/dev/null
 just --dry-run agent-channel-discord-ingress-stress >/dev/null
+just --dry-run verify-native-runtime >/dev/null
+just --dry-run benchmark-mcp-tools-list-sweep >/dev/null

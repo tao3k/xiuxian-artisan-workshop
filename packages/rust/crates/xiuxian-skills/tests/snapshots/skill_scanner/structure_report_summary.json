@@ -1,0 +1,14 @@
+{
+  "issue_count": 2,
+  "issues": [
+    "missing default(strict_mode) item `assets/` at <SKILL_PATH>/assets/",
+    "missing default(strict_mode) item `tests/` at <SKILL_PATH>/tests/"
+  ],
+  "skill_path": "<SKILL_PATH>",
+  "status": "error",
+  "valid": false,
+  "warning_count": 1,
+  "warnings": [
+    "out-of-scope entry `scratch` detected at <SKILL_PATH> (not declared in skills.toml)"
+  ]
+}

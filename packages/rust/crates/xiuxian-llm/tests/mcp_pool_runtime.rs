@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
+//! MCP pool runtime integration tests.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -78,18 +66,16 @@ impl ServerHandler for MockMcpServer {
     }
 }
 
-async fn reserve_local_addr() -> std::net::SocketAddr {
-    let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+async fn reserve_local_addr() -> Result<std::net::SocketAddr> {
+    let probe = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let addr = probe.local_addr()?;
     drop(probe);
-    addr
+    Ok(addr)
 }
 
 async fn spawn_mock_server(
     addr: std::net::SocketAddr,
-) -> (tokio::task::JoinHandle<()>, Arc<AtomicUsize>) {
+) -> Result<(tokio::task::JoinHandle<()>, Arc<AtomicUsize>)> {
     let list_tools_calls = Arc::new(AtomicUsize::new(0));
     let service: StreamableHttpService<MockMcpServer, LocalSessionManager> =
         StreamableHttpService::new(
@@ -105,15 +91,13 @@ async fn spawn_mock_server(
             },
         );
     let router = Router::new().nest_service("/sse", service);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind mock mcp listener");
-    (
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    Ok((
         tokio::spawn(async move {
             let _ = axum::serve(listener, router).await;
         }),
         list_tools_calls,
-    )
+    ))
 }
 
 fn test_connect_config() -> McpPoolConnectConfig {
@@ -129,8 +113,8 @@ fn test_connect_config() -> McpPoolConnectConfig {
 
 #[tokio::test]
 async fn mcp_pool_list_tools_cache_serves_second_request_from_cache() -> Result<()> {
-    let addr = reserve_local_addr().await;
-    let (handle, list_tools_calls) = spawn_mock_server(addr).await;
+    let addr = reserve_local_addr().await?;
+    let (handle, list_tools_calls) = spawn_mock_server(addr).await?;
     let url = format!("http://{addr}/sse");
     let pool = connect_pool(&url, test_connect_config(), None).await?;
 
@@ -152,14 +136,18 @@ async fn mcp_pool_list_tools_cache_serves_second_request_from_cache() -> Result<
     assert_eq!(stats.cache_refreshes, 1);
 
     handle.abort();
-    let _ = handle.await;
+    if let Err(error) = handle.await
+        && !error.is_cancelled()
+    {
+        return Err(anyhow::anyhow!("mock server task join failed: {error}"));
+    }
     Ok(())
 }
 
 #[tokio::test]
 async fn mcp_pool_discover_cache_stats_absent_when_not_configured() -> Result<()> {
-    let addr = reserve_local_addr().await;
-    let (handle, _) = spawn_mock_server(addr).await;
+    let addr = reserve_local_addr().await?;
+    let (handle, _) = spawn_mock_server(addr).await?;
     let url = format!("http://{addr}/sse");
     let pool = connect_pool(&url, test_connect_config(), None).await?;
 
@@ -169,6 +157,10 @@ async fn mcp_pool_discover_cache_stats_absent_when_not_configured() -> Result<()
     );
 
     handle.abort();
-    let _ = handle.await;
+    if let Err(error) = handle.await
+        && !error.is_cancelled()
+    {
+        return Err(anyhow::anyhow!("mock server task join failed: {error}"));
+    }
     Ok(())
 }

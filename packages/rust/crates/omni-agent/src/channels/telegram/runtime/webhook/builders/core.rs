@@ -15,18 +15,33 @@ use super::super::handler::telegram_webhook_handler;
 use super::super::path::normalize_webhook_path;
 use super::super::state::TelegramWebhookState;
 
-#[allow(clippy::too_many_arguments)]
+pub(super) struct TelegramWebhookCoreBuildRequest {
+    pub(super) bot_token: String,
+    pub(super) allowed_users: Vec<String>,
+    pub(super) allowed_groups: Vec<String>,
+    pub(super) control_command_policy: TelegramControlCommandPolicy,
+    pub(super) webhook_path: String,
+    pub(super) secret_token: Option<String>,
+    pub(super) dedup_config: WebhookDedupConfig,
+    pub(super) session_partition: TelegramSessionPartition,
+    pub(super) tx: mpsc::Sender<ChannelMessage>,
+}
+
 pub(super) fn build_telegram_webhook_app_with_partition_and_control_command_policy(
-    bot_token: String,
-    allowed_users: Vec<String>,
-    allowed_groups: Vec<String>,
-    control_command_policy: TelegramControlCommandPolicy,
-    webhook_path: &str,
-    secret_token: Option<String>,
-    dedup_config: WebhookDedupConfig,
-    session_partition: TelegramSessionPartition,
-    tx: mpsc::Sender<ChannelMessage>,
+    request: TelegramWebhookCoreBuildRequest,
 ) -> Result<TelegramWebhookApp> {
+    let TelegramWebhookCoreBuildRequest {
+        bot_token,
+        allowed_users,
+        allowed_groups,
+        control_command_policy,
+        webhook_path,
+        secret_token,
+        dedup_config,
+        session_partition,
+        tx,
+    } = request;
+
     let dedup_config = dedup_config.normalized();
     let deduplicator = dedup_config.build_store()?;
     let channel = Arc::new(
@@ -36,7 +51,7 @@ pub(super) fn build_telegram_webhook_app_with_partition_and_control_command_poli
             allowed_groups,
             control_command_policy,
             session_partition,
-        )?,
+        ),
     );
     let webhook_state = TelegramWebhookState {
         channel: Arc::clone(&channel),
@@ -45,7 +60,7 @@ pub(super) fn build_telegram_webhook_app_with_partition_and_control_command_poli
         deduplicator,
     };
 
-    let path = normalize_webhook_path(webhook_path);
+    let path = normalize_webhook_path(&webhook_path);
     let embedding_runtime = new_embedding_runtime();
     let app = Router::new()
         .route(&path, post(telegram_webhook_handler))

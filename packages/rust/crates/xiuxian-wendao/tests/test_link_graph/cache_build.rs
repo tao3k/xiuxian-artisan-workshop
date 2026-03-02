@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -42,7 +23,7 @@ fn test_link_graph_build_with_cache_reuses_snapshot() -> Result<(), Box<dyn std:
         Some(&prefix),
         Some(300),
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.clone())?;
     let index2 = LinkGraphIndex::build_with_cache_with_valkey(
         tmp.path(),
         &[],
@@ -51,7 +32,7 @@ fn test_link_graph_build_with_cache_reuses_snapshot() -> Result<(), Box<dyn std:
         Some(&prefix),
         Some(300),
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.clone())?;
 
     assert_eq!(index1.stats().total_notes, 2);
     assert_eq!(index1.stats().total_notes, index2.stats().total_notes);
@@ -81,7 +62,7 @@ fn test_link_graph_build_with_cache_detects_file_change() -> Result<(), Box<dyn 
         Some(&prefix),
         Some(300),
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.clone())?;
 
     write_file(
         &tmp.path().join("docs/a.md"),
@@ -96,7 +77,7 @@ fn test_link_graph_build_with_cache_detects_file_change() -> Result<(), Box<dyn 
         Some(&prefix),
         Some(300),
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.clone())?;
     let hits = refreshed
         .search_planned(
             "updated phrase for cache invalidation",
@@ -131,11 +112,11 @@ fn test_link_graph_build_with_cache_seeds_saliency_from_frontmatter()
         Some(&prefix),
         Some(300),
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| e.clone())?;
 
     let state =
         valkey_saliency_get_with_valkey("docs/a", "redis://127.0.0.1:6379/0", Some(&prefix))
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.clone())?;
     assert!(state.is_some(), "expected seeded saliency state");
     let seeded = state.ok_or("missing seeded saliency state for docs/a")?;
     let expected =

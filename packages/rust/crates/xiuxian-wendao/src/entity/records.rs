@@ -6,9 +6,8 @@ use serde::{Deserialize, Serialize};
 use super::{EntityType, RelationType};
 
 /// Represents an entity extracted from text.
-#[allow(clippy::struct_field_names)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Entity {
+pub struct GraphEntity {
     /// Unique identifier
     pub id: String,
     /// Entity name
@@ -33,7 +32,10 @@ pub struct Entity {
     pub updated_at: DateTime<Utc>,
 }
 
-impl Entity {
+/// Public compatibility alias for graph entities.
+pub type Entity = GraphEntity;
+
+impl GraphEntity {
     /// Create a new entity.
     #[must_use]
     pub fn new(id: String, name: String, entity_type: EntityType, description: String) -> Self {
@@ -95,9 +97,8 @@ impl Entity {
 }
 
 /// Represents a relation between two entities.
-#[allow(clippy::struct_field_names)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Relation {
+pub struct GraphRelation {
     /// Unique identifier
     pub id: String,
     /// Source entity name
@@ -118,7 +119,10 @@ pub struct Relation {
     pub created_at: DateTime<Utc>,
 }
 
-impl Relation {
+/// Public compatibility alias for graph relations.
+pub type Relation = GraphRelation;
+
+impl GraphRelation {
     /// Create a new relation.
     #[must_use]
     pub fn new(

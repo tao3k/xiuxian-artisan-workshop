@@ -21,12 +21,17 @@ import sys
 import time
 from dataclasses import dataclass
 
-DEFAULT_VALKEY_URL = "redis://127.0.0.1:6379/0"
+from omni.foundation.runtime.cargo_subprocess_env import prepare_cargo_subprocess_env
+
+DEFAULT_LOCAL_HOST = os.environ.get("XIUXIAN_WENDAO_LOCAL_HOST", "localhost").strip() or "localhost"
+DEFAULT_VALKEY_URL = f"redis://{DEFAULT_LOCAL_HOST}:6379/0"
 
 
 def default_valkey_prefix(suite: str) -> str:
     safe_suite = suite.strip().lower() or "suite"
-    return f"omni-agent:session:valkey-suite:{safe_suite}:{os.getpid()}:{int(time.time() * 1000)}"
+    return (
+        f"xiuxian_wendao:session:valkey-suite:{safe_suite}:{os.getpid()}:{int(time.time() * 1000)}"
+    )
 
 
 @dataclass(frozen=True)
@@ -175,8 +180,8 @@ def check_valkey_connectivity(valkey_url: str) -> None:
 
 def run_suite(spec: SuiteSpec, valkey_url: str, valkey_prefix: str) -> None:
     print(spec.title, flush=True)
-    env = os.environ.copy()
-    env["VALKEY_URL"] = valkey_url
+    env = prepare_cargo_subprocess_env(os.environ)
+    env["XIUXIAN_WENDAO_VALKEY_URL"] = valkey_url
     env["OMNI_AGENT_SESSION_VALKEY_PREFIX"] = valkey_prefix
     env["OMNI_AGENT_MEMORY_VALKEY_KEY_PREFIX"] = f"{valkey_prefix}:memory"
     subprocess.run(spec.cargo_args, check=True, env=env)

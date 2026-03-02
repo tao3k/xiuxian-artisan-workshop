@@ -7,6 +7,17 @@ import argparse
 from pathlib import Path
 
 from path_resolver import default_report_path, project_root_from
+from resolve_mcp_endpoint import resolve_mcp_endpoint
+
+
+def _default_mcp_host() -> str:
+    """Resolve default MCP host from settings."""
+    return str(resolve_mcp_endpoint()["host"])
+
+
+def _default_mcp_port() -> int:
+    """Resolve default MCP port from settings."""
+    return int(resolve_mcp_endpoint()["port"])
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,8 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cold-parallel", type=int, default=4)
     parser.add_argument("--startup-timeout-secs", type=int, default=60)
     parser.add_argument("--cooldown-secs", type=float, default=0.2)
-    parser.add_argument("--mcp-host", default="127.0.0.1")
-    parser.add_argument("--mcp-port", type=int, default=3002)
+    parser.add_argument("--mcp-host", default=_default_mcp_host())
+    parser.add_argument("--mcp-port", type=int, default=_default_mcp_port())
     parser.add_argument("--mcp-config", default=".mcp.json")
     parser.add_argument("--health-url", default="")
     parser.add_argument("--strict-health-check", action="store_true")

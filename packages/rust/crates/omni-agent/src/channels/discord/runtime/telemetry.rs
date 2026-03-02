@@ -4,6 +4,7 @@ use tokio::sync::mpsc;
 
 use super::foreground::DiscordForegroundSnapshot;
 use crate::agent::DownstreamAdmissionRuntimeSnapshot;
+use crate::channels::runtime_snapshot::resolve_runtime_snapshot_interval_secs;
 use crate::channels::traits::ChannelMessage;
 
 const RUNTIME_SNAPSHOT_INTERVAL_ENV: &str = "OMNI_AGENT_DISCORD_RUNTIME_SNAPSHOT_INTERVAL_SECS";
@@ -28,6 +29,7 @@ pub(super) fn emit_runtime_snapshot(
         inbound_queue_capacity,
         inbound_queue_depth,
         inbound_queue_available,
+        foreground_queue_mode = foreground.queue_mode.as_str(),
         foreground_max_in_flight = foreground.max_in_flight_messages,
         foreground_available_permits = foreground.available_permits,
         foreground_in_flight = foreground.in_flight_messages,
@@ -51,20 +53,9 @@ pub(in crate::channels::discord::runtime) fn resolve_snapshot_interval_secs<F>(
 where
     F: Fn(&str) -> Option<String>,
 {
-    let Some(raw) = lookup(RUNTIME_SNAPSHOT_INTERVAL_ENV) else {
-        return Some(DEFAULT_RUNTIME_SNAPSHOT_INTERVAL_SECS);
-    };
-    match raw.trim().parse::<u64>() {
-        Ok(0) => None,
-        Ok(value) => Some(value),
-        Err(_) => {
-            tracing::warn!(
-                env_var = RUNTIME_SNAPSHOT_INTERVAL_ENV,
-                value = %raw,
-                default_secs = DEFAULT_RUNTIME_SNAPSHOT_INTERVAL_SECS,
-                "invalid discord runtime snapshot interval; using default"
-            );
-            Some(DEFAULT_RUNTIME_SNAPSHOT_INTERVAL_SECS)
-        }
-    }
+    resolve_runtime_snapshot_interval_secs(
+        lookup,
+        RUNTIME_SNAPSHOT_INTERVAL_ENV,
+        DEFAULT_RUNTIME_SNAPSHOT_INTERVAL_SECS,
+    )
 }

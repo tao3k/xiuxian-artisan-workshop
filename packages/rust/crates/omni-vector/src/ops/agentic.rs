@@ -1,13 +1,13 @@
 //! Agentic Search - Intent-aware tool routing (P0).
 //!
 //! Provides `agentic_search` with intent-based strategy selection:
-//! - **Exact**: keyword-only (when query_text present), else hybrid
+//! - **Exact**: keyword-only (when `query_text` present), else hybrid
 //! - **Semantic**: vector-only
 //! - **Category** / **Hybrid**: vector + keyword fusion
 
 use crate::VectorStore;
 use crate::error::VectorStoreError;
-use crate::skill::{ToolSearchOptions, ToolSearchResult};
+use crate::skill::{ToolSearchOptions, ToolSearchRequest, ToolSearchResult};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::Instant;
@@ -16,7 +16,7 @@ use std::time::Instant;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryIntent {
-    /// Exact name or command match → keyword-only when query_text present.
+    /// Exact name or command match → keyword-only when `query_text` present.
     Exact,
     /// Filter by category / skill (currently same as Hybrid).
     Category,
@@ -77,7 +77,7 @@ impl Default for AgenticSearchConfig {
 
 impl VectorStore {
     /// Intent-aware tool search. Selects strategy from config.intent:
-    /// - **Exact**: keyword-only when query_text is present; otherwise hybrid.
+    /// - **Exact**: keyword-only when `query_text` is present; otherwise hybrid.
     /// - **Semantic**: vector-only (no keyword fusion).
     /// - **Category** / **Hybrid**: full hybrid (vector + keyword + RRF).
     ///
@@ -117,53 +117,53 @@ impl VectorStore {
                     {
                         Ok(kw) => kw,
                         Err(_) => {
-                            self.search_tools_with_options(
+                            self.search_tools_with_options(ToolSearchRequest {
                                 table_name,
                                 query_vector,
                                 query_text,
-                                config.limit,
-                                config.threshold,
-                                config.tool_options,
+                                limit: config.limit,
+                                threshold: config.threshold,
+                                options: config.tool_options,
                                 where_filter,
-                            )
+                            })
                             .await?
                         }
                     }
                 } else {
-                    self.search_tools_with_options(
+                    self.search_tools_with_options(ToolSearchRequest {
                         table_name,
                         query_vector,
                         query_text,
-                        config.limit,
-                        config.threshold,
-                        config.tool_options,
+                        limit: config.limit,
+                        threshold: config.threshold,
+                        options: config.tool_options,
                         where_filter,
-                    )
+                    })
                     .await?
                 }
             }
             QueryIntent::Semantic => {
-                self.search_tools_with_options(
+                self.search_tools_with_options(ToolSearchRequest {
                     table_name,
                     query_vector,
-                    None,
-                    config.limit,
-                    config.threshold,
-                    config.tool_options,
+                    query_text: None,
+                    limit: config.limit,
+                    threshold: config.threshold,
+                    options: config.tool_options,
                     where_filter,
-                )
+                })
                 .await?
             }
             QueryIntent::Category | QueryIntent::Hybrid => {
-                self.search_tools_with_options(
+                self.search_tools_with_options(ToolSearchRequest {
                     table_name,
                     query_vector,
                     query_text,
-                    config.limit,
-                    config.threshold,
-                    config.tool_options,
+                    limit: config.limit,
+                    threshold: config.threshold,
+                    options: config.tool_options,
                     where_filter,
-                )
+                })
                 .await?
             }
         };

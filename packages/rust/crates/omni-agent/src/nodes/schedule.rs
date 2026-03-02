@@ -8,18 +8,31 @@ use omni_agent::{
 
 use crate::runtime_agent_factory::build_agent;
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn run_schedule_mode(
-    prompt: String,
-    interval_secs: u64,
-    max_runs: Option<u64>,
-    schedule_id: String,
-    session_prefix: String,
-    recipient: String,
-    wait_for_completion_secs: u64,
-    mcp_config_path: PathBuf,
-    runtime_settings: &RuntimeSettings,
-) -> anyhow::Result<()> {
+pub(crate) struct ScheduleModeRequest<'a> {
+    pub(crate) prompt: String,
+    pub(crate) interval_secs: u64,
+    pub(crate) max_runs: Option<u64>,
+    pub(crate) schedule_id: String,
+    pub(crate) session_prefix: String,
+    pub(crate) recipient: String,
+    pub(crate) wait_for_completion_secs: u64,
+    pub(crate) mcp_config_path: PathBuf,
+    pub(crate) runtime_settings: &'a RuntimeSettings,
+}
+
+pub(crate) async fn run_schedule_mode(request: ScheduleModeRequest<'_>) -> anyhow::Result<()> {
+    let ScheduleModeRequest {
+        prompt,
+        interval_secs,
+        max_runs,
+        schedule_id,
+        session_prefix,
+        recipient,
+        wait_for_completion_secs,
+        mcp_config_path,
+        runtime_settings,
+    } = request;
+
     let runner: Arc<dyn TurnRunner> =
         Arc::new(build_agent(&mcp_config_path, runtime_settings).await?);
     let (job_manager, completion_rx) = JobManager::start(runner, JobManagerConfig::default());

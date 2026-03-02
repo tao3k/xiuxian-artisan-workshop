@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
+//! MCP pool retry and fallback behavior tests.
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -35,7 +23,7 @@ async fn run_tools_list_with_fallback_uses_next_client_on_non_retryable_error() 
                 async move {
                     attempts
                         .lock()
-                        .expect("attempt log lock")
+                        .map_err(|_| anyhow!("attempt log lock poisoned"))?
                         .push(client_index);
                     if client_index == 0 {
                         Err(anyhow!("boom"))
@@ -58,7 +46,9 @@ async fn run_tools_list_with_fallback_uses_next_client_on_non_retryable_error() 
     )
     .await?;
 
-    let attempts = attempts.lock().expect("attempt log lock");
+    let attempts = attempts
+        .lock()
+        .map_err(|_| anyhow!("attempt log lock poisoned"))?;
     assert_eq!(*attempts, vec![0, 1]);
     assert_eq!(reconnect_count.load(Ordering::Relaxed), 0);
     assert_eq!(result.tools.len(), 0);

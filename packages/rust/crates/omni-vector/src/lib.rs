@@ -1,14 +1,14 @@
 //! omni-vector - High-Performance Embedded Vector Database using `LanceDB`
-#![allow(clippy::doc_markdown)]
 
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
 use anyhow::Result;
 use dashmap::DashMap;
 use lance::dataset::Dataset;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use ops::DatasetCache;
 use ops::DatasetCacheConfig;
@@ -25,10 +25,10 @@ pub use omni_lance::{
 };
 
 // ============================================================================
-// Re-exports from omni-scanner (Skills and Knowledge types)
+// Re-exports from xiuxian-skills (Skills and Knowledge types)
 // ============================================================================
 
-pub use omni_scanner::skills::{
+pub use xiuxian_skills::skills::{
     ResourceRecord, ResourceScanner, SkillMetadata as OmniSkillMetadata, SkillScanner,
     ToolAnnotations, ToolRecord as OmniToolRecord, ToolRecord, ToolsScanner,
 };
@@ -37,7 +37,6 @@ pub use omni_scanner::skills::{
 // Module Declarations
 // ============================================================================
 
-pub use checkpoint::{CheckpointRecord, CheckpointStore};
 pub use error::VectorStoreError;
 pub use keyword::{
     HybridSearchResult, KEYWORD_WEIGHT, KeywordIndex, KeywordSearchBackend, RRF_K, SEMANTIC_WEIGHT,
@@ -51,14 +50,13 @@ pub use ops::{
 };
 pub use search::SearchOptions;
 pub use search_impl::json_to_lance_where;
-pub use skill::{ToolSearchOptions, ToolSearchResult};
+pub use skill::{ToolSearchOptions, ToolSearchRequest, ToolSearchResult};
 
 // ============================================================================
 // Module Declarations
 // ============================================================================
 
 pub mod batch;
-pub mod checkpoint;
 pub mod error;
 pub mod index;
 pub mod keyword;
@@ -74,7 +72,7 @@ mod search_impl;
 // Vector Store Core
 // ============================================================================
 
-/// Per-table query metrics (in-process; not persisted). Used by [crate::ops::observability::get_query_metrics].
+/// Per-table query metrics (in-process; not persisted). Used by [`crate::ops::observability::get_query_metrics`].
 pub type QueryMetricsCell = Arc<(AtomicU64, AtomicU64)>; // (query_count, last_query_ms; 0 means None)
 
 /// Callback for index build progress (Started / Progress / Done). Set optionally for polling or UI.
@@ -84,19 +82,19 @@ pub type IndexProgressCallback = Arc<dyn Fn(crate::ops::IndexBuildProgress) + Se
 #[derive(Clone)]
 pub struct VectorStore {
     base_path: PathBuf,
-    datasets: Arc<Mutex<DatasetCache>>,
+    datasets: Arc<RwLock<DatasetCache>>,
     dimension: usize,
     /// Optional keyword index used for hybrid dense+keyword retrieval.
-    pub keyword_index: Option<Arc<KeywordIndex>>,
+    pub keyword_index: Option<Rc<KeywordIndex>>,
     /// Active keyword backend strategy.
     pub keyword_backend: KeywordSearchBackend,
-    /// Optional index cache size in bytes. When set, datasets are opened via DatasetBuilder.
+    /// Optional index cache size in bytes. When set, datasets are opened via `DatasetBuilder`.
     pub index_cache_size_bytes: Option<usize>,
-    /// In-process per-table query metrics (query_count, last_query_ms). Wired when agentic_search runs.
+    /// In-process per-table query metrics (`query_count`, `last_query_ms`). Wired when `agentic_search` runs.
     pub(crate) query_metrics: Arc<DashMap<String, QueryMetricsCell>>,
     /// Optional callback for index build progress (Started/Done; Progress when Lance exposes API).
     pub(crate) index_progress_callback: Option<IndexProgressCallback>,
-    /// When base_path is ":memory:", a unique id so each store uses its own temp subdir (avoids DatasetAlreadyExists).
+    /// When `base_path` is ":memory:", a unique id so each store uses its own temp subdir (avoids `DatasetAlreadyExists`).
     pub(crate) memory_mode_id: Option<u64>,
 }
 

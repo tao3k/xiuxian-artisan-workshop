@@ -133,7 +133,21 @@ impl Agent {
         tokio::task::spawn_blocking(move || {
             match store.store_for_scope(&session_id_for_task, episode) {
                 Ok(_) => {
-                    store.update_q(&id, reward);
+                    let updated_q = store.update_q(&id, reward);
+                    if let Some(backend) = backend_for_task.as_ref()
+                        && let Err(error) = backend.update_q_atomic(&id, updated_q)
+                    {
+                        tracing::warn!(
+                            event = "agent.memory.state.q_atomic_persist_failed",
+                            backend = backend.backend_name(),
+                            session_id = %session_id_for_task,
+                            reason = "consolidation_async",
+                            episode_id = %id,
+                            q_value = updated_q,
+                            error = %error,
+                            "failed to persist memory q-value atomically from async consolidation"
+                        );
+                    }
                     persist_memory_state(
                         backend_for_task.as_ref(),
                         &store,
@@ -164,7 +178,8 @@ impl Agent {
     ) {
         match store.store_for_scope(session_id, episode) {
             Ok(_) => {
-                store.update_q(&id, reward);
+                let updated_q = store.update_q(&id, reward);
+                self.persist_memory_q_atomic(Some(session_id), &id, updated_q, "consolidation");
                 persist_memory_state(
                     self.memory_state_backend.as_ref(),
                     &store,

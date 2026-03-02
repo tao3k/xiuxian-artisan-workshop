@@ -1,4 +1,5 @@
 ---
+type: skill
 name: python_engineering
 description: Use when linting Python code, formatting with ruff/black, running pytest tests, type checking with pyright, or modernizing Python 3.12+ standards.
 metadata:

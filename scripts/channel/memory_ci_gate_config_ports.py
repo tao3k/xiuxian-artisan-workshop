@@ -9,11 +9,13 @@ import sys
 import time
 from typing import Any
 
+from resolve_mcp_endpoint import resolve_mcp_endpoint
+
 
 def default_valkey_prefix(profile: str) -> str:
     """Generate a run-scoped Valkey prefix."""
     safe_profile = profile.strip().lower() or "default"
-    return f"omni-agent:session:ci:{safe_profile}:{os.getpid()}:{int(time.time() * 1000)}"
+    return f"xiuxian_wendao:session:ci:{safe_profile}:{os.getpid()}:{int(time.time() * 1000)}"
 
 
 def can_bind_tcp(host: str, port: int) -> bool:
@@ -49,14 +51,15 @@ def resolve_runtime_ports(
     webhook_port: int,
     telegram_api_port: int,
     *,
-    host: str = "127.0.0.1",
+    host: str | None = None,
     can_bind_tcp_fn: Any = can_bind_tcp,
     allocate_free_tcp_port_fn: Any = allocate_free_tcp_port,
 ) -> tuple[int, int]:
     """Resolve non-conflicting runtime ports for webhook and mock Telegram API."""
+    resolved_host = host or str(resolve_mcp_endpoint()["host"])
     resolved_telegram_api_port = telegram_api_port
-    if not can_bind_tcp_fn(host, resolved_telegram_api_port):
-        resolved_telegram_api_port = allocate_free_tcp_port_fn(host)
+    if not can_bind_tcp_fn(resolved_host, resolved_telegram_api_port):
+        resolved_telegram_api_port = allocate_free_tcp_port_fn(resolved_host)
         print(
             "Port occupied; reassigned --telegram-api-port "
             f"{telegram_api_port} -> {resolved_telegram_api_port}",
@@ -66,10 +69,13 @@ def resolve_runtime_ports(
 
     resolved_webhook_port = webhook_port
     webhook_blocked = resolved_webhook_port == resolved_telegram_api_port or not can_bind_tcp_fn(
-        host, resolved_webhook_port
+        resolved_host, resolved_webhook_port
     )
     if webhook_blocked:
-        resolved_webhook_port = allocate_free_tcp_port_fn(host, avoid={resolved_telegram_api_port})
+        resolved_webhook_port = allocate_free_tcp_port_fn(
+            resolved_host,
+            avoid={resolved_telegram_api_port},
+        )
         print(
             "Port occupied/conflict; reassigned --webhook-port "
             f"{webhook_port} -> {resolved_webhook_port}",

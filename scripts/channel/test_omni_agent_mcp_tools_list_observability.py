@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from log_io import iter_log_lines
+from resolve_mcp_endpoint import resolve_mcp_endpoint
 
 _models_module = importlib.import_module("mcp_tools_list_observability_models")
 _runtime_module = importlib.import_module("mcp_tools_list_observability_runtime")
@@ -81,7 +82,7 @@ def _parse_args() -> argparse.Namespace:
             "One-shot tools/list observability + benchmark probe for a running Omni MCP server."
         )
     )
-    parser.add_argument("--base-url", default="http://127.0.0.1:3002")
+    parser.add_argument("--base-url", default="")
     parser.add_argument("--timeout-secs", type=float, default=30.0)
     parser.add_argument("--sequential-samples", type=int, default=20)
     parser.add_argument("--sequential-sleep-ms", type=int, default=50)
@@ -124,6 +125,7 @@ async def _run_probe(args: argparse.Namespace) -> dict[str, Any]:
 
 def main() -> int:
     args = _parse_args()
+    args.base_url = args.base_url.strip() or str(resolve_mcp_endpoint()["base_url"])
     try:
         summary = asyncio.run(_run_probe(args))
     except Exception as exc:

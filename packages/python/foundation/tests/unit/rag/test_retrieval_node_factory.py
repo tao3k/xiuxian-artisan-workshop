@@ -1,4 +1,4 @@
-"""Tests for retrieval LangGraph node factory."""
+"""Tests for retrieval workflow node factory."""
 
 from __future__ import annotations
 

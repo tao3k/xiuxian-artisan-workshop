@@ -27,12 +27,12 @@ impl QianjiSafetyGuard {
     /// # Errors
     ///
     /// Returns [`QianjiError`] when the topology contains cycles without an exit.
-    #[allow(clippy::unused_self)]
     pub fn audit_topology(&self, engine: &QianjiEngine) -> Result<(), QianjiError> {
         if is_cyclic_directed(&engine.graph) {
-            return Err(QianjiError::TopologyError(
-                "Infinite cycle detected without exit condition".to_string(),
-            ));
+            return Err(QianjiError::Topology(format!(
+                "Infinite cycle detected without exit condition (max_loop_iterations={})",
+                self.max_loop_iterations
+            )));
         }
         Ok(())
     }

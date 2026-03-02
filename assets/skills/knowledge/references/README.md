@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Knowledge References"
+---
+
 # Knowledge References
 
 ## Contents

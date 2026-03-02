@@ -4,7 +4,7 @@ omni.foundation.embedding - Unified Embedding Service
 Embeddings via LiteLLM only (Ollama, Xinference, or other backends). No in-process
 model loading; run the model in Ollama or Xinference and point LiteLLM at it.
 
-Configuration (packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml):
+Configuration (packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml):
 - embedding.provider: "ollama" | "xinference" | "litellm" (LiteLLM), "client" (HTTP), "fallback", "" (auto)
 - embedding.litellm_model: e.g. "ollama/nomic-embed-text", "xinference/<uid>" (Xinference deploys Qwen etc.)
 - embedding.litellm_api_base: e.g. "http://127.0.0.1:11434" (Ollama), "http://127.0.0.1:9997/v1" (Xinference)

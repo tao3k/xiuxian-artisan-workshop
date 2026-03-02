@@ -6,6 +6,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from memory_benchmark_signals_turn import parse_turn_signals as _parse_turn_signals_impl
+
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 EVENT_TOKEN_RE = re.compile(r"\bevent\s*=\s*(?:\"|')?([A-Za-z0-9_.:-]+)")
 LOG_TOKEN_RE = re.compile(r"\b([A-Za-z0-9_.:-]+)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s]+))")
@@ -83,39 +85,17 @@ def parse_turn_signals(
     embedding_unavailable_fallback_event: str,
 ) -> dict[str, Any]:
     """Parse benchmark-relevant signals from runtime log lines."""
-    signals: dict[str, Any] = {
-        "plan": None,
-        "decision": None,
-        "feedback": None,
-        "bot_line": None,
-        "mcp_error": False,
-        "embedding_timeout_fallback": False,
-        "embedding_cooldown_fallback": False,
-        "embedding_unavailable_fallback": False,
-    }
-
-    for line in lines:
-        if forbidden_log_pattern in line:
-            signals["mcp_error"] = True
-        if bot_marker in line:
-            signals["bot_line"] = line.split(bot_marker, 1)[1].strip()
-
-        event = extract_event_token(line)
-        if event is None:
-            continue
-
-        tokens = parse_log_tokens(line)
-        if event == recall_plan_event:
-            signals["plan"] = tokens
-        elif event in (recall_injected_event, recall_skipped_event):
-            signals["decision"] = {**tokens, "event": event}
-        elif event == recall_feedback_event:
-            signals["feedback"] = tokens
-        elif event == embedding_timeout_fallback_event:
-            signals["embedding_timeout_fallback"] = True
-        elif event == embedding_cooldown_fallback_event:
-            signals["embedding_cooldown_fallback"] = True
-        elif event == embedding_unavailable_fallback_event:
-            signals["embedding_unavailable_fallback"] = True
-
-    return signals
+    return _parse_turn_signals_impl(
+        lines,
+        forbidden_log_pattern=forbidden_log_pattern,
+        bot_marker=bot_marker,
+        recall_plan_event=recall_plan_event,
+        recall_injected_event=recall_injected_event,
+        recall_skipped_event=recall_skipped_event,
+        recall_feedback_event=recall_feedback_event,
+        embedding_timeout_fallback_event=embedding_timeout_fallback_event,
+        embedding_cooldown_fallback_event=embedding_cooldown_fallback_event,
+        embedding_unavailable_fallback_event=embedding_unavailable_fallback_event,
+        extract_event_token_fn=extract_event_token,
+        parse_log_tokens_fn=parse_log_tokens,
+    )

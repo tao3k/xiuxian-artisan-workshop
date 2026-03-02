@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Thread-Safe Instructions Loader: Python Fork-Safety Case Study"
+---
+
 # Thread-Safe Instructions Loader: Python Fork-Safety Case Study
 
 > Keywords: python, threading, deadlock, uv run, fork, multiprocessing, lazy-loading

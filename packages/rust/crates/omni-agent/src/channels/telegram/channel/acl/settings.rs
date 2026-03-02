@@ -57,14 +57,14 @@ pub(in crate::channels::telegram::channel) fn resolve_acl_config_from_settings(
     let control_command_allow_from = acl_overrides.control_command_allow_from;
 
     let slash_command_policy = TelegramSlashCommandPolicy {
-        slash_command_allow_from: acl_overrides.slash_command_allow_from,
-        session_status_allow_from: acl_overrides.slash_session_status_allow_from,
-        session_budget_allow_from: acl_overrides.slash_session_budget_allow_from,
-        session_memory_allow_from: acl_overrides.slash_session_memory_allow_from,
-        session_feedback_allow_from: acl_overrides.slash_session_feedback_allow_from,
-        job_status_allow_from: acl_overrides.slash_job_allow_from,
-        jobs_summary_allow_from: acl_overrides.slash_jobs_allow_from,
-        background_submit_allow_from: acl_overrides.slash_bg_allow_from,
+        global: acl_overrides.slash_command_allow_from,
+        session_status: acl_overrides.slash_session_status_allow_from,
+        session_budget: acl_overrides.slash_session_budget_allow_from,
+        session_memory: acl_overrides.slash_session_memory_allow_from,
+        session_feedback: acl_overrides.slash_session_feedback_allow_from,
+        job_status: acl_overrides.slash_job_allow_from,
+        jobs_summary: acl_overrides.slash_jobs_allow_from,
+        background_submit: acl_overrides.slash_bg_allow_from,
     };
 
     let control_command_policy = normalize_control_command_policy(ControlCommandPolicy::new(

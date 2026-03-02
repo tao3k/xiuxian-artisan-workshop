@@ -10,5 +10,5 @@ pub(crate) async fn run_stdio_mode(
     runtime_settings: &RuntimeSettings,
 ) -> anyhow::Result<()> {
     let agent = build_agent(&mcp_config_path, runtime_settings).await?;
-    run_stdio(agent, session_id).await
+    Box::pin(run_stdio(agent, session_id)).await
 }

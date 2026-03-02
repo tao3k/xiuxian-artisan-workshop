@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from omni.tracer import LangGraphPipelineBuilder, PipelineConfig
+from omni.tracer import PipelineConfig, PipelineWorkflowBuilder
 
 
 def test_ultrarag_complex_template_is_valid_and_compilable():
@@ -19,7 +19,7 @@ def test_ultrarag_complex_template_is_valid_and_compilable():
         / "ultrarag_complex.yaml"
     )
     config = PipelineConfig.from_yaml(template)
-    builder = LangGraphPipelineBuilder(config)
+    builder = PipelineWorkflowBuilder(config)
     graph_def = builder.build()
 
     assert graph_def["entry_node"] is not None

@@ -20,6 +20,8 @@ pub struct ParsedLinkGraphQuery {
     pub options: LinkGraphSearchOptions,
     /// Optional limit override parsed from query directives.
     pub limit_override: Option<usize>,
+    /// Optional direct-id short-circuit key parsed from `id:<value>`.
+    pub direct_id: Option<String>,
 }
 
 /// Parse a user query into residual query text + merged options.
@@ -34,6 +36,7 @@ pub fn parse_search_query(
             query: String::new(),
             options: base,
             limit_override: None,
+            direct_id: None,
         };
     }
 
@@ -44,6 +47,7 @@ pub fn parse_search_query(
     ParsedLinkGraphQuery {
         query: residual_terms.join(" ").trim().to_string(),
         options: base,
-        limit_override: state.parsed_limit_override,
+        limit_override: state.limit_override,
+        direct_id: state.direct_id,
     }
 }

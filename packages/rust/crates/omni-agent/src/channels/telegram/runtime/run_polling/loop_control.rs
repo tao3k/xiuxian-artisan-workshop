@@ -53,7 +53,15 @@ pub(super) async fn run_polling_event_loop(
                 let Some(msg) = maybe_msg else {
                     break;
                 };
-                if !handle_inbound_message_with_interrupt(msg, channel_for_send, foreground_tx, interrupt_controller, job_manager, agent).await {
+                if !handle_inbound_message_with_interrupt(
+                    msg,
+                    channel_for_send,
+                    foreground_tx,
+                    interrupt_controller,
+                    job_manager,
+                    agent,
+                    runtime_config.foreground_queue_mode,
+                ).await {
                     break;
                 }
             }

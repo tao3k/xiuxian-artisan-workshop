@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni Lance"
+---
+
 # Omni Lance
 
 > LanceDB integration for Omni DevEnv.

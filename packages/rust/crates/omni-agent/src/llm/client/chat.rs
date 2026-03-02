@@ -45,9 +45,7 @@ impl LlmClient {
             "dispatching llm chat request"
         );
         let result = match self.backend_mode {
-            LlmBackendMode::OpenAiCompatibleHttp | LlmBackendMode::MistralLocal => {
-                self.chat_via_http(messages, tools).await
-            }
+            LlmBackendMode::OpenAiCompatibleHttp => self.chat_via_http(messages, tools).await,
             LlmBackendMode::LiteLlmRs => {
                 #[cfg(feature = "agent-provider-litellm")]
                 {

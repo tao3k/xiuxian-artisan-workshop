@@ -4,8 +4,9 @@ use reqwest::Client;
 use reqwest::header::CONTENT_TYPE;
 use serde::Deserialize;
 
-const OPENAI_HTTP_RETRY_DELAY_MS: u64 = 40;
-const OPENAI_HTTP_MAX_ATTEMPTS: usize = 2;
+const OPENAI_HTTP_RETRY_BASE_DELAY_MS: u64 = 80;
+const OPENAI_HTTP_RETRY_MAX_DELAY_MS: u64 = 1_000;
+const OPENAI_HTTP_MAX_ATTEMPTS: usize = 8;
 const RESPONSE_BODY_PREVIEW_LIMIT: usize = 160;
 
 enum AttemptOutcome<T> {
@@ -89,16 +90,18 @@ async fn send_openai_request(
             let should_retry =
                 attempt < OPENAI_HTTP_MAX_ATTEMPTS && should_retry_http_request_error(&error);
             if should_retry {
+                let retry_delay = retry_delay_for_attempt(attempt);
                 tracing::debug!(
                     event = "xiuxian.llm.embedding.openai_http.request_retry",
                     url,
                     attempt,
                     max_attempts = OPENAI_HTTP_MAX_ATTEMPTS,
+                    retry_delay_ms = retry_delay.as_millis(),
                     elapsed_ms = started.elapsed().as_millis(),
                     error = %error,
                     "embedding openai-compatible request failed; retrying"
                 );
-                sleep_before_retry().await;
+                sleep_before_retry(retry_delay).await;
                 AttemptOutcome::Retry
             } else {
                 tracing::debug!(
@@ -145,15 +148,17 @@ async fn handle_non_success_status(
 ) -> AttemptOutcome<Vec<Vec<f32>>> {
     let should_retry = attempt < OPENAI_HTTP_MAX_ATTEMPTS && status.is_server_error();
     if should_retry {
+        let retry_delay = retry_delay_for_attempt(attempt);
         tracing::debug!(
             event = "xiuxian.llm.embedding.openai_http.retry_on_server_error",
             status = %status,
             attempt,
             max_attempts = OPENAI_HTTP_MAX_ATTEMPTS,
+            retry_delay_ms = retry_delay.as_millis(),
             elapsed_ms = started.elapsed().as_millis(),
             "embedding openai-compatible returned server error; retrying"
         );
-        sleep_before_retry().await;
+        sleep_before_retry(retry_delay).await;
         return AttemptOutcome::Retry;
     }
 
@@ -239,8 +244,16 @@ fn should_retry_http_request_error(error: &reqwest::Error) -> bool {
         || error.to_string().contains("error sending request for url")
 }
 
-async fn sleep_before_retry() {
-    tokio::time::sleep(Duration::from_millis(OPENAI_HTTP_RETRY_DELAY_MS)).await;
+fn retry_delay_for_attempt(attempt: usize) -> Duration {
+    let attempt_index = attempt.saturating_sub(1);
+    let shift = u32::try_from(attempt_index.min(6)).unwrap_or(6);
+    let factor = 1_u64.checked_shl(shift).unwrap_or(u64::MAX);
+    let delay_ms = OPENAI_HTTP_RETRY_BASE_DELAY_MS.saturating_mul(factor);
+    Duration::from_millis(delay_ms.min(OPENAI_HTTP_RETRY_MAX_DELAY_MS))
+}
+
+async fn sleep_before_retry(delay: Duration) {
+    tokio::time::sleep(delay).await;
 }
 
 async fn read_response_preview(resp: reqwest::Response) -> Option<String> {

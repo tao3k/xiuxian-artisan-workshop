@@ -1,5 +1,5 @@
 [project]
-name = "omni-dev-fusion"
+name = "xiuxian-artisan-workshop"
 description = "Tri-MCP Agentic OS: orchestrator + executor + coder"
 readme = "README.md"
 requires-python = ">=3.13"

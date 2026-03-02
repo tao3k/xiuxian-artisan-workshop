@@ -12,6 +12,8 @@ use omni_memory::{
 };
 use std::sync::Arc;
 
+type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
+
 /// Helper to create test episodes with realistic data.
 fn create_test_episodes(store: &EpisodeStore) -> Vec<Episode> {
     vec![
@@ -54,7 +56,7 @@ fn create_test_episodes(store: &EpisodeStore) -> Vec<Episode> {
 }
 
 #[test]
-fn test_full_memory_workflow() {
+fn test_full_memory_workflow() -> TestResult {
     // Setup
     let path = common::test_store_path("test_memory");
     let config = StoreConfig {
@@ -67,14 +69,14 @@ fn test_full_memory_workflow() {
     // Store episodes
     let episodes = create_test_episodes(&store);
     for ep in &episodes {
-        store.store(ep.clone()).unwrap();
+        store.store(ep.clone())?;
     }
 
     assert_eq!(store.len(), 5);
 
     // Verify Q-values initialized to 0.5
-    assert_eq!(store.q_table.get_q("ep-001"), 0.5);
-    assert_eq!(store.q_table.get_q("ep-002"), 0.5);
+    assert!((store.q_table.get_q("ep-001") - 0.5).abs() < f32::EPSILON);
+    assert!((store.q_table.get_q("ep-002") - 0.5).abs() < f32::EPSILON);
 
     // Simulate learning: update Q-values based on outcomes
     store.update_q("ep-001", 1.0); // Success
@@ -85,15 +87,16 @@ fn test_full_memory_workflow() {
     // Verify Q-values updated
     assert!(store.q_table.get_q("ep-001") > 0.5);
     assert!(store.q_table.get_q("ep-004") < 0.5);
+    Ok(())
 }
 
 #[test]
-fn test_two_phase_search_workflow() {
+fn test_two_phase_search_workflow() -> TestResult {
     // Setup
     let store = EpisodeStore::new(StoreConfig::default());
     let episodes = create_test_episodes(&store);
     for ep in &episodes {
-        store.store(ep.clone()).unwrap();
+        store.store(ep.clone())?;
     }
 
     // Update some Q-values to test reranking
@@ -114,6 +117,7 @@ fn test_two_phase_search_workflow() {
     // Higher lambda should prioritize Q-value
     let results = store.two_phase_recall("debug network", 5, 3, 0.8);
     assert!(!results.is_empty());
+    Ok(())
 }
 
 #[test]
@@ -129,8 +133,7 @@ fn test_q_learning_convergence() {
     let q_value = q_table.get_q("ep-test");
     assert!(
         (q_value - 1.0).abs() < 0.01,
-        "Q-value should converge to 1.0, got {}",
-        q_value
+        "Q-value should converge to 1.0, got {q_value}"
     );
 
     // Repeatedly update with reward 0.0
@@ -142,8 +145,7 @@ fn test_q_learning_convergence() {
     let q_value = q_table.get_q("ep-test-2");
     assert!(
         (q_value - 0.0).abs() < 0.01,
-        "Q-value should converge to 0.0, got {}",
-        q_value
+        "Q-value should converge to 0.0, got {q_value}"
     );
 }
 
@@ -276,12 +278,14 @@ fn test_calculate_score_function() {
 
 /// Regression test: Episode store persistence (save/load)
 #[test]
-fn test_episode_store_persistence() {
+fn test_episode_store_persistence() -> TestResult {
     use tempfile::TempDir;
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new()?;
     let episodes_path = temp_dir.path().join("episodes.json");
     let qtable_path = temp_dir.path().join("qtable.json");
+    let episodes_path_str = episodes_path.to_string_lossy().into_owned();
+    let qtable_path_str = qtable_path.to_string_lossy().into_owned();
 
     // Create store and add episodes
     let path = common::test_store_path("test");
@@ -315,9 +319,9 @@ fn test_episode_store_persistence() {
         "failure".to_string(),
     );
 
-    store.store(ep1).unwrap();
-    store.store(ep2).unwrap();
-    store.store(ep3).unwrap();
+    store.store(ep1)?;
+    store.store(ep2)?;
+    store.store(ep3)?;
 
     // Update Q-values (returns f32, not Result)
     store.update_q("ep-1", 1.0); // Success
@@ -325,8 +329,8 @@ fn test_episode_store_persistence() {
     store.update_q("ep-3", 0.0); // Failure
 
     // Save to files
-    store.save(episodes_path.to_str().unwrap()).unwrap();
-    store.save_q_table(qtable_path.to_str().unwrap()).unwrap();
+    store.save(&episodes_path_str)?;
+    store.save_q_table(&qtable_path_str)?;
 
     // Verify files exist
     assert!(episodes_path.exists());
@@ -342,8 +346,8 @@ fn test_episode_store_persistence() {
     let store2 = EpisodeStore::new(config2);
 
     // Load from files
-    store2.load(episodes_path.to_str().unwrap()).unwrap();
-    store2.load_q_table(qtable_path.to_str().unwrap()).unwrap();
+    store2.load(&episodes_path_str)?;
+    store2.load_q_table(&qtable_path_str)?;
 
     // Verify loaded data
     assert_eq!(store2.len(), 3);
@@ -356,11 +360,12 @@ fn test_episode_store_persistence() {
     // Verify recall still works
     let results = store2.two_phase_recall("api timeout", 3, 3, 0.5);
     assert!(!results.is_empty());
+    Ok(())
 }
 
 /// Regression test: Memory decay mechanism
 #[test]
-fn test_memory_decay() {
+fn test_memory_decay() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -385,8 +390,8 @@ fn test_memory_decay() {
         "success".to_string(),
     );
 
-    store.store(ep1).unwrap();
-    store.store(ep2).unwrap();
+    store.store(ep1)?;
+    store.store(ep2)?;
 
     // Update Q-values to extremes
     store.update_q("ep-1", 1.0); // High Q
@@ -397,13 +402,11 @@ fn test_memory_decay() {
     let q2_before = store.q_table.get_q("ep-2");
     assert!(
         (q1_before - 0.6).abs() < 0.01,
-        "Expected q1=0.6, got {}",
-        q1_before
+        "Expected q1=0.6, got {q1_before}"
     );
     assert!(
         (q2_before - 0.4).abs() < 0.01,
-        "Expected q2=0.4, got {}",
-        q2_before
+        "Expected q2=0.4, got {q2_before}"
     );
 
     // Apply decay (0.5 = strong decay for testing)
@@ -417,22 +420,12 @@ fn test_memory_decay() {
     let q2_after = store.q_table.get_q("ep-2");
 
     // High Q should decrease (0.6 -> 0.55)
-    assert!(
-        q1_after < q1_before,
-        "Expected q1 {} < {}",
-        q1_after,
-        q1_before
-    );
-    assert!(q1_after > 0.5, "Expected q1 > 0.5, got {}", q1_after);
+    assert!(q1_after < q1_before, "Expected q1 {q1_after} < {q1_before}");
+    assert!(q1_after > 0.5, "Expected q1 > 0.5, got {q1_after}");
 
     // Low Q should increase (0.4 -> 0.45)
-    assert!(
-        q2_after > q2_before,
-        "Expected q2 {} > {}",
-        q2_after,
-        q2_before
-    );
-    assert!(q2_after < 0.5, "Expected q2 < 0.5, got {}", q2_after);
+    assert!(q2_after > q2_before, "Expected q2 {q2_after} > {q2_before}");
+    assert!(q2_after < 0.5, "Expected q2 < 0.5, got {q2_after}");
 
     // Apply decay again (now Q is 0.55)
     // Q_decay = 0.5 + (0.55-0.5)*0.5 = 0.5 + 0.025 = 0.525
@@ -442,15 +435,14 @@ fn test_memory_decay() {
     // Should be even closer to 0.5 (but not cross it for high Q)
     assert!(
         q1_final > 0.5 && q1_final < q1_before,
-        "Expected 0.5 < q1_final {} < q1_before {}",
-        q1_final,
-        q1_before
+        "Expected 0.5 < q1_final {q1_final} < q1_before {q1_before}"
     );
+    Ok(())
 }
 
 /// Regression test: Memory stats
 #[test]
-fn test_memory_stats() {
+fn test_memory_stats() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -472,16 +464,17 @@ fn test_memory_stats() {
         "Increased timeout".to_string(),
         "success".to_string(),
     );
-    store.store(ep1).unwrap();
+    store.store(ep1)?;
 
     let stats = store.stats();
     assert_eq!(stats.total_episodes, 1);
     assert_eq!(stats.q_table_size, 1);
+    Ok(())
 }
 
 /// Regression test: Incremental learning - update episode
 #[test]
-fn test_incremental_update_episode() {
+fn test_incremental_update_episode() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -498,10 +491,12 @@ fn test_incremental_update_episode() {
         "Solution v1".to_string(),
         "failure".to_string(),
     );
-    store.store(ep).unwrap();
+    store.store(ep)?;
 
     // Verify initial state
-    let retrieved = store.get("ep-1").unwrap();
+    let retrieved = store
+        .get("ep-1")
+        .ok_or_else(|| std::io::Error::other("ep-1 should exist before update"))?;
     assert_eq!(retrieved.experience, "Solution v1");
     assert_eq!(retrieved.outcome, "failure");
 
@@ -510,14 +505,17 @@ fn test_incremental_update_episode() {
     assert!(updated, "Update should return true");
 
     // Verify updated state
-    let retrieved = store.get("ep-1").unwrap();
+    let retrieved = store
+        .get("ep-1")
+        .ok_or_else(|| std::io::Error::other("ep-1 should exist after update"))?;
     assert_eq!(retrieved.experience, "Solution v2 - fixed");
     assert_eq!(retrieved.outcome, "success");
+    Ok(())
 }
 
 /// Regression test: Incremental learning - delete episode
 #[test]
-fn test_incremental_delete_episode() {
+fn test_incremental_delete_episode() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -541,8 +539,8 @@ fn test_incremental_delete_episode() {
         "Solution".to_string(),
         "success".to_string(),
     );
-    store.store(ep1).unwrap();
-    store.store(ep2).unwrap();
+    store.store(ep1)?;
+    store.store(ep2)?;
 
     assert_eq!(store.len(), 2);
 
@@ -555,21 +553,20 @@ fn test_incremental_delete_episode() {
     assert!(store.get("ep-2").is_some(), "ep-2 should still exist");
 
     // Verify Q-table also updated
-    assert_eq!(
-        store.q_table.get_q("ep-1"),
-        0.5,
+    assert!(
+        (store.q_table.get_q("ep-1") - 0.5).abs() < f32::EPSILON,
         "Deleted ep should have default Q"
     );
-    assert_eq!(
-        store.q_table.get_q("ep-2"),
-        0.5,
+    assert!(
+        (store.q_table.get_q("ep-2") - 0.5).abs() < f32::EPSILON,
         "Remaining ep should have Q"
     );
+    Ok(())
 }
 
 /// Regression test: Incremental learning - mark accessed
 #[test]
-fn test_incremental_mark_accessed() {
+fn test_incremental_mark_accessed() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -586,10 +583,12 @@ fn test_incremental_mark_accessed() {
         "Solution".to_string(),
         "success".to_string(),
     );
-    store.store(ep).unwrap();
+    store.store(ep)?;
 
     // Verify initial state
-    let retrieved = store.get("ep-1").unwrap();
+    let retrieved = store
+        .get("ep-1")
+        .ok_or_else(|| std::io::Error::other("ep-1 should exist before mark_accessed"))?;
     assert_eq!(retrieved.success_count, 0);
 
     // Mark as accessed multiple times
@@ -598,13 +597,16 @@ fn test_incremental_mark_accessed() {
     store.mark_accessed("ep-1");
 
     // Verify access count
-    let retrieved = store.get("ep-1").unwrap();
+    let retrieved = store
+        .get("ep-1")
+        .ok_or_else(|| std::io::Error::other("ep-1 should exist after mark_accessed"))?;
     assert_eq!(retrieved.success_count, 3, "Should have 3 access counts");
+    Ok(())
 }
 
 /// Regression test: Multi-hop reasoning
 #[test]
-fn test_multi_hop_recall() {
+fn test_multi_hop_recall() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -614,7 +616,7 @@ fn test_multi_hop_recall() {
     let store = EpisodeStore::new(config);
 
     // Store diverse episodes
-    let episodes = vec![
+    let episodes = [
         ("debug api timeout", "Increased timeout to 60s", "success"),
         ("debug database slow", "Added index on column", "success"),
         ("debug memory leak", "Replaced HashMap with LRU", "success"),
@@ -624,13 +626,13 @@ fn test_multi_hop_recall() {
 
     for (i, (intent, exp, outcome)) in episodes.iter().enumerate() {
         let ep = Episode::new(
-            format!("ep-{}", i),
+            format!("ep-{i}"),
             intent.to_string(),
             store.encoder().encode(intent),
             exp.to_string(),
             outcome.to_string(),
         );
-        store.store(ep).unwrap();
+        store.store(ep)?;
     }
 
     // Single hop: "database problem"
@@ -651,11 +653,12 @@ fn test_multi_hop_recall() {
     // Multi-hop should return results (may be different from single hop due to chaining)
     println!("Single hop results: {:?}", single_hop.len());
     println!("Multi-hop results: {:?}", multi_hop.len());
+    Ok(())
 }
 
 /// Regression test: Multi-hop with embeddings
 #[test]
-fn test_multi_hop_recall_with_embeddings() {
+fn test_multi_hop_recall_with_embeddings() -> TestResult {
     let path = common::test_store_path("test");
     let config = StoreConfig {
         path: path.clone(),
@@ -666,7 +669,7 @@ fn test_multi_hop_recall_with_embeddings() {
     let encoder = store.encoder();
 
     // Store episodes
-    let episodes = vec![
+    let episodes = [
         ("debug api timeout", "Increased timeout"),
         ("debug database slow", "Added index"),
         ("fix performance issue", "Used caching"),
@@ -674,13 +677,13 @@ fn test_multi_hop_recall_with_embeddings() {
 
     for (i, (intent, exp)) in episodes.iter().enumerate() {
         let ep = Episode::new(
-            format!("ep-{}", i),
+            format!("ep-{i}"),
             intent.to_string(),
             encoder.encode(intent),
             exp.to_string(),
             "success".to_string(),
         );
-        store.store(ep).unwrap();
+        store.store(ep)?;
     }
 
     // Multi-hop with embeddings
@@ -691,6 +694,7 @@ fn test_multi_hop_recall_with_embeddings() {
 
     let results = store.multi_hop_recall_with_embeddings(&embeddings, 3, 0.5);
     assert!(!results.is_empty(), "Should have results");
+    Ok(())
 }
 
 // Note: LanceDB persistence test removed due to API changes in newer LanceDB versions.

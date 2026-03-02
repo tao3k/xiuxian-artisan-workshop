@@ -1,0 +1,32 @@
+[package]
+name = "xiuxian-zhenfa"
+version.workspace = true
+edition.workspace = true
+description = "Zhenfa (Matrix Gateway) - Native-first tool microkernel with optional JSON-RPC gateway"
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+schemars = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+xiuxian-macros = { path = "../xiuxian-macros" }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true
+
+[lib]
+name = "xiuxian_zhenfa"
+path = "src/lib.rs"

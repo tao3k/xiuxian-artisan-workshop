@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "omni-dev-fusion-agent"
+---
+
 # omni-dev-fusion-agent
 
 Tri-MCP Agent Orchestrator - The Brain of omni-dev-fusion.
@@ -15,4 +21,4 @@ This package provides the orchestrator MCP server that handles skill routing, LL
 ## Dependencies
 
 - `omni-dev-fusion-common` - Shared kernel and utilities
-- MCP, LangGraph, Pydantic-AI for agent orchestration
+- MCP and native workflow runtimes for agent orchestration

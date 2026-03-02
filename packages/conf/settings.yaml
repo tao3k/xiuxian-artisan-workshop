@@ -2,8 +2,8 @@
 # Project Settings - System Defaults
 #
 # System default lives here. User overrides (merged on top):
-#   $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml
-# (e.g. .config/omni-dev-fusion/settings.yaml or --conf <dir>)
+#   $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml
+# (e.g. .config/xiuxian-artisan-workshop/settings.yaml or --conf <dir>)
 #
 # Usage:
 #   omni ...                      # uses default conf dir (.config)
@@ -116,9 +116,15 @@ agent:
   # LLM backend for omni-agent runtime:
   # - "litellm_rs" (default): provider routing path via Rust litellm-rs.
   #   This mode does not manage local model lifecycle.
-  # - "mistral_local": local runtime mode (OpenAI-compatible) backed by `mistral.*` settings.
   # - "http": direct OpenAI-compatible HTTP client.
   llm_backend: "litellm_rs"
+  # Runtime orchestration authority:
+  # - "rust" (required default): `omni-agent` is the only orchestrator.
+  # Any non-rust value is rejected by Python CLI startup guardrails.
+  runtime_orchestrator: "rust"
+  # Test-only escape hatch for legacy Python runtime entrypoints.
+  # Keep false in system defaults; enable only in isolated test runs.
+  allow_python_runtime_for_tests: false
 
 # =============================================================================
 # MCP Configuration
@@ -163,18 +169,18 @@ mcp:
   # - connect_retry_backoff_ms: initial retry backoff (exponential, capped)
   # - tool_timeout_secs: timeout for tools/list and tools/call (prevents silent hangs)
   # - list_tools_cache_ttl_ms: Rust client-side tools/list snapshot cache TTL
-  agent_pool_size: 4
-  agent_handshake_timeout_secs: 30
-  agent_connect_retries: 3
-  agent_strict_startup: true
-  agent_connect_retry_backoff_ms: 1000
-  agent_tool_timeout_secs: 180
-  agent_list_tools_cache_ttl_ms: 1000
+  pool_size: 4
+  handshake_timeout_secs: 30
+  connect_retries: 3
+  strict_startup: true
+  connect_retry_backoff_ms: 1000
+  tool_timeout_secs: 180
+  list_tools_cache_ttl_ms: 1000
   # Distributed read-through cache for discover-like tool calls (e.g. skill.discover).
   # Valkey URL resolution: session.valkey_url first, then VALKEY_URL fallback.
-  agent_discover_cache_enabled: true
-  agent_discover_cache_key_prefix: "omni-agent:discover"
-  agent_discover_cache_ttl_secs: 30
+  discover_cache_enabled: true
+  discover_cache_key_prefix: "omni-agent:discover"
+  discover_cache_ttl_secs: 30
 
   # Embedding HTTP endpoint guardrails (for /embed and /embed/batch):
   # - embed_max_concurrency: max concurrent embedding calls accepted by SSE endpoint.
@@ -276,7 +282,7 @@ researcher:
 # LinkGraph/Wendao moved to dedicated config
 # =============================================================================
 # LinkGraph defaults are now in `packages/conf/wendao.yaml`.
-# User overrides should use `$PRJ_CONFIG_HOME/omni-dev-fusion/wendao.yaml`.
+# User overrides should use `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/wendao.yaml`.
 
 # =============================================================================
 # Standards and References
@@ -432,7 +438,7 @@ telegram:
   # Runtime can manage delegated admins per current group/topic via:
   # `/session admin [list|set|add|remove|clear] [json]`
   # Use `session_admin_persist: true` to write these runtime changes back into
-  # user override settings (`$PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml`).
+  # user override settings (`$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml`).
   # Default (`false`): process-local override only; `clear` returns to inherited ACL behavior.
   # session_admin_persist: false
   # groups:
@@ -619,10 +625,9 @@ embedding:
   # Rust embedding backend in omni-agent:
   # - "http": call legacy /embed/batch endpoint.
   # - "openai_http": call generic OpenAI-compatible /v1/embeddings endpoint.
-  # - "mistral_local" (aliases: mistral_rs/mistral_server): local runtime mode
-  #   over /v1/embeddings, using `mistral.*` lifecycle/base_url settings.
+  # - "mistral_sdk": in-process `mistralrs` SDK embedding runtime.
   # - "litellm_rs": provider routing via Rust litellm-rs (API-provider path).
-  #   This mode is not a local runtime lifecycle manager.
+  #   This mode does not manage local model lifecycle.
   backend: "http"
 
   # Optional embedding timeout (seconds) and in-flight concurrency gate.
@@ -643,7 +648,7 @@ embedding:
   # LiteLLM model and API. Qwen 0.6: ollama pull qwen3-embedding:0.6b → ollama/qwen3-embedding:0.6b, dimension 1024
   # To store Ollama models under project: export OLLAMA_MODELS="${PRJ_DATA_HOME:-.data}/models" before ollama pull/serve
   litellm_model: "ollama/qwen3-embedding:0.6b"
-  litellm_api_base: "http://127.0.0.1:11434"
+  litellm_api_base: "http://localhost:11434"
 
   # Fallback when provider=litellm and litellm_model not set
   model: "ollama/qwen3-embedding:0.6b"
@@ -669,25 +674,14 @@ embedding:
 
   # When MCP provides embedding (omni mcp --transport sse --port 3002), client connects here.
   # MCP exposes /embed/batch and /embed/single for embedding_client compatibility.
-  client_url: "http://127.0.0.1:3002"
+  client_url: "http://localhost:3002"
 
-# Optional local Mistral runtime management for Rust gateway startup.
-# This section is used when backend resolves to `mistral_local`.
-# It is ignored for provider-routing mode (`litellm_rs`).
+# Optional mistralrs SDK hints for in-process model loading (`mistral_sdk` backend).
 mistral:
-  # Feature switch for mistral runtime integration in Rust gateway.
-  enabled: false
-  # Auto-start `mistralrs-server` when embedding backend resolves to mistral.
-  auto_start: false
-  # Command and args used to start `mistralrs-server`.
-  # command: "mistralrs-server"
-  # args: ["--port", "11500"]
-  # OpenAI-compatible base URL for readiness probe and embedding requests.
-  base_url: "http://127.0.0.1:11500"
-  # Startup/readiness probe tuning.
-  startup_timeout_secs: 45
-  probe_timeout_ms: 1500
-  probe_interval_ms: 250
+  # Optional HuggingFace cache root used by mistralrs to store/reuse model downloads.
+  # sdk_hf_cache_path: ".data/models/hf-cache"
+  # Optional HuggingFace revision pin.
+  # sdk_hf_revision: "main"
 
 # =============================================================================
 # RAG Module Configuration
@@ -763,21 +757,16 @@ vector:
   default_partition_column: "skill_name"
 
 # =============================================================================
-# Unified checkpoint storage using Rust LanceDB backend
-# All workflow state persists here - no separate SQLite per workflow
+# Workflow State Configuration
+# =============================================================================
+workflow_state:
+  # Runtime directory for file-based workflow checkpoints (relative to PRJ_RUNTIME_DIR).
+  # Current backend persists JSON snapshots under:
+  #   $PRJ_RUNTIME_DIR/xiuxian_qianji/workflow_state/<workflow_type>/
+  root_subdir: "xiuxian_qianji/workflow_state"
 
-checkpoint:
-  # LanceDB database path (relative to project root or absolute)
-  # All LanceDB data is consolidated under .cache/omni-vector/
-  # Default: .cache/omni-vector/checkpoints.lance
-  db_path: ".cache/omni-vector/checkpoints.lance"
-
-  # Table prefix for different workflow types
-  # smart_commit -> table: checkpoint_smart_commit
+  # Prefix used by compatibility helpers when mapping workflow_type to table-like identifiers.
   table_prefix: "checkpoint_"
-
-  # Default dimension for embeddings (should match embedding.dimension above)
-  embedding_dimension: 1024
 
 # =============================================================================
 # Cache Configuration

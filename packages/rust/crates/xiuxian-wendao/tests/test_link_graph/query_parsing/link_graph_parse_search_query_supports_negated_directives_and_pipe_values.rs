@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -27,14 +8,14 @@ fn test_link_graph_parse_search_query_supports_negated_directives_and_pipe_value
     );
 
     assert_eq!(parsed.query, "");
-    let tags = parsed.options.filters.tags.expect("expected tags filter");
+    let Some(tags) = parsed.options.filters.tags else {
+        panic!("expected tags filter");
+    };
     assert_eq!(tags.not_tags, vec!["legacy".to_string()]);
 
-    let link_to = parsed
-        .options
-        .filters
-        .link_to
-        .expect("expected link_to filter");
+    let Some(link_to) = parsed.options.filters.link_to else {
+        panic!("expected link_to filter");
+    };
     assert!(link_to.negate);
     assert_eq!(
         link_to.seeds,
@@ -45,10 +26,8 @@ fn test_link_graph_parse_search_query_supports_negated_directives_and_pipe_value
         ]
     );
 
-    let linked_by = parsed
-        .options
-        .filters
-        .linked_by
-        .expect("expected linked_by filter");
+    let Some(linked_by) = parsed.options.filters.linked_by else {
+        panic!("expected linked_by filter");
+    };
     assert_eq!(linked_by.seeds, vec!["a".to_string(), "b".to_string()]);
 }

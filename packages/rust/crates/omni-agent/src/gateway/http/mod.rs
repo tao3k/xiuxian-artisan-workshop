@@ -105,7 +105,7 @@ pub async fn run_http(
     max_concurrent_turns: Option<usize>,
 ) -> Result<()> {
     let timeout = turn_timeout_secs.unwrap_or(TURN_TIMEOUT_SECS);
-    let embedding_runtime = Arc::new(build_embedding_runtime_for_gateway().await);
+    let embedding_runtime = Arc::new(build_embedding_runtime_for_gateway().await?);
     let app =
         router_with_embedding_runtime(agent, timeout, max_concurrent_turns, embedding_runtime);
     let listener = TcpListener::bind(bind_addr).await?;
@@ -152,8 +152,8 @@ async fn shutdown_signal() {
 
     #[cfg(not(unix))]
     {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to listen for Ctrl+C");
+        if let Err(error) = tokio::signal::ctrl_c().await {
+            tracing::warn!(error = %error, "failed to listen for Ctrl+C");
+        }
     }
 }

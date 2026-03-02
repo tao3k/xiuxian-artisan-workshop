@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Deep Crawling"
+---
+
 # Deep Crawling
 
 ## Overview

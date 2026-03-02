@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni Security"
+---
+
 # Omni Security
 
 > Security scanning utilities for Omni DevEnv.

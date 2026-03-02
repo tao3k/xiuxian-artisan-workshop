@@ -11,7 +11,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 const HANDSHAKE_TIMEOUT_SECS: u64 = 30;
-#[allow(dead_code)]
 const REAL_PORT: u16 = 3002;
 const REAL_URL: &str = "http://127.0.0.1:3002/sse";
 
@@ -44,7 +43,6 @@ fn real_server_url() -> String {
 }
 
 /// Returns true if something is listening on the given port (TCP connect).
-#[allow(dead_code)]
 async fn port_open(port: u16) -> bool {
     tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port))
         .await
@@ -56,6 +54,10 @@ async fn port_open(port: u16) -> bool {
 #[tokio::test]
 #[ignore = "run with --ignored when MCP server is on 3002; or use test_connect_with_mock_server"]
 async fn test_connect_real_server() {
+    assert!(
+        port_open(REAL_PORT).await,
+        "expected MCP test server on 127.0.0.1:{REAL_PORT}; start it or run mock-server test",
+    );
     let url = real_server_url();
     run_client_assertions(&url, HANDSHAKE_TIMEOUT_SECS).await;
 }

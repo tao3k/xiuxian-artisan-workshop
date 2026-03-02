@@ -1,26 +1,7 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
-fn test_rust_symbol_extraction_performance() {
+fn test_rust_symbol_extraction_performance() -> Result<(), Box<dyn std::error::Error>> {
     const FILE_COUNT: usize = 50;
     const LINES_PER_FILE: usize = 500;
 
@@ -33,11 +14,11 @@ fn test_rust_symbol_extraction_performance() {
     for _ in 0..FILE_COUNT {
         let content = generate_rust_test_file(LINES_PER_FILE);
 
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(content.as_bytes()).unwrap();
+        let mut file = NamedTempFile::new()?;
+        file.write_all(content.as_bytes())?;
         let path = file.path().to_path_buf();
 
-        let symbols = extract_symbols(&path, "rust").unwrap();
+        let symbols = extract_symbols(&path, "rust")?;
         all_symbols.extend(symbols);
         temp_files.push(file);
     }
@@ -65,4 +46,5 @@ fn test_rust_symbol_extraction_performance() {
         elapsed.as_secs_f64() * 1000.0,
         all_symbols.len()
     );
+    Ok(())
 }

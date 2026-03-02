@@ -1,50 +1,74 @@
-//! System prompt injection window based on XML Q&A blocks.
-//!
-//! Contract:
-//! - Root tag: `<system_prompt_injection>`
-//! - Entry tag: `<qa><q>...</q><a>...</a><source>...</source></qa>`
-//! - `<source>` is optional.
+//! xiuxian-qianhuan - Manifestation layer for Xiuxian system.
 
-/// Synapse-Audit calibration primitives for adversarial alignment checks.
+/// Calibration profiles and heuristics for prompt manifestation.
 pub mod calibration;
-/// Configuration types for injection.
+/// Runtime configuration models for manifestation pipelines.
 pub mod config;
-/// Contract types for snapshots and blocks.
+/// Shared contracts for prompt injection and context shaping.
 pub mod contracts;
-/// Individual Q&A entry logic.
+/// Entry points for orchestration-facing APIs.
 pub mod entry;
-/// Error definitions for prompt injection.
+/// Error types for manifestation and injection flows.
 pub mod error;
-/// Orchestration layer for multi-layer prompt assembly.
-pub mod orchestrator;
-/// Persona model and registry for role-mix style injection.
-pub mod persona;
-/// Python bindings for the thin orchestration/persona API surface.
-pub mod python_module;
-/// Tone transmutation traits and implementations.
-pub mod transmuter;
-/// Bounded session-level system prompt injection window.
-pub mod window;
-/// XML parsing and rendering logic.
-pub mod xml;
-
-/// Interface definitions for manifestation and context injection.
+/// Reusable hot-reload runtime primitives.
+pub mod hot_reload;
+/// Public manifestation interface traits.
 pub mod interface;
-/// Core manifestation manager and template engine.
+/// Template manifestation manager and rendering pipeline.
 pub mod manifestation;
+pub mod orchestrator;
+#[path = "persona/mod.rs"]
+pub mod persona;
+pub mod transmuter;
+/// Context-window assembly and truncation utilities.
+pub mod window;
+/// XML helpers used by prompt materialization workflows.
+pub mod xml;
+#[cfg(feature = "zhenfa-router")]
+/// Zhenfa HTTP/RPC router integration for Qianhuan domain capabilities.
+pub mod zhenfa_router;
 
 pub use config::InjectionWindowConfig;
 pub use contracts::{
-    InjectionMode, InjectionOrderStrategy, InjectionPolicy, InjectionSnapshot, PromptContextBlock,
-    PromptContextCategory, PromptContextSource, RoleMixProfile, RoleMixRole,
+    InjectionMode, InjectionPolicy, InjectionSnapshot, PromptContextBlock, PromptContextCategory,
+    PromptContextSource, RoleMixProfile,
 };
 pub use entry::QaEntry;
 pub use error::InjectionError;
-pub use orchestrator::{InjectionLayer, ThousandFacesOrchestrator};
-pub use persona::{PersonaProfile, PersonaRegistry};
+pub use hot_reload::{
+    HotReloadDriver, HotReloadInvocation, HotReloadOutcome, HotReloadRuntime, HotReloadStatus,
+    HotReloadTarget, HotReloadTrigger, HotReloadVersionBackend, InMemoryHotReloadVersionBackend,
+    ValkeyHotReloadVersionBackend, resolve_hot_reload_watch_extensions,
+    resolve_hot_reload_watch_patterns,
+};
+pub use interface::ManifestationInterface;
+pub use manifestation::{
+    ManifestationManager, ManifestationRenderRequest, ManifestationRuntimeContext,
+    ManifestationTemplateTarget, MemoryTemplateRecord, SessionSystemPromptInjectionSnapshot,
+    normalize_session_system_prompt_injection_xml,
+};
+pub use orchestrator::ThousandFacesOrchestrator;
+pub use persona::{MemoryPersonaRecord, PersonaProfile, PersonaProvider, PersonaRegistry};
 pub use transmuter::{MockTransmuter, ToneTransmuter};
 pub use window::SystemPromptInjectionWindow;
 pub use xml::SYSTEM_PROMPT_INJECTION_TAG;
+#[cfg(feature = "zhenfa-router")]
+pub use zhenfa_router::QianhuanZhenfaRouter;
 
-pub use interface::ManifestationInterface;
-pub use manifestation::ManifestationManager;
+/// Mock implementation of `ManifestationInterface` for testing.
+#[derive(Default)]
+pub struct MockManifestation;
+
+impl interface::ManifestationInterface for MockManifestation {
+    fn render_template(
+        &self,
+        _template_name: &str,
+        _data: serde_json::Value,
+    ) -> anyhow::Result<String> {
+        Ok("Mock Manifestation Content".to_string())
+    }
+
+    fn inject_context(&self, state_context: &str) -> String {
+        state_context.to_string()
+    }
+}

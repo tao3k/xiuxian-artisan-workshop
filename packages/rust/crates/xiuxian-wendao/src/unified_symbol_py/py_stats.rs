@@ -1,6 +1,6 @@
 use crate::unified_symbol::UnifiedIndexStats;
-use omni_macros::py_from;
 use pyo3::prelude::*;
+use xiuxian_macros::py_from;
 
 /// Python wrapper for `UnifiedIndexStats`.
 #[pyclass]

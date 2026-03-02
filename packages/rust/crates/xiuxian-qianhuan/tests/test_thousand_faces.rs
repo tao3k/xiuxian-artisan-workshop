@@ -28,7 +28,7 @@ async fn test_end_to_end_persona_switching() {
 
     let snapshot_artisan = orchestrator
         .assemble_snapshot(
-            artisan,
+            &artisan,
             rich_facts_artisan,
             "History: User asked about implementation.",
         )
@@ -55,7 +55,7 @@ async fn test_end_to_end_persona_switching() {
 
     let snapshot_cultivator = orchestrator
         .assemble_snapshot(
-            cultivator,
+            &cultivator,
             rich_facts_cultivator,
             "History: User seeks the Dao of coding.",
         )

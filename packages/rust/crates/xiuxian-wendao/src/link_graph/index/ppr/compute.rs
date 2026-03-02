@@ -24,6 +24,32 @@ pub(super) struct RelatedPprKernelTelemetry {
     pub(super) timed_out: bool,
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct RelatedPprKernelConfig {
+    pub(super) bounded_distance: usize,
+    pub(super) alpha: f64,
+    pub(super) max_iter: usize,
+    pub(super) tol: f64,
+    pub(super) subgraph_mode: super::super::LinkGraphPprSubgraphMode,
+    pub(super) restrict_to_horizon: bool,
+    pub(super) max_partitions: usize,
+    pub(super) deadline: Option<Instant>,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct RelatedPprFinalizeContext<'a> {
+    pub(super) alpha: f64,
+    pub(super) max_iter: usize,
+    pub(super) tol: f64,
+    pub(super) subgraph_mode: super::super::LinkGraphPprSubgraphMode,
+    pub(super) restrict_to_horizon: bool,
+    pub(super) candidate_count: usize,
+    pub(super) candidate_cap: usize,
+    pub(super) candidate_capped: bool,
+    pub(super) time_budget_ms: f64,
+    pub(super) total_start: &'a Instant,
+}
+
 impl LinkGraphIndex {
     pub(in crate::link_graph::index) fn related_ppr_compute(
         &self,
@@ -74,12 +100,7 @@ impl LinkGraphIndex {
         }
         let candidate_count = Self::candidate_count_from_horizon(&horizon_distances, &seed_ids);
         // Time budget is applied to the kernel/orchestration phase, not precompute setup.
-        let deadline = Some(Instant::now() + budget_duration);
-
-        let telemetry = run_related_ppr_orchestration(
-            self,
-            seeds,
-            &graph_nodes,
+        let kernel_config = RelatedPprKernelConfig {
             bounded_distance,
             alpha,
             max_iter,
@@ -87,14 +108,12 @@ impl LinkGraphIndex {
             subgraph_mode,
             restrict_to_horizon,
             max_partitions,
-            deadline,
-        )?;
+            deadline: Some(Instant::now() + budget_duration),
+        };
 
-        Some(finalize_related_ppr_result(
-            self,
-            &seed_ids,
-            horizon_distances,
-            &graph_nodes,
+        let telemetry = run_related_ppr_orchestration(self, seeds, &graph_nodes, &kernel_config)?;
+
+        let finalize_context = RelatedPprFinalizeContext {
             alpha,
             max_iter,
             tol,
@@ -104,7 +123,15 @@ impl LinkGraphIndex {
             candidate_cap,
             candidate_capped,
             time_budget_ms,
-            &total_start,
+            total_start: &total_start,
+        };
+
+        Some(finalize_related_ppr_result(
+            self,
+            &seed_ids,
+            horizon_distances,
+            &graph_nodes,
+            &finalize_context,
             &telemetry,
         ))
     }

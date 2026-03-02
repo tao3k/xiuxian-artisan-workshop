@@ -61,47 +61,47 @@ pub(super) fn build_slash_command_policy(
     add_slash_rule(
         &mut rules,
         SLASH_SCOPE_SESSION_STATUS,
-        slash_policy.session_status_allow_from,
+        slash_policy.session_status,
         &admin_users,
     );
     add_slash_rule(
         &mut rules,
         SLASH_SCOPE_SESSION_BUDGET,
-        slash_policy.session_budget_allow_from,
+        slash_policy.session_budget,
         &admin_users,
     );
     add_slash_rule(
         &mut rules,
         SLASH_SCOPE_SESSION_MEMORY,
-        slash_policy.session_memory_allow_from,
+        slash_policy.session_memory,
         &admin_users,
     );
     add_slash_rule(
         &mut rules,
         SLASH_SCOPE_SESSION_FEEDBACK,
-        slash_policy.session_feedback_allow_from,
+        slash_policy.session_feedback,
         &admin_users,
     );
     add_slash_rule(
         &mut rules,
         SLASH_SCOPE_JOB_STATUS,
-        slash_policy.job_status_allow_from,
+        slash_policy.job_status,
         &admin_users,
     );
     add_slash_rule(
         &mut rules,
         SLASH_SCOPE_JOBS_SUMMARY,
-        slash_policy.jobs_summary_allow_from,
+        slash_policy.jobs_summary,
         &admin_users,
     );
     add_slash_rule(
         &mut rules,
         SLASH_SCOPE_BACKGROUND_SUBMIT,
-        slash_policy.background_submit_allow_from,
+        slash_policy.background_submit,
         &admin_users,
     );
 
-    ControlCommandPolicy::new(admin_users, slash_policy.slash_command_allow_from, rules)
+    ControlCommandPolicy::new(admin_users, slash_policy.global, rules)
 }
 
 fn normalize_optional_allowed_user_entries(entries: Option<Vec<String>>) -> Option<Vec<String>> {
@@ -110,30 +110,14 @@ fn normalize_optional_allowed_user_entries(entries: Option<Vec<String>>) -> Opti
 
 fn normalize_slash_command_policy(policy: DiscordSlashCommandPolicy) -> DiscordSlashCommandPolicy {
     DiscordSlashCommandPolicy {
-        slash_command_allow_from: normalize_optional_allowed_user_entries(
-            policy.slash_command_allow_from,
-        ),
-        session_status_allow_from: normalize_optional_allowed_user_entries(
-            policy.session_status_allow_from,
-        ),
-        session_budget_allow_from: normalize_optional_allowed_user_entries(
-            policy.session_budget_allow_from,
-        ),
-        session_memory_allow_from: normalize_optional_allowed_user_entries(
-            policy.session_memory_allow_from,
-        ),
-        session_feedback_allow_from: normalize_optional_allowed_user_entries(
-            policy.session_feedback_allow_from,
-        ),
-        job_status_allow_from: normalize_optional_allowed_user_entries(
-            policy.job_status_allow_from,
-        ),
-        jobs_summary_allow_from: normalize_optional_allowed_user_entries(
-            policy.jobs_summary_allow_from,
-        ),
-        background_submit_allow_from: normalize_optional_allowed_user_entries(
-            policy.background_submit_allow_from,
-        ),
+        global: normalize_optional_allowed_user_entries(policy.global),
+        session_status: normalize_optional_allowed_user_entries(policy.session_status),
+        session_budget: normalize_optional_allowed_user_entries(policy.session_budget),
+        session_memory: normalize_optional_allowed_user_entries(policy.session_memory),
+        session_feedback: normalize_optional_allowed_user_entries(policy.session_feedback),
+        job_status: normalize_optional_allowed_user_entries(policy.job_status),
+        jobs_summary: normalize_optional_allowed_user_entries(policy.jobs_summary),
+        background_submit: normalize_optional_allowed_user_entries(policy.background_submit),
     }
 }
 

@@ -78,11 +78,10 @@ pub(super) fn format_memory_runtime_status_lines(
     ]
 }
 
-#[allow(clippy::needless_pass_by_value)]
 pub(super) fn format_memory_runtime_status_json(
-    status: crate::agent::MemoryRuntimeStatusSnapshot,
+    status: &crate::agent::MemoryRuntimeStatusSnapshot,
 ) -> serde_json::Value {
-    let backend_ready = memory_backend_ready(&status);
+    let backend_ready = memory_backend_ready(status);
     json!({
         "memory_enabled": status.enabled,
         "configured_backend": status.configured_backend,
@@ -148,9 +147,8 @@ pub(super) fn format_downstream_admission_status_lines(
     ]
 }
 
-#[allow(clippy::needless_pass_by_value)]
 pub(super) fn format_downstream_admission_status_json(
-    status: DownstreamAdmissionRuntimeSnapshot,
+    status: &DownstreamAdmissionRuntimeSnapshot,
 ) -> serde_json::Value {
     json!({
         "enabled": status.enabled,
@@ -168,7 +166,7 @@ pub(super) fn format_downstream_admission_status_json(
 }
 
 pub(super) fn format_downstream_admission_compact_line(
-    status: DownstreamAdmissionRuntimeSnapshot,
+    status: &DownstreamAdmissionRuntimeSnapshot,
 ) -> String {
     format!(
         "- `admission(enabled={},llm_threshold_pct={},embedding_threshold_pct={},total={},rejected={},reject_rate_pct={},reject_llm={},reject_embedding={})`",

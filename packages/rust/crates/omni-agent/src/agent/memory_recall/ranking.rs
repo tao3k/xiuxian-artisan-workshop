@@ -1,3 +1,4 @@
+use num_traits::ToPrimitive;
 use omni_memory::Episode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -58,12 +59,15 @@ fn recency_beta(plan: &MemoryRecallPlan) -> f32 {
     }
 }
 
-#[allow(clippy::cast_precision_loss)]
 fn episode_recency_score(episode: &Episode, now_unix_ms: i64, half_life_hours: f32) -> f32 {
     if !half_life_hours.is_finite() || half_life_hours <= 0.0 {
         return 1.0;
     }
-    let age_ms = now_unix_ms.saturating_sub(episode.created_at).max(0) as f32;
+    let age_ms = now_unix_ms
+        .saturating_sub(episode.created_at)
+        .max(0)
+        .to_f32()
+        .unwrap_or(f32::MAX);
     let age_hours = age_ms / (1000.0 * 60.0 * 60.0);
     let exponent = -(std::f32::consts::LN_2 * age_hours / half_life_hours);
     exponent.exp().clamp(0.0, 1.0)

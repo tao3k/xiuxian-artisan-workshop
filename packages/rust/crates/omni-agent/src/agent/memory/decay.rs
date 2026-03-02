@@ -16,7 +16,3 @@ pub(in crate::agent) fn sanitize_decay_factor(raw: f32) -> f32 {
     }
     raw.clamp(0.5, 0.9999)
 }
-
-#[cfg(test)]
-#[path = "../../../tests/agent/memory/decay.rs"]
-mod tests;

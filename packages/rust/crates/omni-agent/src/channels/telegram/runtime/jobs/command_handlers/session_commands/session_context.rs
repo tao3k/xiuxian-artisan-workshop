@@ -135,8 +135,8 @@ pub(in crate::channels::telegram::runtime::jobs) async fn try_handle_session_con
         EVENT_TELEGRAM_COMMAND_SESSION_BUDGET_REPLIED
     };
     let response = match agent.inspect_context_budget_snapshot(session_id).await {
-        Some(snapshot) if format.is_json() => format_context_budget_snapshot_json(snapshot),
-        Some(snapshot) => format_context_budget_snapshot(snapshot),
+        Some(snapshot) if format.is_json() => format_context_budget_snapshot_json(&snapshot),
+        Some(snapshot) => format_context_budget_snapshot(&snapshot),
         None if format.is_json() => format_context_budget_not_found_json(),
         None => "No context budget snapshot found for this session yet.\nRun at least one normal turn first (non-command message).".to_string(),
     };
@@ -185,15 +185,15 @@ pub(in crate::channels::telegram::runtime::jobs) async fn try_handle_session_con
         Some(snapshot) if format.is_json() => format_memory_recall_snapshot_json(
             snapshot,
             metrics,
-            runtime_status,
+            &runtime_status,
             admission_status,
             session_id,
         ),
         Some(snapshot) if channel.name() == "telegram" => format_memory_recall_snapshot_telegram(
-            snapshot,
-            metrics,
-            runtime_status,
-            admission_status,
+            &snapshot,
+            &metrics,
+            &runtime_status,
+            &admission_status,
             session_id,
         ),
         Some(snapshot) => format_memory_recall_snapshot(
@@ -205,12 +205,12 @@ pub(in crate::channels::telegram::runtime::jobs) async fn try_handle_session_con
         ),
         None if format.is_json() => format_memory_recall_not_found_json(
             metrics,
-            runtime_status,
+            &runtime_status,
             admission_status,
             session_id,
         ),
         None if channel.name() == "telegram" => {
-            format_memory_recall_not_found_telegram(runtime_status, admission_status, session_id)
+            format_memory_recall_not_found_telegram(&runtime_status, &admission_status, session_id)
         }
         None => format_memory_recall_not_found(runtime_status, admission_status, session_id),
     };

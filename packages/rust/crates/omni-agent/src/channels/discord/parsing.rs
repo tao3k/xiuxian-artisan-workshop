@@ -5,7 +5,7 @@ use super::serenity_payload::parse_discord_ingress_payload;
 
 impl DiscordChannel {
     fn is_allowed_identity(&self, identity: &str) -> bool {
-        let normalized = self.normalize_identity(identity);
+        let normalized = Self::normalize_identity(identity);
         self.allowed_users
             .iter()
             .any(|entry| entry == "*" || entry == &normalized)
@@ -33,14 +33,13 @@ impl DiscordChannel {
     }
 
     fn build_acl_identities(
-        &self,
         author_id: &str,
         username: Option<&str>,
         author_role_ids: &[String],
     ) -> Vec<String> {
-        let mut identities = vec![self.normalize_identity(author_id)];
+        let mut identities = vec![Self::normalize_identity(author_id)];
         if let Some(name) = username {
-            let normalized_name = self.normalize_identity(name);
+            let normalized_name = Self::normalize_identity(name);
             if !normalized_name.is_empty() {
                 identities.push(normalized_name);
             }
@@ -48,7 +47,7 @@ impl DiscordChannel {
         identities.extend(
             author_role_ids
                 .iter()
-                .map(|role_id| self.normalize_identity(&format!("role:{role_id}"))),
+                .map(|role_id| Self::normalize_identity(&format!("role:{role_id}"))),
         );
 
         let mut deduped = Vec::new();
@@ -83,7 +82,7 @@ impl DiscordChannel {
         let author_id = payload.author_id.to_string();
         let username = payload.author_username.as_deref();
         let author_role_ids = payload.author_role_ids;
-        let acl_identities = self.build_acl_identities(&author_id, username, &author_role_ids);
+        let acl_identities = Self::build_acl_identities(&author_id, username, &author_role_ids);
 
         let allowed_by_guild = guild_id
             .as_deref()
@@ -103,7 +102,7 @@ impl DiscordChannel {
         }
 
         let scope = guild_id.as_deref().unwrap_or("dm");
-        let sender = self.normalize_identity(&author_id);
+        let sender = Self::normalize_identity(&author_id);
         let session_key = self.build_session_key(scope, &channel_id, &sender);
         self.cache_sender_acl_identities(&sender, &channel_id, acl_identities);
 

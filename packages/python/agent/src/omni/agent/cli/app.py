@@ -20,6 +20,7 @@ from typing import Any
 import typer
 
 from omni.agent.cli.load_requirements import register_requirements
+from omni.agent.runtime.decommission import assert_rust_runtime_or_raise
 from omni.foundation.config.dirs import PRJ_DIRS, PRJ_RUNTIME
 from omni.foundation.config.logging import configure_logging
 from omni.foundation.config.settings import get_settings
@@ -149,7 +150,6 @@ def version():
     # Key dependencies
     omni_core_version = _get_package_version("omni-core")
     omni_mcp_version = _get_package_version("omni-mcp")
-    langgraph_version = _get_package_version("langgraph")
     lance_version = _get_package_version("lance")
 
     typer.echo("=" * 60)
@@ -163,7 +163,6 @@ def version():
     typer.echo("  Dependencies:")
     typer.echo(f"    omni-core:     {omni_core_version}")
     typer.echo(f"    omni-mcp:      {omni_mcp_version}")
-    typer.echo(f"    langgraph:     {langgraph_version}")
     typer.echo(f"    lance:         {lance_version}")
     typer.echo("=" * 60)
 
@@ -456,6 +455,7 @@ def entry_point():
 
     # Bootstrap configuration (logging) BEFORE any command runs
     _bootstrap_configuration(conf, verbose)
+    assert_rust_runtime_or_raise("omni.cli.entry_point")
 
     top_command = _extract_top_level_command(argv)
 

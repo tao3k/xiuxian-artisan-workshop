@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Scripts Directory"
+---
+
 # Scripts Directory
 
 This directory contains utility scripts for the Omni-Dev Fusion project.

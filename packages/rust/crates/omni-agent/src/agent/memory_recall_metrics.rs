@@ -1,38 +1,67 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use num_traits::ToPrimitive;
+
 use super::Agent;
 use super::memory_recall_state::SessionMemoryRecallDecision;
 
+/// Histogram bucket counters for memory-recall pipeline latency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct MemoryRecallLatencyBucketsSnapshot {
+    /// Count of pipelines completed in <= 10ms.
     pub le_10ms: u64,
+    /// Count of pipelines completed in <= 25ms.
     pub le_25ms: u64,
+    /// Count of pipelines completed in <= 50ms.
     pub le_50ms: u64,
+    /// Count of pipelines completed in <= 100ms.
     pub le_100ms: u64,
+    /// Count of pipelines completed in <= 250ms.
     pub le_250ms: u64,
+    /// Count of pipelines completed in <= 500ms.
     pub le_500ms: u64,
+    /// Count of pipelines completed in > 500ms.
     pub gt_500ms: u64,
 }
 
+/// Memory-recall metrics snapshot exposed for observability.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MemoryRecallMetricsSnapshot {
+    /// Capture timestamp in Unix milliseconds.
     pub captured_at_unix_ms: u64,
+    /// Total number of recall plans attempted.
     pub planned_total: u64,
+    /// Total number of injected recall outcomes.
     pub injected_total: u64,
+    /// Total number of skipped recall outcomes.
     pub skipped_total: u64,
+    /// Total number of completed plans (`injected + skipped`).
     pub completed_total: u64,
+    /// Total number of selected candidate episodes.
     pub selected_total: u64,
+    /// Total number of injected candidate episodes.
     pub injected_items_total: u64,
+    /// Total number of injected context characters.
     pub context_chars_injected_total: u64,
+    /// Total pipeline duration across completed plans in milliseconds.
     pub pipeline_duration_ms_total: u64,
+    /// Average pipeline duration in milliseconds.
     pub avg_pipeline_duration_ms: f32,
+    /// Average selected candidates per completed plan.
     pub avg_selected_per_completed: f32,
+    /// Average injected candidates per injected plan.
     pub avg_injected_per_injected: f32,
+    /// Injected ratio over completed plans.
     pub injected_rate: f32,
+    /// Latency histogram buckets.
     pub latency_buckets: MemoryRecallLatencyBucketsSnapshot,
+    /// Total successful embedding calls used by recall.
     pub embedding_success_total: u64,
+    /// Total embedding timeout events.
     pub embedding_timeout_total: u64,
+    /// Total embedding cooldown reject events.
     pub embedding_cooldown_reject_total: u64,
+    /// Total embedding unavailable events.
     pub embedding_unavailable_total: u64,
 }
 
@@ -150,12 +179,13 @@ impl MemoryRecallMetricsState {
     }
 }
 
-#[allow(clippy::cast_precision_loss)]
 fn ratio_as_f32(numerator: u64, denominator: u64) -> f32 {
     if denominator == 0 {
         0.0
     } else {
-        numerator as f32 / denominator as f32
+        let numerator = numerator.to_f32().unwrap_or(f32::MAX);
+        let denominator = denominator.to_f32().unwrap_or(f32::MAX);
+        numerator / denominator
     }
 }
 
@@ -211,12 +241,9 @@ impl Agent {
         guard.observe_embedding_unavailable();
     }
 
+    /// Return current memory-recall metrics snapshot.
     pub async fn inspect_memory_recall_metrics(&self) -> MemoryRecallMetricsSnapshot {
         let guard = self.memory_recall_metrics.read().await;
         (*guard).snapshot()
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/agent/memory_recall_metrics.rs"]
-mod tests;

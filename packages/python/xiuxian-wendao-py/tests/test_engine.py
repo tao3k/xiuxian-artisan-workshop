@@ -80,10 +80,21 @@ class _FakeRustEngine:
         full_rebuild_threshold: int | None,
     ):
         changed_paths = [] if payload is None else [p for p in json.loads(payload) if p]
+        threshold = max(1, int(full_rebuild_threshold or 256))
+        changed_count = len(changed_paths)
         strategy = "full" if force_full else ("noop" if not changed_paths else "delta")
+        reason = (
+            "force_full"
+            if force_full
+            else (
+                "threshold_exceeded_incremental"
+                if changed_count >= threshold
+                else ("noop" if not changed_paths else "delta_requested")
+            )
+        )
         return {
             "mode": strategy,
-            "changed_count": len(changed_paths),
+            "changed_count": changed_count,
             "force_full": bool(force_full),
             "fallback": False,
             "events": [
@@ -92,6 +103,7 @@ class _FakeRustEngine:
                     "duration_ms": 0.0,
                     "extra": {
                         "strategy": strategy,
+                        "reason": reason,
                         "threshold": full_rebuild_threshold,
                     },
                 }

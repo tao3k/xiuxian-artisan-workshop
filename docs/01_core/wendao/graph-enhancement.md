@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Fusion Knowledge Architecture"
 category: "architecture"
 tags:
@@ -6,6 +7,8 @@ tags:
   - link
 saliency_base: 7.0
 decay_rate: 0.03
+metadata:
+  title: "Fusion Knowledge Architecture"
 ---
 
 # Fusion Knowledge Architecture
@@ -212,7 +215,7 @@ eliminating redundant Rust calls and ensuring all bridges agree on query classif
 | Capability                                                 | Module                                                   | Status |
 | ---------------------------------------------------------- | -------------------------------------------------------- | ------ |
 | Extract typed entity refs from `[[Entity#type]]`           | `link_graph_refs.rs`                                     | Done   |
-| Parse YAML frontmatter                                     | `enhancer.rs`                                            | Done   |
+| Parse TOML frontmatter                                     | `enhancer.rs`                                            | Done   |
 | Infer relations (DOCUMENTED_IN, CONTAINS, RELATED_TO)      | `enhancer.rs`                                            | Done   |
 | Batch enhance notes (Rayon-parallelized)                   | `enhancer.rs`                                            | Done   |
 | Entity/Relation graph with multi-hop search                | `graph/query.rs`                                         | Done   |

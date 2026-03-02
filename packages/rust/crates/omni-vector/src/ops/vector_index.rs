@@ -1,6 +1,6 @@
 //! Vector index operations: HNSW (IVF+HNSW) and optimal type selection.
 //!
-//! Phase 3 of the LanceDB 2.0 roadmap: high-recall HNSW for smaller tables,
+//! Phase 3 of the `LanceDB` 2.0 roadmap: high-recall HNSW for smaller tables,
 //! and automatic choice of vector index by row count.
 
 use std::time::Instant;
@@ -88,7 +88,7 @@ impl VectorStore {
         })
     }
 
-    /// Create the best vector index for the table size (HNSW for small, IVF_FLAT for larger).
+    /// Create the best vector index for the table size (HNSW for small, `IVF_FLAT` for larger).
     ///
     /// # Errors
     ///

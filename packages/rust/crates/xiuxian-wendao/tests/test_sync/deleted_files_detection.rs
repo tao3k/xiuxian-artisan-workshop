@@ -1,29 +1,10 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
-fn test_deleted_files_detection() {
+fn test_deleted_files_detection() -> Result<(), Box<dyn std::error::Error>> {
     use xiuxian_wendao::{SyncEngine, SyncManifest};
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new()?;
     let manifest_path = temp_dir.path().join("manifest.json");
     let engine = SyncEngine::new(temp_dir.path(), &manifest_path);
 
@@ -41,7 +22,7 @@ fn test_deleted_files_detection() {
     );
 
     // Create file for still_exists
-    fs::write(temp_dir.path().join("still_exists.py"), "exists").unwrap();
+    fs::write(temp_dir.path().join("still_exists.py"), "exists")?;
 
     let files = engine.discover_files();
     let diff = engine.compute_diff(&old_manifest, &files);
@@ -50,12 +31,13 @@ fn test_deleted_files_detection() {
     assert!(
         diff.deleted
             .iter()
-            .any(|p| p.file_name().map(|n| n == "deleted1.py").unwrap_or(false))
+            .any(|p| p.file_name().is_some_and(|n| n == "deleted1.py"))
     );
     // deleted2.rs should be in deleted
     assert!(
         diff.deleted
             .iter()
-            .any(|p| p.file_name().map(|n| n == "deleted2.rs").unwrap_or(false))
+            .any(|p| p.file_name().is_some_and(|n| n == "deleted2.rs"))
     );
+    Ok(())
 }

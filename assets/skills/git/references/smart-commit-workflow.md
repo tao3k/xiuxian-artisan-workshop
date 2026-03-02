@@ -1,4 +1,5 @@
 ---
+type: knowledge
 metadata:
   for_tools: git.smart_commit
   title: Smart Commit Workflow
@@ -266,7 +267,7 @@ class CommitState:
     scope_warning: Optional[str]  # Scope validation warning for LLM
 ```
 
-### LangGraph Flow
+### Workflow Flow
 
 ```
 start_workflow() → [prepare] → (interrupt before execute)
@@ -281,7 +282,7 @@ reject_workflow() → END
 | ---------------------------------- | ------------------------------------- |
 | `scripts/commit_state.py`          | State schema (TypedDict)              |
 | `scripts/prepare.py`               | `stage_and_scan()` function           |
-| `scripts/smart_workflow.py`        | LangGraph workflow with retry logic   |
+| `scripts/smart_workflow.py`        | Workflow runtime with retry logic     |
 | `scripts/rendering.py`             | Commit message template rendering     |
 | `templates/review_card.j2`         | Review card template for LLM analysis |
 | `templates/commit_message.j2`      | Final commit message template         |

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Spec: Concept Documentation Template System"
+---
+
 # Spec: Concept Documentation Template System
 
 > **Status**: Approved

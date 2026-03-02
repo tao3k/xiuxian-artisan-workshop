@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import os
-from contextlib import suppress
 from typing import Annotated
 
 import typer
 from rich.console import Console
 
-from omni.agent.workflows.run_entry import execute_task_with_session
 from omni.foundation.config.settings import get_setting
 from omni.foundation.utils.common import setup_import_paths
 
@@ -33,58 +31,20 @@ def _exec_omni_agent(args: list[str]) -> None:
 
 
 async def _webhook_loop(port: int, host: str = "127.0.0.1") -> None:
-    """Run HTTP webhook server: one kernel, POST /message with session_id + message."""
-    import uvicorn
-
-    from omni.agent.gateway import create_webhook_app
-    from omni.core.kernel.engine import get_kernel
-
-    kernel = get_kernel()
-    await kernel.initialize()
-    await kernel.start()
-    app = create_webhook_app(kernel=kernel, enable_cors=True)
-    config = uvicorn.Config(app, host=host, port=port, log_level="info")
-    server = uvicorn.Server(config)
-    await server.serve()
+    """Legacy shim removed. Gateway dispatch is Rust-only."""
+    del port, host
+    raise RuntimeError(
+        "Python webhook loop is decommissioned. "
+        "Use Rust gateway: `omni-agent gateway --bind <host:port>`."
+    )
 
 
 async def _stdio_loop(session_id: str) -> None:
-    """Run message loop: read from stdin, execute_task_with_session, print response. One kernel for all turns."""
-    from omni.core.kernel.engine import get_kernel
-
-    # Keep stdio legacy helper minimal; runtime entrypoints are Rust-only.
-    with suppress(Exception):
-        from omni.agent.cli.mcp_embed import detect_mcp_port
-
-        await detect_mcp_port()
-
-    kernel = get_kernel()
-    await kernel.initialize()
-    await kernel.start()
-    try:
-        while True:
-            try:
-                line = input("> ").strip()
-            except EOFError:
-                break
-            if line.lower() in ("exit", "quit", "q"):
-                console.print("[yellow]Goodbye.[/yellow]")
-                break
-            if not line:
-                continue
-            result = await execute_task_with_session(
-                session_id,
-                line,
-                kernel=kernel,
-                max_steps=20,
-                verbose=False,
-                use_memory=True,
-            )
-            out = result.get("output", "")
-            if out:
-                console.print(out)
-    finally:
-        await kernel.shutdown()
+    """Legacy shim removed. REPL dispatch is Rust-only."""
+    del session_id
+    raise RuntimeError(
+        "Python stdio loop is decommissioned. Use Rust REPL: `omni-agent repl --session-id <id>`."
+    )
 
 
 def register_gateway_command(parent_app: typer.Typer) -> None:

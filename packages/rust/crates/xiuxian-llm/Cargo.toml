@@ -7,6 +7,11 @@ authors = ["CyberXiuXian Artisan Studio"]
 license = "Apache-2.0"
 publish = false
 
+[features]
+default = []
+mistral-accel-metal = ["mistralrs/metal"]
+mistral-accel-cuda = ["mistralrs/cuda"]
+
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -19,7 +24,18 @@ redis = { workspace = true, features = ["tokio-comp"] }
 sha2 = { workspace = true }
 hex = { workspace = true }
 rmcp = { workspace = true }
+num-traits = "0.2"
 xiuxian-mcp = { path = "../xiuxian-mcp" }
+xiuxian-macros = { path = "../xiuxian-macros" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+mistralrs = { version = "0.7.0", features = ["metal"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+mistralrs = { version = "0.7.0", features = ["cuda"] }
+
+[target.'cfg(not(any(target_os = "macos", target_os = "linux")))'.dependencies]
+mistralrs = { version = "0.7.0" }
 
 [dev-dependencies]
 axum = { workspace = true }

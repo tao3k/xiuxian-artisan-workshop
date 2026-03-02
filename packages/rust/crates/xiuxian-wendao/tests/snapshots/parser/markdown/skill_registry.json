@@ -1,0 +1,43 @@
+{
+  "skill_name": "agenda-management",
+  "links_by_id": {
+    "agenda_classifier": [
+      "wendao://skills/agenda-management/references/prompts/classifier.md"
+    ],
+    "agenda_flow": [
+      "wendao://skills/agenda-management/references/agenda_flow.toml"
+    ],
+    "agenda_validation_genesis_rules": [
+      "wendao://skills/agenda-management/references/prompts/agenda_validation_genesis_rules.md"
+    ],
+    "critique_agenda.j2": [
+      "wendao://skills/agenda-management/references/critique_agenda.j2"
+    ],
+    "draft_agenda.j2": [
+      "wendao://skills/agenda-management/references/draft_agenda.j2"
+    ],
+    "final_agenda.j2": [
+      "wendao://skills/agenda-management/references/final_agenda.j2"
+    ],
+    "rules": ["wendao://skills/agenda-management/references/rules.md"],
+    "steward": ["wendao://skills/agenda-management/references/steward.md"],
+    "teacher": ["wendao://skills/agenda-management/references/teacher.md"]
+  },
+  "templates": [
+    "wendao://skills/agenda-management/references/critique_agenda.j2",
+    "wendao://skills/agenda-management/references/draft_agenda.j2",
+    "wendao://skills/agenda-management/references/final_agenda.j2"
+  ],
+  "personas": [
+    "wendao://skills/agenda-management/references/steward.md",
+    "wendao://skills/agenda-management/references/teacher.md"
+  ],
+  "knowledge": [
+    "wendao://skills/agenda-management/references/prompts/agenda_validation_genesis_rules.md",
+    "wendao://skills/agenda-management/references/prompts/classifier.md",
+    "wendao://skills/agenda-management/references/rules.md"
+  ],
+  "qianji_flows": [
+    "wendao://skills/agenda-management/references/agenda_flow.toml"
+  ]
+}

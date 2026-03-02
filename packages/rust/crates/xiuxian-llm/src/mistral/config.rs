@@ -1,7 +1,9 @@
 //! Mistral server runtime configuration.
 
+use xiuxian_macros::env_non_empty;
+
 const DEFAULT_COMMAND: &str = "mistralrs-server";
-const DEFAULT_BASE_URL: &str = "http://127.0.0.1:11500";
+const DEFAULT_BASE_URL: &str = "http://localhost:11500";
 const DEFAULT_STARTUP_TIMEOUT_SECS: u64 = 45;
 const DEFAULT_PROBE_TIMEOUT_MS: u64 = 1_500;
 const DEFAULT_PROBE_INTERVAL_MS: u64 = 250;
@@ -49,13 +51,13 @@ impl MistralServerConfig {
     #[must_use]
     pub fn from_env() -> Self {
         let mut config = Self::default();
-        if let Some(command) = non_empty_env("XIUXIAN_MISTRAL_SERVER_COMMAND") {
+        if let Some(command) = env_non_empty!("XIUXIAN_MISTRAL_SERVER_COMMAND") {
             config.command = command;
         }
-        if let Some(raw_args) = non_empty_env("XIUXIAN_MISTRAL_SERVER_ARGS") {
+        if let Some(raw_args) = env_non_empty!("XIUXIAN_MISTRAL_SERVER_ARGS") {
             config.args = split_shell_like_args(&raw_args);
         }
-        if let Some(base_url) = non_empty_env("XIUXIAN_MISTRAL_SERVER_BASE_URL") {
+        if let Some(base_url) = env_non_empty!("XIUXIAN_MISTRAL_SERVER_BASE_URL") {
             config.base_url = base_url;
         }
         if let Some(timeout_secs) = parse_env_u64("XIUXIAN_MISTRAL_SERVER_STARTUP_TIMEOUT_SECS") {
@@ -72,14 +74,7 @@ impl MistralServerConfig {
 }
 
 fn parse_env_u64(name: &str) -> Option<u64> {
-    non_empty_env(name).and_then(|raw| raw.parse::<u64>().ok())
-}
-
-fn non_empty_env(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|raw| raw.trim().to_string())
-        .filter(|raw| !raw.is_empty())
+    env_non_empty!(name).and_then(|raw| raw.parse::<u64>().ok())
 }
 
 fn split_shell_like_args(raw: &str) -> Vec<String> {

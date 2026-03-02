@@ -1,41 +1,3 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
-
 //! MCP discover read-through cache integration tests.
 
 use std::sync::Arc;
@@ -147,9 +109,10 @@ async fn spawn_mock_server_with_discover_counter(
             },
         );
     let router = Router::new().nest_service("/sse", service);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind mock mcp listener");
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => listener,
+        Err(error) => panic!("bind mock mcp listener: {error}"),
+    };
     (
         tokio::spawn(async move {
             let _ = axum::serve(listener, router).await;
@@ -191,16 +154,20 @@ fn p95(values: &[f64]) -> f64 {
     }
     let mut sorted = values.to_vec();
     sorted.sort_by(f64::total_cmp);
-    let rank = ((sorted.len() as f64) * 0.95).ceil() as usize;
+    let rank = sorted.len().saturating_mul(95).div_ceil(100);
     let index = rank.saturating_sub(1).min(sorted.len().saturating_sub(1));
     sorted[index]
 }
 
 async fn reserve_local_addr() -> std::net::SocketAddr {
-    let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+    let probe = match tokio::net::TcpListener::bind("127.0.0.1:0").await {
+        Ok(listener) => listener,
+        Err(error) => panic!("reserve local addr: {error}"),
+    };
+    let addr = match probe.local_addr() {
+        Ok(addr) => addr,
+        Err(error) => panic!("read reserved local addr: {error}"),
+    };
     drop(probe);
     addr
 }
@@ -210,8 +177,7 @@ async fn reserve_local_addr() -> std::net::SocketAddr {
 async fn discover_calls_use_valkey_read_through_cache_when_configured() -> Result<()> {
     let has_valkey_url = std::env::var("VALKEY_URL")
         .ok()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false);
+        .is_some_and(|value| !value.trim().is_empty());
     if !has_valkey_url {
         eprintln!("skip: set VALKEY_URL for live cache test");
         return Ok(());
@@ -220,9 +186,11 @@ async fn discover_calls_use_valkey_read_through_cache_when_configured() -> Resul
     let addr = reserve_local_addr().await;
     let (handle, discover_calls_total) = spawn_mock_server_with_discover_counter(addr).await;
     let url = format!("http://{addr}/sse");
-    let pool = connect_pool(&url, reconnect_test_config())
-        .await
-        .expect("connect pool");
+    let pool = connect_pool(&url, reconnect_test_config()).await;
+    let pool = match pool {
+        Ok(pool) => pool,
+        Err(error) => panic!("connect pool: {error}"),
+    };
 
     let Some(initial_stats) = pool.discover_cache_stats_snapshot() else {
         handle.abort();
@@ -248,8 +216,11 @@ async fn discover_calls_use_valkey_read_through_cache_when_configured() -> Resul
         let miss_started = Instant::now();
         let first = pool
             .call_tool("skill.discover".to_string(), Some(args_miss))
-            .await
-            .expect("first discover call");
+            .await;
+        let first = match first {
+            Ok(first) => first,
+            Err(error) => panic!("first discover call: {error}"),
+        };
         miss_latencies_ms.push(miss_started.elapsed().as_secs_f64() * 1000.0);
         assert_ne!(first.is_error, Some(true));
 
@@ -260,8 +231,11 @@ async fn discover_calls_use_valkey_read_through_cache_when_configured() -> Resul
         let hit_started = Instant::now();
         let second = pool
             .call_tool("skill.discover".to_string(), Some(args_hit))
-            .await
-            .expect("second discover call");
+            .await;
+        let second = match second {
+            Ok(second) => second,
+            Err(error) => panic!("second discover call: {error}"),
+        };
         hit_latencies_ms.push(hit_started.elapsed().as_secs_f64() * 1000.0);
         assert_ne!(second.is_error, Some(true));
     }
@@ -283,14 +257,19 @@ async fn discover_calls_use_valkey_read_through_cache_when_configured() -> Resul
     );
 
     let iterations_u64 = iterations as u64;
-    let stats = pool
-        .discover_cache_stats_snapshot()
-        .expect("discover cache stats snapshot");
+    let stats = pool.discover_cache_stats_snapshot();
+    let Some(stats) = stats else {
+        panic!("discover cache stats snapshot");
+    };
     assert_eq!(stats.requests_total, iterations_u64 * 2);
     assert_eq!(stats.cache_hits, iterations_u64);
     assert_eq!(stats.cache_misses, iterations_u64);
     assert_eq!(stats.cache_writes, iterations_u64);
-    assert_eq!(stats.hit_rate_pct, 50.0);
+    assert!(
+        (stats.hit_rate_pct - 50.0).abs() <= 1e-6,
+        "expected hit rate 50.0, got {}",
+        stats.hit_rate_pct
+    );
 
     handle.abort();
     let _ = handle.await;

@@ -33,8 +33,8 @@ pub(in super::super) async fn handle_session_budget(
         EVENT_DISCORD_COMMAND_SESSION_BUDGET_REPLIED
     };
     let response = match agent.inspect_context_budget_snapshot(session_id).await {
-        Some(snapshot) if format.is_json() => format_context_budget_snapshot_json(snapshot),
-        Some(snapshot) => format_context_budget_snapshot(snapshot),
+        Some(snapshot) if format.is_json() => format_context_budget_snapshot_json(&snapshot),
+        Some(snapshot) => format_context_budget_snapshot(&snapshot),
         None if format.is_json() => format_context_budget_not_found_json(),
         None => {
             "No context budget snapshot found for this session yet.\nRun at least one normal turn first (non-command message)."

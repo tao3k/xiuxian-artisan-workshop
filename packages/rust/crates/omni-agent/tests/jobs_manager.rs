@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Job manager lifecycle and health-classification tests.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -108,13 +72,19 @@ async fn background_job_succeeds_and_updates_status() {
             "alice".to_string(),
             "research rust".to_string(),
         )
-        .await
-        .expect("submit should succeed");
+        .await;
+    let job_id = match job_id {
+        Ok(job_id) => job_id,
+        Err(error) => panic!("submit should succeed: {error}"),
+    };
 
-    let completion = tokio::time::timeout(Duration::from_secs(2), completion_rx.recv())
-        .await
-        .expect("completion wait should not time out")
-        .expect("completion should exist");
+    let completion_result =
+        tokio::time::timeout(Duration::from_secs(2), completion_rx.recv()).await;
+    let completion = match completion_result {
+        Ok(Some(completion)) => completion,
+        Ok(None) => panic!("completion should exist"),
+        Err(error) => panic!("completion wait should not time out: {error}"),
+    };
 
     assert_eq!(completion.job_id, job_id);
     match completion.kind {
@@ -122,10 +92,10 @@ async fn background_job_succeeds_and_updates_status() {
         _ => panic!("expected success completion"),
     }
 
-    let status = manager
-        .get_status(&job_id)
-        .await
-        .expect("job status should exist");
+    let status_option = manager.get_status(&job_id).await;
+    let Some(status) = status_option else {
+        panic!("job status should exist");
+    };
     assert_eq!(status.state, JobState::Succeeded);
     assert!(status.output_preview.is_some());
 
@@ -158,13 +128,19 @@ async fn background_job_timeout_marks_timed_out() {
             "bob".to_string(),
             "research this should timeout".to_string(),
         )
-        .await
-        .expect("submit should succeed");
+        .await;
+    let job_id = match job_id {
+        Ok(job_id) => job_id,
+        Err(error) => panic!("submit should succeed: {error}"),
+    };
 
-    let completion = tokio::time::timeout(Duration::from_secs(2), completion_rx.recv())
-        .await
-        .expect("completion wait should not time out")
-        .expect("completion should exist");
+    let completion_result =
+        tokio::time::timeout(Duration::from_secs(2), completion_rx.recv()).await;
+    let completion = match completion_result {
+        Ok(Some(completion)) => completion,
+        Ok(None) => panic!("completion should exist"),
+        Err(error) => panic!("completion wait should not time out: {error}"),
+    };
 
     assert_eq!(completion.job_id, job_id);
     match completion.kind {
@@ -172,10 +148,10 @@ async fn background_job_timeout_marks_timed_out() {
         _ => panic!("expected timeout completion"),
     }
 
-    let status = manager
-        .get_status(&job_id)
-        .await
-        .expect("job status should exist");
+    let status_option = manager.get_status(&job_id).await;
+    let Some(status) = status_option else {
+        panic!("job status should exist");
+    };
     assert_eq!(status.state, JobState::TimedOut);
 }
 
@@ -204,13 +180,19 @@ async fn background_job_failure_marks_failed() {
             "carol".to_string(),
             "research expected failure".to_string(),
         )
-        .await
-        .expect("submit should succeed");
+        .await;
+    let job_id = match job_id {
+        Ok(job_id) => job_id,
+        Err(error) => panic!("submit should succeed: {error}"),
+    };
 
-    let completion = tokio::time::timeout(Duration::from_secs(2), completion_rx.recv())
-        .await
-        .expect("completion wait should not time out")
-        .expect("completion should exist");
+    let completion_result =
+        tokio::time::timeout(Duration::from_secs(2), completion_rx.recv()).await;
+    let completion = match completion_result {
+        Ok(Some(completion)) => completion,
+        Ok(None) => panic!("completion should exist"),
+        Err(error) => panic!("completion wait should not time out: {error}"),
+    };
 
     assert_eq!(completion.job_id, job_id);
     match completion.kind {
@@ -218,10 +200,10 @@ async fn background_job_failure_marks_failed() {
         _ => panic!("expected failed completion"),
     }
 
-    let status = manager
-        .get_status(&job_id)
-        .await
-        .expect("job status should exist");
+    let status_option = manager.get_status(&job_id).await;
+    let Some(status) = status_option else {
+        panic!("job status should exist");
+    };
     assert_eq!(status.state, JobState::Failed);
 }
 

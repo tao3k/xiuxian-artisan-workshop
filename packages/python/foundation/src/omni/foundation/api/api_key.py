@@ -39,7 +39,7 @@ def _load_settings_yaml() -> dict:
 
 
 def _get_settings_json_path() -> Path | None:
-    """Get .claude/settings.json path from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml)."""
+    """Get .claude/settings.json path from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml)."""
     api_settings = _load_settings_yaml()
     anthropic_path = api_settings.get("anthropic_settings", ".claude/settings.json")
     project_root = _find_project_root()

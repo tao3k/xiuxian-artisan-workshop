@@ -12,9 +12,13 @@ mod tests;
 mod webhook;
 
 pub use run_polling::{run_telegram, run_telegram_with_control_command_policy};
-pub use run_webhook::{run_telegram_webhook, run_telegram_webhook_with_control_command_policy};
-pub use webhook::build_telegram_webhook_app_with_partition;
+pub use run_webhook::{
+    TelegramWebhookPolicyRunRequest, TelegramWebhookRunRequest, run_telegram_webhook,
+    run_telegram_webhook_with_control_command_policy,
+};
 pub use webhook::{
-    TelegramWebhookApp, build_telegram_webhook_app,
+    TelegramWebhookApp, TelegramWebhookControlPolicyBuildRequest,
+    TelegramWebhookPartitionBuildRequest, build_telegram_webhook_app,
     build_telegram_webhook_app_with_control_command_policy,
+    build_telegram_webhook_app_with_partition,
 };

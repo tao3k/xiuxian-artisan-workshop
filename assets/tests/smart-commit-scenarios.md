@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Smart Commit Authorization Flow Test Scenarios"
+---
+
 # Smart Commit Authorization Flow Test Scenarios
 
 Test scenarios for smart_commit authorization flow.

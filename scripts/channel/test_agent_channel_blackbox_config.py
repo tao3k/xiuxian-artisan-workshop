@@ -12,12 +12,13 @@ from types import SimpleNamespace
 import pytest
 
 module = importlib.import_module("agent_channel_blackbox_config")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_parse_args_reads_prompt_and_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "argv", ["agent_channel_blackbox_config.py", "--prompt", "hello"])
     args = module.parse_args(
-        default_telegram_webhook_url_fn=lambda: "http://127.0.0.1:9000/telegram/webhook",
+        default_telegram_webhook_url_fn=lambda: endpoints.webhook_url(9000),
         target_session_scope_placeholder="__target_session_scope__",
     )
     assert args.prompt == "hello"
@@ -55,7 +56,7 @@ def test_build_config_resolves_ids_waits_and_defaults(
         max_wait=None,
         timeout=30,
         max_idle_secs=None,
-        webhook_url="http://127.0.0.1:9000/telegram/webhook",
+        webhook_url=endpoints.webhook_url(9000),
         log_file=str(tmp_path / "runtime.log"),
         chat_id=None,
         user_id=None,
@@ -103,7 +104,7 @@ def test_build_config_rejects_chat_outside_allowlist(tmp_path) -> None:
         max_wait=10,
         timeout=None,
         max_idle_secs=10,
-        webhook_url="http://127.0.0.1:9000/telegram/webhook",
+        webhook_url=endpoints.webhook_url(9000),
         log_file=str(tmp_path / "runtime.log"),
         chat_id=1001,
         user_id=2001,

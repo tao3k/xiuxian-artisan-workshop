@@ -6,7 +6,6 @@ pub(super) fn parse_backend_mode(raw: Option<&str>) -> LlmBackendMode {
     let trimmed = raw.map(str::trim).filter(|value| !value.is_empty());
     match parse_llm_backend_kind(trimmed) {
         Some(LlmBackendKind::OpenAiCompatibleHttp) => LlmBackendMode::OpenAiCompatibleHttp,
-        Some(LlmBackendKind::MistralLocal) => LlmBackendMode::MistralLocal,
         Some(LlmBackendKind::LiteLlmRs) => {
             #[cfg(feature = "agent-provider-litellm")]
             {

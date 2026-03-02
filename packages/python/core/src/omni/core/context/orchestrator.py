@@ -42,7 +42,7 @@ class ContextOrchestrator:
         """Build unified context from all providers.
 
         Args:
-            state: LangGraph state dict
+            state: Workflow state dict
 
         Returns:
             Assembled context string

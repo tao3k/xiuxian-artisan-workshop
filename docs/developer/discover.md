@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Skill Discovery"
 category: "developer"
 tags:
@@ -6,6 +7,8 @@ tags:
   - discover
 saliency_base: 6.3
 decay_rate: 0.04
+metadata:
+  title: "Skill Discovery"
 ---
 
 # Skill Discovery
@@ -48,6 +51,6 @@ decay_rate: 0.04
 
 This document previously described the old skill discovery system which has been completely rewritten for the Trinity Architecture (Foundation/Core/MCP-Server). The new system uses:
 
-- **Rust Scanner**: High-performance skill scanning via `omni-scanner` crate
+- **Rust Scanner**: High-performance skill scanning via `xiuxian-skills` crate
 - **Skill Index**: JSON-based index (`skill_index.json`)
 - **Intent Sniffer**: Context-aware routing

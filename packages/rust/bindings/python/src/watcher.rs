@@ -124,7 +124,7 @@ struct WatcherState {
 type WatcherCallback = fn(
     (
         omni_io::FileEvent,
-        std::option::Option<omni_events::OmniEvent>,
+        std::option::Option<xiuxian_event::OmniEvent>,
     ),
 );
 
@@ -165,7 +165,7 @@ impl PyFileWatcherHandle {
 #[derive(Clone)]
 pub struct PyFileEventReceiver {
     /// The receiver wrapped in Arc and Mutex for sharing
-    receiver: Arc<Mutex<Option<tokio::sync::broadcast::Receiver<omni_events::OmniEvent>>>>,
+    receiver: Arc<Mutex<Option<tokio::sync::broadcast::Receiver<xiuxian_event::OmniEvent>>>>,
 }
 
 #[pymethods]
@@ -174,7 +174,7 @@ impl PyFileEventReceiver {
     #[new]
     fn new() -> Self {
         Self {
-            receiver: Arc::new(Mutex::new(Some(omni_events::GLOBAL_BUS.subscribe()))),
+            receiver: Arc::new(Mutex::new(Some(xiuxian_event::GLOBAL_BUS.subscribe()))),
         }
     }
 
@@ -367,7 +367,7 @@ pub fn py_start_file_watcher(config: PyWatcherConfig) -> PyResult<PyFileWatcherH
 #[pyfunction]
 #[pyo3(signature = ())]
 pub fn py_subscribe_file_events() -> Vec<(String, String)> {
-    use omni_events::GLOBAL_BUS;
+    use xiuxian_event::GLOBAL_BUS;
 
     // Create a receiver
     let mut rx = GLOBAL_BUS.subscribe();

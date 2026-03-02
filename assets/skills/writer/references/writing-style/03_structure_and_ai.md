@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Module 03: Structure for Humans & AI"
+---
+
 # Module 03: Structure for Humans & AI
 
 > **"Context is king. Structure is the castle."** — _Claude Best Practices_

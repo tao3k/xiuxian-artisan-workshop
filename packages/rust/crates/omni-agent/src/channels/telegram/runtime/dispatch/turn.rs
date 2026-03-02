@@ -1,12 +1,15 @@
 use crate::agent::Agent;
 use crate::channels::managed_runtime::turn::{
-    ForegroundTurnOutcome, build_session_id, run_foreground_turn_with_interrupt,
+    ForegroundTurnOutcome, ForegroundTurnRequest, build_session_id,
+    run_foreground_turn_with_interrupt,
 };
 use crate::channels::traits::{Channel, ChannelMessage};
 use std::sync::Arc;
 use tokio::sync::watch;
 
-use super::preview::log_preview;
+use super::preview::{log_preview, sanitize_reply_for_send};
+
+const TASK_ID_PREFIX: &str = "task:";
 
 pub(super) async fn process_foreground_message(
     agent: Arc<Agent>,
@@ -26,23 +29,25 @@ pub(super) async fn process_foreground_message(
     }
 
     let interrupt_generation = *interrupt_rx.borrow();
-    let result = run_foreground_turn_with_interrupt(
-        Arc::clone(&agent),
-        &session_id,
-        &msg.content,
-        turn_timeout_secs,
-        format!("Request timed out after {turn_timeout_secs}s. Use `/bg <prompt>` for long-running tasks."),
+    let result = run_foreground_turn_with_interrupt(ForegroundTurnRequest {
+        agent: Arc::clone(&agent),
+        session_id: session_id.clone(),
+        content: msg.content.clone(),
+        timeout_secs: turn_timeout_secs,
+        timeout_reply: format!(
+            "Request timed out after {turn_timeout_secs}s. Use `/bg <prompt>` for long-running tasks."
+        ),
         interrupt_rx,
         interrupt_generation,
-        "Request interrupted by a newer instruction.".to_string(),
-    )
+        interrupted_reply: "Request interrupted by a newer instruction.".to_string(),
+    })
     .await;
 
     if let Err(error) = channel.stop_typing(&msg.recipient).await {
         tracing::debug!("Failed to stop typing: {error}");
     }
 
-    let reply = match result {
+    let raw_reply = match result {
         ForegroundTurnOutcome::Succeeded(output) => output,
         ForegroundTurnOutcome::Failed {
             reply,
@@ -85,33 +90,79 @@ pub(super) async fn process_foreground_message(
             reply
         }
     };
+    let sanitized_reply = sanitize_reply_for_send(&raw_reply);
+    let reply = normalize_task_id_only_reply(agent.as_ref(), sanitized_reply);
 
     match channel.send(&reply, &msg.recipient).await {
         Ok(()) => tracing::info!(r#"→ Bot: "{preview}""#, preview = log_preview(&reply)),
         Err(error) => tracing::error!("Failed to send foreground reply: {error}"),
     }
 
-    // Trigger Wendao sync asynchronously if binary is available
-    if let Ok(wendao_bin) = std::env::var("WENDAO_BIN") {
-        tokio::spawn(async move {
-            match tokio::process::Command::new(wendao_bin)
-                .arg("sync")
-                .output()
-                .await
-            {
-                Ok(output) if output.status.success() => {
-                    tracing::debug!("Wendao automatic incremental sync succeeded");
-                }
-                Ok(output) => {
-                    tracing::warn!(
-                        "Wendao automatic sync failed with status: {}",
-                        output.status
-                    );
-                }
-                Err(error) => {
-                    tracing::warn!("Failed to trigger Wendao automatic sync: {error}");
-                }
+    // NATIVE INTEGRATION: Trigger library-level sync instead of calling binary
+    if let Some(ref heyi) = agent.get_heyi() {
+        match heyi.sync_from_disk() {
+            Ok(summary) => {
+                tracing::debug!(
+                    event = "telegram.zhixing.sync.completed",
+                    journal_documents = summary.journal_documents,
+                    agenda_documents = summary.agenda_documents,
+                    task_entities = summary.task_entities,
+                    entities_added = summary.entities_added,
+                    relations_linked = summary.relations_linked,
+                    "Zhixing-Heyi library-level sync succeeded"
+                );
             }
-        });
+            Err(error) => {
+                tracing::warn!(
+                    event = "telegram.zhixing.sync.failed",
+                    error = %error,
+                    "Zhixing-Heyi library-level sync failed"
+                );
+            }
+        }
+    }
+}
+
+pub(super) fn extract_task_id_only_reply(reply: &str) -> Option<&str> {
+    let trimmed = reply.trim();
+    if !trimmed.starts_with(TASK_ID_PREFIX) || trimmed.contains(char::is_whitespace) {
+        return None;
+    }
+    let suffix = &trimmed[TASK_ID_PREFIX.len()..];
+    if suffix.len() < 8 {
+        return None;
+    }
+    if suffix.chars().all(|ch| ch.is_ascii_hexdigit() || ch == '-') {
+        Some(trimmed)
+    } else {
+        None
+    }
+}
+
+fn normalize_task_id_only_reply(agent: &Agent, reply: String) -> String {
+    let Some(task_id) = extract_task_id_only_reply(&reply) else {
+        return reply;
+    };
+    let Some(heyi) = agent.get_heyi() else {
+        return reply;
+    };
+    match heyi.render_task_add_response_from_id(task_id) {
+        Ok(rendered) => {
+            tracing::info!(
+                event = "telegram.foreground.reply.normalized",
+                task_id,
+                "normalized bare task id reply to structured task confirmation"
+            );
+            rendered
+        }
+        Err(error) => {
+            tracing::warn!(
+                event = "telegram.foreground.reply.normalize_failed",
+                task_id,
+                error = %error,
+                "failed to normalize bare task id reply"
+            );
+            reply
+        }
     }
 }

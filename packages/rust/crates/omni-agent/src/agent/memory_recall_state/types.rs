@@ -1,23 +1,33 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+use xiuxian_llm::embedding::runtime::{
+    EMBEDDING_SOURCE_EMBEDDING as LLM_EMBEDDING_SOURCE_EMBEDDING,
+    EMBEDDING_SOURCE_EMBEDDING_REPAIRED as LLM_EMBEDDING_SOURCE_EMBEDDING_REPAIRED,
+    EMBEDDING_SOURCE_UNAVAILABLE as LLM_EMBEDDING_SOURCE_UNAVAILABLE,
+};
 
 use super::super::memory_recall::MemoryRecallPlan;
 
-pub(crate) const EMBEDDING_SOURCE_EMBEDDING: &str = "embedding";
-pub(crate) const EMBEDDING_SOURCE_EMBEDDING_REPAIRED: &str = "embedding_repaired";
-pub(crate) const EMBEDDING_SOURCE_UNAVAILABLE: &str = "embedding_unavailable";
+pub(crate) const EMBEDDING_SOURCE_EMBEDDING: &str = LLM_EMBEDDING_SOURCE_EMBEDDING;
+pub(crate) const EMBEDDING_SOURCE_EMBEDDING_REPAIRED: &str =
+    LLM_EMBEDDING_SOURCE_EMBEDDING_REPAIRED;
+pub(crate) const EMBEDDING_SOURCE_UNAVAILABLE: &str = LLM_EMBEDDING_SOURCE_UNAVAILABLE;
 pub(crate) const EMBEDDING_SOURCE_HASH: &str = "hash";
 pub(crate) const EMBEDDING_SOURCE_UNKNOWN: &str = "unknown";
 
+/// Final decision taken by the memory-recall pipeline for a turn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SessionMemoryRecallDecision {
+    /// Recalled context was injected into turn prompt.
     Injected,
+    /// Recalled context was skipped for this turn.
     Skipped,
 }
 
 impl SessionMemoryRecallDecision {
+    /// Return canonical `snake_case` label for persistence and telemetry.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -27,29 +37,52 @@ impl SessionMemoryRecallDecision {
     }
 }
 
+/// Snapshot of one memory-recall pipeline execution for a session turn.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SessionMemoryRecallSnapshot {
+    /// Snapshot creation time in Unix milliseconds.
     pub created_at_unix_ms: u64,
+    /// Token count in the recall query.
     pub query_tokens: usize,
+    /// Runtime recall-feedback bias value.
     pub recall_feedback_bias: f32,
+    /// Source used to produce query embedding.
     pub embedding_source: &'static str,
+    /// Recall plan `k1` parameter.
     pub k1: usize,
+    /// Recall plan `k2` parameter.
     pub k2: usize,
+    /// Recall plan lambda parameter.
     pub lambda: f32,
+    /// Recall plan minimum score threshold.
     pub min_score: f32,
+    /// Max context chars allowed for injected memory.
     pub max_context_chars: usize,
+    /// Budget pressure measured for this turn.
     pub budget_pressure: f32,
+    /// Window pressure measured for this turn.
     pub window_pressure: f32,
+    /// Effective token budget after reserve.
     pub effective_budget_tokens: Option<usize>,
+    /// Estimated number of active turns in session.
     pub active_turns_estimate: usize,
+    /// Number of summary segments available.
     pub summary_segment_count: usize,
+    /// Total recalled candidates.
     pub recalled_total: usize,
+    /// Candidates selected after filtering/scoring.
     pub recalled_selected: usize,
+    /// Candidates actually injected into context.
     pub recalled_injected: usize,
+    /// Number of injected context characters.
     pub context_chars_injected: usize,
+    /// Best candidate score observed.
     pub best_score: Option<f32>,
+    /// Weakest selected candidate score observed.
     pub weakest_score: Option<f32>,
+    /// End-to-end pipeline duration in milliseconds.
     pub pipeline_duration_ms: u64,
+    /// Final recall decision for this turn.
     pub decision: SessionMemoryRecallDecision,
 }
 

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Module 02: The Mechanics of Engineering"
+---
+
 # Module 02: The Mechanics of Engineering
 
 > **"Technical writing is engineering. It requires precision, economy, and structure."** — _Barry J. Rosenberg_

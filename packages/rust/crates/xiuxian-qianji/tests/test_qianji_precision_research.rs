@@ -1,31 +1,31 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown
-)]
+//! High-precision research loop tests for Qianji workflows.
 
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use xiuxian_qianhuan::{PersonaProfile, PersonaRegistry, ThousandFacesOrchestrator};
-use xiuxian_qianji::{QianjiCompiler, QianjiEngine, QianjiScheduler};
+use xiuxian_qianhuan::{
+    orchestrator::ThousandFacesOrchestrator,
+    persona::{PersonaProfile, PersonaRegistry},
+};
+use xiuxian_qianji::{QianjiCompiler, QianjiScheduler};
 use xiuxian_wendao::LinkGraphIndex;
 
 const PRECISION_RESEARCH_TOML: &str = include_str!("../resources/tests/precision_research.toml");
 
 #[tokio::test]
-async fn test_qianji_high_precision_research_loop() {
-    let temp = tempfile::tempdir().unwrap();
-    let index = Arc::new(LinkGraphIndex::build(temp.path()).unwrap());
+async fn test_qianji_high_precision_research_loop()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    let index = Arc::new(LinkGraphIndex::build(temp.path())?);
     let orchestrator = Arc::new(ThousandFacesOrchestrator::new("Rules".to_string(), None));
 
-    let mut registry = PersonaRegistry::with_builtins();
+    let registry = PersonaRegistry::with_builtins();
     registry.register(PersonaProfile {
         id: "artisan-engineer".to_string(),
         name: "Artisan".to_string(),
+        background: None,
         voice_tone: "Precise".to_string(),
+        guidelines: Vec::new(),
         style_anchors: vec![
             "milimeter-level alignment".to_string(),
             "audit trail".to_string(),
@@ -37,9 +37,7 @@ async fn test_qianji_high_precision_research_loop() {
     let registry_arc = Arc::new(registry);
 
     let compiler = QianjiCompiler::new(index, orchestrator, registry_arc, None);
-    let engine = compiler
-        .compile(PRECISION_RESEARCH_TOML)
-        .expect("Compilation failed");
+    let engine = compiler.compile(PRECISION_RESEARCH_TOML)?;
     let scheduler = QianjiScheduler::new(engine);
 
     let result = scheduler
@@ -47,8 +45,7 @@ async fn test_qianji_high_precision_research_loop() {
             "raw_facts": "Implementation ensures milimeter-level alignment and audit trail.",
             "drift_score": 0.01
         }))
-        .await
-        .expect("Execution failed");
+        .await?;
 
     let annotated = result["annotated_prompt"].as_str().unwrap_or("");
     assert!(
@@ -56,4 +53,5 @@ async fn test_qianji_high_precision_research_loop() {
         "Annotation failed"
     );
     assert_eq!(result["calibration_status"], "passed");
+    Ok(())
 }

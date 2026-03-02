@@ -52,6 +52,7 @@ pub mod kg_cache;
 pub mod link_graph;
 pub mod link_graph_py;
 pub mod schemas;
+pub mod skill_vfs;
 mod storage;
 mod sync;
 mod types;
@@ -84,6 +85,9 @@ pub mod link_graph_refs;
 mod link_graph_refs_py;
 pub mod unified_symbol;
 pub mod unified_symbol_py;
+#[cfg(feature = "zhenfa-router")]
+/// Zhenfa HTTP/RPC router integration for Wendao retrieval capabilities.
+pub mod zhenfa_router;
 
 // ---------------------------------------------------------------------------
 // Public re-exports (crate API)
@@ -97,8 +101,12 @@ pub use dependency_indexer::{
     DependencyIndexer, DependencyStats, ExternalSymbol, SymbolIndex, SymbolKind,
 };
 pub use enhancer::{
-    EnhancedNote, EntityRefData, InferredRelation, NoteFrontmatter, NoteInput, RefStatsData,
-    enhance_note, enhance_notes_batch, parse_frontmatter,
+    EnhancedNote, EntityRefData, InferredRelation, MarkdownConfigBlock, MarkdownConfigLinkTarget,
+    MarkdownConfigMemoryIndex, MissingEmbeddedLink, NoteFrontmatter, NoteInput, RefStatsData,
+    SkillReferenceSemantics, WendaoResourceFile, WendaoResourceLinkTarget, WendaoResourceRegistry,
+    WendaoResourceRegistryError, classify_skill_reference, enhance_note, enhance_notes_batch,
+    extract_markdown_config_blocks, extract_markdown_config_link_targets_by_id,
+    extract_markdown_config_links_by_id, parse_frontmatter,
 };
 pub use enhancer_py::{
     PyEnhancedNote, PyInferredRelation, PyNoteFrontmatter, link_graph_enhance_note,
@@ -153,11 +161,24 @@ pub use link_graph_refs_py::{
     link_graph_extract_entity_refs, link_graph_find_referencing_notes, link_graph_get_ref_stats,
     link_graph_is_valid_ref, link_graph_parse_entity_ref,
 };
+pub use skill_vfs::{
+    AssetRequest, SkillNamespaceIndex, SkillNamespaceMount, SkillVfsError, SkillVfsResolver,
+    WENDAO_URI_SCHEME, WendaoAssetHandle, WendaoResourceUri, ZHIXING_SKILL_DOC_PATH,
+    ZhixingIndexSummary, ZhixingWendaoIndexer, build_embedded_wendao_registry,
+    embedded_discover_canonical_uris, embedded_resource_text,
+    embedded_resource_text_from_wendao_uri, embedded_skill_links_for_id,
+    embedded_skill_links_for_reference_type, embedded_skill_links_index, embedded_skill_markdown,
+};
 pub use storage::KnowledgeStorage;
-pub use sync::{DiscoveryOptions, FileChange, SyncEngine, SyncManifest, SyncResult};
+pub use sync::{
+    DiscoveryOptions, FileChange, IncrementalSyncPolicy, SyncEngine, SyncManifest, SyncResult,
+    extension_from_path, extract_extensions_from_glob_patterns, normalize_extension,
+};
 pub use types::{KnowledgeCategory, KnowledgeEntry, KnowledgeSearchQuery, KnowledgeStats};
 pub use unified_symbol::{SymbolSource, UnifiedIndexStats, UnifiedSymbol, UnifiedSymbolIndex};
 pub use unified_symbol_py::{PyUnifiedIndexStats, PyUnifiedSymbol, PyUnifiedSymbolIndex};
+#[cfg(feature = "zhenfa-router")]
+pub use zhenfa_router::WendaoZhenfaRouter;
 
 // Re-export PyO3 types for convenience
 pub use graph_py::{

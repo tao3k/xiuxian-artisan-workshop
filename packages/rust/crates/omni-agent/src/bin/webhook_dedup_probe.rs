@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! Process-level webhook dedup probe server used by integration tests.
 
 use std::sync::{
     Arc,
@@ -18,7 +18,7 @@ use tokio::sync::mpsc;
 #[command(about = "Webhook dedup probe server for process-level integration tests")]
 struct Args {
     /// HTTP bind address for probe server.
-    #[arg(long, default_value = "127.0.0.1:18181")]
+    #[arg(long, default_value = "localhost:18181")]
     bind: String,
     /// Telegram webhook path.
     #[arg(long, default_value = "/telegram/webhook")]
@@ -41,12 +41,14 @@ async fn main() -> Result<()> {
     let valkey_url = args
         .valkey_url
         .or_else(|| runtime_settings.session.valkey_url.clone())
-        .or_else(|| std::env::var("VALKEY_URL").ok())
+        .or_else(resolve_valkey_url_env)
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| {
-            anyhow::anyhow!("set --valkey-url or configure session.valkey_url (or VALKEY_URL)")
+            anyhow::anyhow!(
+                "set --valkey-url or configure session.valkey_url (or XIUXIAN_WENDAO_VALKEY_URL)"
+            )
         })?
         .to_string();
 
@@ -96,4 +98,22 @@ async fn main() -> Result<()> {
         })
         .await?;
     Ok(())
+}
+
+fn resolve_valkey_url_env() -> Option<String> {
+    std::env::var("XIUXIAN_WENDAO_VALKEY_URL")
+        .ok()
+        .as_deref()
+        .and_then(trim_non_empty)
+        .or_else(|| {
+            std::env::var("VALKEY_URL")
+                .ok()
+                .as_deref()
+                .and_then(trim_non_empty)
+        })
+}
+
+fn trim_non_empty(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }

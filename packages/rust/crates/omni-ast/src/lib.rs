@@ -21,7 +21,8 @@
 //! use omni_ast::{scan, Lang};
 //!
 //! let content = "def hello(): pass";
-//! let matches = scan(content, "def $NAME", Lang::Python).unwrap();
+//! let matches = scan(content, "def $NAME", Lang::Python)
+//!     .unwrap_or_else(|error| panic!("scan failed: {error}"));
 //! ```
 
 // ============================================================================
@@ -74,7 +75,3 @@ pub use chunk::{CodeChunk, chunk_code};
 pub use python_tree_sitter::{
     DecoratedFunction, DecoratorArguments, DecoratorInfo, ParameterInfo, TreeSitterPythonParser,
 };
-
-// Tests for TreeSitter Python Parser
-#[cfg(test)]
-mod python_tree_sitter_tests;

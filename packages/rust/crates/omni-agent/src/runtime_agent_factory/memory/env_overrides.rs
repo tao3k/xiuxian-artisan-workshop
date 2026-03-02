@@ -3,6 +3,7 @@ use omni_agent::MemoryConfig;
 use crate::resolve::{
     parse_bool_from_env, parse_positive_f32_from_env, parse_positive_u32_from_env,
     parse_positive_u64_from_env, parse_positive_usize_from_env, parse_unit_f32_from_env,
+    resolve_valkey_url_env,
 };
 
 use super::super::shared::non_empty_env;
@@ -20,7 +21,7 @@ fn apply_memory_env_persistence_overrides(memory: &mut MemoryConfig) {
         memory.persistence_backend = backend;
     }
     if memory.persistence_valkey_url.is_none()
-        && let Some(url) = non_empty_env("VALKEY_URL")
+        && let Some(url) = resolve_valkey_url_env()
     {
         memory.persistence_valkey_url = Some(url);
     }

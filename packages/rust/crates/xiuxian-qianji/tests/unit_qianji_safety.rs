@@ -1,10 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown
-)]
+//! Unit tests for Qianji safety guards.
 
 use std::sync::Arc;
 use xiuxian_qianji::executors::MockMechanism;
@@ -27,12 +21,12 @@ async fn test_qianji_safety_static_cycle_detection() {
     let guard = QianjiSafetyGuard::new(10);
     let result = guard.audit_topology(&engine);
 
-    assert!(result.is_err());
+    let Err(error) = result else {
+        panic!("cycle topology should fail safety audit");
+    };
     assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("Infinite cycle detected")
+        error.to_string().contains("Infinite cycle detected"),
+        "unexpected error message: {error}"
     );
 }
 

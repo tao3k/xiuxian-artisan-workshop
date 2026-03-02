@@ -86,11 +86,20 @@ pub struct JobMetricsSnapshot {
 #[derive(Debug, Clone)]
 pub enum JobCompletionKind {
     /// Completed successfully.
-    Succeeded { output: String },
+    Succeeded {
+        /// Rendered output returned by the completed background turn.
+        output: String,
+    },
     /// Failed with execution error.
-    Failed { error: String },
+    Failed {
+        /// Error message describing the background turn failure.
+        error: String,
+    },
     /// Timed out.
-    TimedOut { timeout_secs: u64 },
+    TimedOut {
+        /// Timeout threshold (seconds) that caused worker termination.
+        timeout_secs: u64,
+    },
 }
 
 /// Completion event sent from background workers.

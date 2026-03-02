@@ -1,9 +1,7 @@
+use crate::resolve::parse_bool_from_env;
 use anyhow::{Result, anyhow};
 use omni_agent::{LITELLM_DEFAULT_URL, McpServerEntry, RuntimeSettings};
 use xiuxian_llm::embedding::backend::parse_embedding_backend_kind;
-use xiuxian_llm::llm::backend::{LlmBackendKind, parse_llm_backend_kind};
-
-use crate::resolve::parse_bool_from_env;
 
 use super::shared::non_empty_env;
 use super::types::RuntimeEmbeddingBackendMode;
@@ -59,19 +57,6 @@ fn resolve_inference_url_with_settings(
         return normalize_inference_url(base_url);
     }
 
-    if matches!(
-        resolve_runtime_llm_backend_mode(runtime_settings),
-        Some(LlmBackendKind::MistralLocal)
-    ) && let Some(base_url) = runtime_settings
-        .mistral
-        .base_url
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        return normalize_inference_url(base_url);
-    }
-
     if runtime_settings
         .inference
         .provider
@@ -83,25 +68,6 @@ fn resolve_inference_url_with_settings(
     }
 
     resolve_inference_url(litellm_proxy_url, agent_inference_url)
-}
-
-fn parse_llm_backend_mode(raw: Option<&str>) -> Option<LlmBackendKind> {
-    let trimmed = raw.map(str::trim).filter(|value| !value.is_empty());
-    let parsed = parse_llm_backend_kind(trimmed);
-    if parsed.is_none()
-        && let Some(value) = trimmed
-    {
-        tracing::warn!(
-            invalid_value = %value,
-            "invalid llm backend mode in runtime settings; ignoring override"
-        );
-    }
-    parsed
-}
-
-fn resolve_runtime_llm_backend_mode(runtime_settings: &RuntimeSettings) -> Option<LlmBackendKind> {
-    parse_llm_backend_mode(non_empty_env("OMNI_AGENT_LLM_BACKEND").as_deref())
-        .or_else(|| parse_llm_backend_mode(runtime_settings.agent.llm_backend.as_deref()))
 }
 
 pub(super) fn parse_embedding_backend_mode(
@@ -162,15 +128,11 @@ pub(super) fn resolve_runtime_embedding_base_url(
     let memory_base_url = trim_non_empty(runtime_settings.memory.embedding_base_url.as_deref());
     let litellm_api_base = trim_non_empty(runtime_settings.embedding.litellm_api_base.as_deref());
     let embedding_client_url = trim_non_empty(runtime_settings.embedding.client_url.as_deref());
-    let mistral_base_url = trim_non_empty(runtime_settings.mistral.base_url.as_deref());
     match backend_mode {
         RuntimeEmbeddingBackendMode::Http => memory_base_url
             .or(embedding_client_url)
             .or(litellm_api_base),
-        RuntimeEmbeddingBackendMode::MistralLocal => mistral_base_url
-            .or(memory_base_url)
-            .or(embedding_client_url)
-            .or(litellm_api_base),
+        RuntimeEmbeddingBackendMode::MistralSdk => None,
         RuntimeEmbeddingBackendMode::OpenAiHttp | RuntimeEmbeddingBackendMode::LiteLlmRs => {
             litellm_api_base
                 .or(memory_base_url)

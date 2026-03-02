@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram polling transport tests for unauthorized/conflict/rate-limit paths.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -81,7 +45,7 @@ async fn handle_get_updates(State(state): State<PollMockState>) -> Json<serde_js
                         "message": {
                             "message_id": 77,
                             "text": "hello",
-                            "chat": {"id": 123456},
+                            "chat": {"id": 123_456},
                             "from": {"id": 888, "username": "alice"}
                         }
                     }]
@@ -106,7 +70,7 @@ async fn handle_get_updates(State(state): State<PollMockState>) -> Json<serde_js
                         "message": {
                             "message_id": 78,
                             "text": "hello after rate limit",
-                            "chat": {"id": 123456},
+                            "chat": {"id": 123_456},
                             "from": {"id": 888, "username": "alice"}
                         }
                     }]
@@ -169,10 +133,11 @@ async fn telegram_listen_fails_fast_on_unauthorized_get_updates() -> Result<()> 
     );
     let (tx, _rx) = tokio::sync::mpsc::channel(1);
 
-    let result = tokio::time::timeout(Duration::from_secs(2), channel.listen(tx))
-        .await
-        .expect("listen should complete");
-    let error = result.expect_err("unauthorized getUpdates should fail fast");
+    let result = tokio::time::timeout(Duration::from_secs(2), channel.listen(tx)).await?;
+    let error = match result {
+        Ok(()) => panic!("unauthorized getUpdates should fail fast"),
+        Err(error) => error,
+    };
     assert!(error.to_string().contains("401"));
 
     handle.abort();
@@ -195,9 +160,7 @@ async fn telegram_listen_recovers_from_conflict_and_keeps_processing() -> Result
     let (tx, rx) = tokio::sync::mpsc::channel(1);
     drop(rx);
 
-    let result = tokio::time::timeout(Duration::from_secs(4), channel.listen(tx))
-        .await
-        .expect("listen should complete");
+    let result = tokio::time::timeout(Duration::from_secs(4), channel.listen(tx)).await?;
     assert!(result.is_ok());
     assert!(
         state.get_updates_calls.load(Ordering::SeqCst) >= 2,
@@ -225,9 +188,7 @@ async fn telegram_listen_respects_retry_after_on_rate_limit() -> Result<()> {
     drop(rx);
 
     let start = std::time::Instant::now();
-    let result = tokio::time::timeout(Duration::from_secs(5), channel.listen(tx))
-        .await
-        .expect("listen should complete");
+    let result = tokio::time::timeout(Duration::from_secs(5), channel.listen(tx)).await?;
     assert!(result.is_ok());
     assert!(
         start.elapsed() >= Duration::from_secs(1),

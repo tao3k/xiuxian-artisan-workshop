@@ -12,7 +12,10 @@ fn test_from_extension() {
 
 #[test]
 fn test_try_from() {
-    let lang: Lang = "python".try_into().unwrap();
+    let lang: Lang = match "python".try_into() {
+        Ok(lang) => lang,
+        Err(error) => panic!("language conversion failed: {error}"),
+    };
     assert_eq!(lang, Lang::Python);
     // as_str() returns the ast-grep language identifier, not file extension
     assert_eq!(lang.as_str(), "python");

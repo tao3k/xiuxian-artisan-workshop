@@ -14,9 +14,9 @@ def _reset_reference_singleton() -> None:
 
 
 def test_reference_library_reads_from_prj_config_home(tmp_path, monkeypatch):
-    """ReferenceLibrary should read `<PRJ_CONFIG_HOME>/omni-dev-fusion/references.yaml`."""
+    """ReferenceLibrary should read `<PRJ_CONFIG_HOME>/xiuxian-artisan-workshop/references.yaml`."""
     conf_dir = tmp_path / "conf"
-    app_dir = conf_dir / "omni-dev-fusion"
+    app_dir = conf_dir / "xiuxian-artisan-workshop"
     app_dir.mkdir(parents=True)
     (app_dir / "references.yaml").write_text(
         yaml.safe_dump({"specs": {"dir": "assets/specs"}}), encoding="utf-8"
@@ -39,7 +39,7 @@ def test_reference_set_conf_dir_routes_through_directory_api(tmp_path, monkeypat
     original = os.environ.get("PRJ_CONFIG_HOME")
 
     conf_dir = tmp_path / "custom_conf"
-    app_dir = conf_dir / "omni-dev-fusion"
+    app_dir = conf_dir / "xiuxian-artisan-workshop"
     app_dir.mkdir(parents=True)
     (app_dir / "references.yaml").write_text(
         yaml.safe_dump({"cli": {"files": ["app.py"]}}), encoding="utf-8"
@@ -67,7 +67,7 @@ def test_reference_set_conf_dir_routes_through_directory_api(tmp_path, monkeypat
 def test_has_reference_missing_key(tmp_path, monkeypatch):
     """Missing key is reported as not present."""
     conf_dir = tmp_path / "conf_missing"
-    app_dir = conf_dir / "omni-dev-fusion"
+    app_dir = conf_dir / "xiuxian-artisan-workshop"
     app_dir.mkdir(parents=True)
     (app_dir / "references.yaml").write_text(
         yaml.safe_dump({"specs": {"dir": "assets/specs"}}), encoding="utf-8"

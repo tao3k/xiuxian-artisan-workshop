@@ -15,11 +15,14 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-util", 
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true, features = ["clock", "serde"] }
+chrono-tz = { workspace = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
+redis = { version = "1.0.3", default-features = false }
 
 # Error handling
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+include_dir = { workspace = true }
 
 # Org-mode parsing
 orgize = "0.9"
@@ -35,6 +38,7 @@ log = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+xiuxian-qianji = { path = "../xiuxian-qianji", features = ["llm"] }
 
 [lints]
 workspace = true

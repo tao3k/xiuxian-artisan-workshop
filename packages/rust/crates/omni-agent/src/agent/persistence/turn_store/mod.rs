@@ -83,7 +83,13 @@ impl Agent {
             return;
         };
 
-        store.update_q(&stored_episode.id, outcome.reward);
+        let updated_q = store.update_q(&stored_episode.id, outcome.reward);
+        self.persist_memory_q_atomic(
+            Some(session_id),
+            &stored_episode.id,
+            updated_q,
+            "turn_store",
+        );
         let _ = store.record_feedback(&stored_episode.id, outcome.reward > 0.0);
         self.evaluate_turn_memory_gate(
             store,

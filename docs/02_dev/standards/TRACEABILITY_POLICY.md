@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Standard: Engineering Traceability Policy"
 category: "standards"
 tags:
@@ -6,6 +7,8 @@ tags:
   - TRACEABILITY_POLICY
 saliency_base: 6.8
 decay_rate: 0.03
+metadata:
+  title: "Standard: Engineering Traceability Policy (CyberXiuXian Artisan Studio)"
 ---
 
 # Standard: Engineering Traceability Policy (CyberXiuXian Artisan Studio)

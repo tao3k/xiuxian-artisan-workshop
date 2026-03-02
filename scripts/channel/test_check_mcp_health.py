@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 import urllib.error
 from pathlib import Path
@@ -34,6 +35,10 @@ def _load_module():
     return module
 
 
+def _local_host() -> str:
+    return os.environ.get("XIUXIAN_WENDAO_LOCAL_HOST", "localhost").strip() or "localhost"
+
+
 def test_is_mcp_healthy_returns_true_for_status_healthy() -> None:
     module = _load_module()
 
@@ -41,7 +46,7 @@ def test_is_mcp_healthy_returns_true_for_status_healthy() -> None:
         assert timeout == 2.0
         return _FakeResponse(200, {"status": "healthy"})
 
-    assert module.is_mcp_healthy("127.0.0.1", 18501, 2.0, opener=_fake_open) is True
+    assert module.is_mcp_healthy(_local_host(), 18501, 2.0, opener=_fake_open) is True
 
 
 def test_is_mcp_healthy_returns_false_for_non_200_response() -> None:
@@ -51,7 +56,7 @@ def test_is_mcp_healthy_returns_false_for_non_200_response() -> None:
         assert timeout == 2.0
         return _FakeResponse(503, {"status": "healthy"})
 
-    assert module.is_mcp_healthy("127.0.0.1", 18501, 2.0, opener=_fake_open) is False
+    assert module.is_mcp_healthy(_local_host(), 18501, 2.0, opener=_fake_open) is False
 
 
 def test_is_mcp_healthy_returns_false_on_http_error() -> None:
@@ -60,4 +65,4 @@ def test_is_mcp_healthy_returns_false_on_http_error() -> None:
     def _fake_open(_url: str, timeout: float):
         raise urllib.error.URLError("boom")
 
-    assert module.is_mcp_healthy("127.0.0.1", 18501, 2.0, opener=_fake_open) is False
+    assert module.is_mcp_healthy(_local_host(), 18501, 2.0, opener=_fake_open) is False

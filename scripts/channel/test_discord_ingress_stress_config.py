@@ -16,6 +16,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 config_module = importlib.import_module("discord_ingress_stress_config")
 models_module = importlib.import_module("discord_ingress_stress_models")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def _base_args(tmp_path: Path) -> argparse.Namespace:
@@ -26,7 +27,7 @@ def _base_args(tmp_path: Path) -> argparse.Namespace:
         requests_per_worker=3,
         timeout_secs=10.0,
         cooldown_secs=0.1,
-        ingress_url="http://127.0.0.1:18082/discord/ingress",
+        ingress_url=endpoints.discord_ingress_url(),
         secret_token="",
         channel_id="2001",
         user_id="1001",

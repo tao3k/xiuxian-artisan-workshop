@@ -3,9 +3,14 @@
 //! This module provides a deterministic utility ledger and gate policy that
 //! can be replayed for audits.
 
+use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
 use crate::Episode;
+
+fn u32_to_f32(value: u32) -> f32 {
+    value.to_f32().unwrap_or(f32::MAX)
+}
 
 /// 3-in-1 gate verdict for memory lifecycle transitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -107,7 +112,6 @@ pub struct MemoryUtilityLedger {
 impl MemoryUtilityLedger {
     /// Build utility ledger from an episode and runtime evidence scores.
     #[must_use]
-    #[allow(clippy::cast_precision_loss)]
     pub fn from_episode(
         episode: &Episode,
         react_revalidation_score: f32,
@@ -115,8 +119,9 @@ impl MemoryUtilityLedger {
         omega_alignment_score: f32,
     ) -> Self {
         let usage_count = episode.total_uses();
-        let success = episode.success_count as f32;
-        let failure = episode.failure_count as f32;
+        let usage_count_f32 = u32_to_f32(usage_count);
+        let success = u32_to_f32(episode.success_count);
+        let failure = u32_to_f32(episode.failure_count);
         let failure_rate = if usage_count == 0 {
             if episode.outcome.eq_ignore_ascii_case("error") {
                 1.0
@@ -124,14 +129,14 @@ impl MemoryUtilityLedger {
                 0.0
             }
         } else {
-            (failure / usage_count as f32).clamp(0.0, 1.0)
+            (failure / usage_count_f32).clamp(0.0, 1.0)
         };
 
         let q_value = episode.q_value.clamp(0.0, 1.0);
         let frequency_score = if usage_count == 0 {
             0.0
         } else {
-            (usage_count as f32 / (usage_count as f32 + 3.0)).clamp(0.0, 1.0)
+            (usage_count_f32 / (usage_count_f32 + 3.0)).clamp(0.0, 1.0)
         };
         let stability_score = (1.0 - failure_rate).clamp(0.0, 1.0);
         let success_bias = ((success + 1.0) / (success + failure + 2.0)).clamp(0.0, 1.0);

@@ -17,7 +17,7 @@ class TestConfDirFunctions:
         original = os.environ.get("PRJ_CONFIG_HOME")
         try:
             set_conf_dir("/custom/path")
-            assert get_conf_dir() == "/custom/path/omni-dev-fusion"
+            assert get_conf_dir() == "/custom/path/xiuxian-artisan-workshop"
         finally:
             if original is None:
                 os.environ.pop("PRJ_CONFIG_HOME", None)

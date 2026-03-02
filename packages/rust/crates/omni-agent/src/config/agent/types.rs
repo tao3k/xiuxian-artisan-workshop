@@ -7,7 +7,7 @@ use super::{agent_defaults, memory_defaults};
 pub struct McpServerEntry {
     /// Display name for logging.
     pub name: String,
-    /// For Streamable HTTP: full URL (e.g. `http://127.0.0.1:3002/sse`).
+    /// For Streamable HTTP: full URL (e.g. `http://localhost:3002/sse`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     /// For stdio: command to spawn (e.g. `omni` with args `["mcp", "--transport", "stdio"]`).
@@ -29,8 +29,8 @@ pub struct MemoryConfig {
     /// Supported values:
     /// - `http`: legacy `/embed/batch` endpoint
     /// - `openai_http`: generic OpenAI-compatible `/v1/embeddings` endpoint
-    /// - `mistral_local` (aliases: `mistral_rs`, `mistral_server`): local `mistralrs-server` runtime endpoint
-    ///   (typically local model serving; API key is upstream-policy dependent)
+    /// - `mistral_sdk` (aliases: `mistral-inproc`, `mistral_inproc`): in-process `mistralrs`
+    ///   SDK embedding runtime (model loaded in Rust process)
     /// - `litellm_rs`: Rust `litellm-rs` provider path
     ///   (provider/API-key oriented; no-key mode stays on Rust HTTP paths)
     ///
@@ -235,6 +235,7 @@ pub enum ContextBudgetStrategy {
 }
 
 impl ContextBudgetStrategy {
+    /// Return canonical `snake_case` label for settings persistence and telemetry.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {

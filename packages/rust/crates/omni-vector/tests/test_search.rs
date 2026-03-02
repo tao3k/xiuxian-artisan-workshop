@@ -57,8 +57,8 @@ async fn test_apply_keyword_boost_no_keywords() {
 
     VectorStore::apply_keyword_boost(&mut results, &[]);
 
-    assert_eq!(
-        results[0].distance, 0.5,
+    assert!(
+        (results[0].distance - 0.5).abs() < f64::EPSILON,
         "Distance should not change with empty keywords"
     );
 }
@@ -220,12 +220,6 @@ fn test_matches_filter_non_object_conditions() {
 async fn test_vector_distance_calculation() {
     use omni_vector::ToolSearchResult;
 
-    // Create two vectors: one identical to query, one different
-    let _query_vec = vec![1.0, 0.0, 0.0, 0.0]; // 4D unit vector along x
-    let _identical_vec = vec![1.0, 0.0, 0.0, 0.0]; // Same as query, distance = 0
-    let _opposite_vec = vec![-1.0, 0.0, 0.0, 0.0]; // Opposite, distance = 2
-    let _orthogonal_vec = vec![0.0, 1.0, 0.0, 0.0]; // Orthogonal, distance = sqrt(2) ≈ 1.41
-
     // Calculate expected distances manually
     // dist_sq = sum((a - b)^2)
     let identical_dist_sq: f32 = (1.0_f32 - 1.0_f32).powi(2) * 4.0; // = 0
@@ -247,8 +241,8 @@ async fn test_vector_distance_calculation() {
         orthogonal_score > opposite_score,
         "Orthogonal should score higher than opposite"
     );
-    assert_eq!(
-        identical_score, 1.0,
+    assert!(
+        (identical_score - 1.0).abs() < f32::EPSILON,
         "Identical vectors should have score 1.0"
     );
 
@@ -262,7 +256,7 @@ async fn test_vector_distance_calculation() {
         keyword_score: None,
         skill_name: "test".to_string(),
         tool_name: "identical".to_string(),
-        file_path: "".to_string(),
+        file_path: String::new(),
         routing_keywords: vec![],
         intents: vec![],
         category: "test".to_string(),
@@ -278,7 +272,7 @@ async fn test_vector_distance_calculation() {
         keyword_score: None,
         skill_name: "test".to_string(),
         tool_name: "opposite".to_string(),
-        file_path: "".to_string(),
+        file_path: String::new(),
         routing_keywords: vec![],
         intents: vec![],
         category: "test".to_string(),
@@ -294,7 +288,7 @@ async fn test_vector_distance_calculation() {
         keyword_score: None,
         skill_name: "test".to_string(),
         tool_name: "orthogonal".to_string(),
-        file_path: "".to_string(),
+        file_path: String::new(),
         routing_keywords: vec![],
         intents: vec![],
         category: "test".to_string(),
@@ -302,8 +296,8 @@ async fn test_vector_distance_calculation() {
     };
 
     // Verify results are ordered by score
-    let mut results = vec![opposite.clone(), orthogonal.clone(), identical.clone()];
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+    let mut results = [opposite.clone(), orthogonal.clone(), identical.clone()];
+    results.sort_by(|a, b| b.score.total_cmp(&a.score));
 
     assert_eq!(results[0].name, "identical_tool");
     assert_eq!(results[1].name, "orthogonal_tool");

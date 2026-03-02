@@ -1,4 +1,5 @@
 ---
+type: skill
 name: omniCell
 description: Use when executing system commands, running Nushell scripts, querying system state, or performing OS interactions with structured JSON output.
 metadata:

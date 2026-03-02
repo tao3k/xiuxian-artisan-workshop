@@ -25,28 +25,27 @@ fn apply_link_to_directive(
     match key {
         "to" | "link_to" => {
             if negated_key {
-                state.parsed_link_to.negate = true;
+                state.link_to.negate = true;
             }
-            push_unique_many(&mut state.parsed_link_to.seeds, parse_list_values(value));
+            push_unique_many(&mut state.link_to.seeds, parse_list_values(value));
             true
         }
         "to_not" | "no_link_to" | "link_to_not" => {
-            state.parsed_link_to.negate = true;
-            push_unique_many(&mut state.parsed_link_to.seeds, parse_list_values(value));
+            state.link_to.negate = true;
+            push_unique_many(&mut state.link_to.seeds, parse_list_values(value));
             true
         }
         "link_to_negate" => {
-            state.parsed_link_to.negate = parse_bool(value).unwrap_or(state.parsed_link_to.negate);
+            state.link_to.negate = parse_bool(value).unwrap_or(state.link_to.negate);
             true
         }
         "link_to_recursive" => {
-            state.parsed_link_to.recursive =
-                parse_bool(value).unwrap_or(state.parsed_link_to.recursive);
+            state.link_to.recursive = parse_bool(value).unwrap_or(state.link_to.recursive);
             true
         }
         "link_to_max_distance" => {
             if let Some(distance) = parse_positive_usize(value) {
-                state.parsed_link_to.max_distance = Some(distance);
+                state.link_to.max_distance = Some(distance);
             }
             true
         }
@@ -63,29 +62,27 @@ fn apply_linked_by_directive(
     match key {
         "from" | "linked_by" => {
             if negated_key {
-                state.parsed_linked_by.negate = true;
+                state.linked_by.negate = true;
             }
-            push_unique_many(&mut state.parsed_linked_by.seeds, parse_list_values(value));
+            push_unique_many(&mut state.linked_by.seeds, parse_list_values(value));
             true
         }
         "from_not" | "no_linked_by" | "linked_by_not" => {
-            state.parsed_linked_by.negate = true;
-            push_unique_many(&mut state.parsed_linked_by.seeds, parse_list_values(value));
+            state.linked_by.negate = true;
+            push_unique_many(&mut state.linked_by.seeds, parse_list_values(value));
             true
         }
         "linked_by_negate" => {
-            state.parsed_linked_by.negate =
-                parse_bool(value).unwrap_or(state.parsed_linked_by.negate);
+            state.linked_by.negate = parse_bool(value).unwrap_or(state.linked_by.negate);
             true
         }
         "linked_by_recursive" => {
-            state.parsed_linked_by.recursive =
-                parse_bool(value).unwrap_or(state.parsed_linked_by.recursive);
+            state.linked_by.recursive = parse_bool(value).unwrap_or(state.linked_by.recursive);
             true
         }
         "linked_by_max_distance" => {
             if let Some(distance) = parse_positive_usize(value) {
-                state.parsed_linked_by.max_distance = Some(distance);
+                state.linked_by.max_distance = Some(distance);
             }
             true
         }
@@ -98,16 +95,13 @@ fn apply_related_seed_values(value: &str, state: &mut ParsedDirectiveState) {
         if let Some((seed, distance_raw)) = item.rsplit_once('~') {
             let cleaned_seed = seed.trim();
             if !cleaned_seed.is_empty() {
-                push_unique_many(
-                    &mut state.parsed_related.seeds,
-                    vec![cleaned_seed.to_string()],
-                );
+                push_unique_many(&mut state.related.seeds, vec![cleaned_seed.to_string()]);
             }
             if let Some(distance) = parse_positive_usize(distance_raw.trim()) {
-                state.parsed_related.max_distance = Some(distance);
+                state.related.max_distance = Some(distance);
             }
         } else {
-            push_unique_many(&mut state.parsed_related.seeds, vec![item]);
+            push_unique_many(&mut state.related.seeds, vec![item]);
         }
     }
 }
@@ -120,30 +114,30 @@ fn apply_related_directive(key: &str, value: &str, state: &mut ParsedDirectiveSt
         }
         "max_distance" | "distance" | "hops" => {
             if let Some(distance) = parse_positive_usize(value) {
-                state.parsed_related.max_distance = Some(distance);
+                state.related.max_distance = Some(distance);
             }
             true
         }
         "related_ppr_alpha" | "ppr_alpha" => {
             if let Some(alpha) = parse_alpha(value) {
-                state.parsed_related_ppr.alpha = Some(alpha);
+                state.related_ppr.alpha = Some(alpha);
             }
             true
         }
         "related_ppr_max_iter" | "ppr_max_iter" => {
             if let Some(max_iter) = parse_positive_usize(value) {
-                state.parsed_related_ppr.max_iter = Some(max_iter);
+                state.related_ppr.max_iter = Some(max_iter);
             }
             true
         }
         "related_ppr_tol" | "ppr_tol" => {
             if let Some(tol) = parse_positive_f64(value) {
-                state.parsed_related_ppr.tol = Some(tol);
+                state.related_ppr.tol = Some(tol);
             }
             true
         }
         "related_ppr_subgraph_mode" | "ppr_subgraph_mode" => {
-            state.parsed_related_ppr.subgraph_mode = parse_ppr_subgraph_mode(value);
+            state.related_ppr.subgraph_mode = parse_ppr_subgraph_mode(value);
             true
         }
         _ => false,

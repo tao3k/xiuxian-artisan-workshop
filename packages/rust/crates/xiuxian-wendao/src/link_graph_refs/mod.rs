@@ -1,8 +1,8 @@
-//! LinkGraph reference extraction primitives.
-#![allow(clippy::doc_markdown)]
+//! `LinkGraph` reference extraction primitives.
 //!
-//! Provides fast regex-based extraction of entity references from markdown notes.
-//! Pattern: [[EntityName]] or [[EntityName#type]]
+//! Provides fast regex-based extraction of entity references from `Markdown`
+//! notes.
+//! Pattern: `[[EntityName]]` or `[[EntityName#type]]`
 
 mod extract;
 mod model;

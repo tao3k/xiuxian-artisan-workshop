@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+//! Formal adversarial audit convergence tests.
 
 use async_trait::async_trait;
 use serde_json::json;
@@ -31,7 +31,8 @@ impl QianjiMechanism for SelfHealingMock {
 }
 
 #[tokio::test]
-async fn test_formal_adversarial_audit_convergence() {
+async fn test_formal_adversarial_audit_convergence()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
     let mut engine = xiuxian_qianji::QianjiEngine::new();
     let analyzer = Arc::new(SelfHealingMock);
     let skeptic = Arc::new(
@@ -46,10 +47,16 @@ async fn test_formal_adversarial_audit_convergence() {
     engine.add_link(a, s, None, 1.0);
 
     let scheduler = QianjiScheduler::new(engine);
-    let result = scheduler.run(json!({})).await.expect("Execution failed");
+    let result = scheduler
+        .run(json!({}))
+        .await
+        .map_err(std::io::Error::other)?;
 
     // Final state should be 'passed' after one retry
     assert_eq!(result["audit_status"], "passed");
-    let trace = result["analysis_trace"].as_array().unwrap();
+    let trace = result["analysis_trace"]
+        .as_array()
+        .ok_or_else(|| std::io::Error::other("analysis_trace should be an array"))?;
     assert_eq!(trace[0]["predicate"], "Fixed");
+    Ok(())
 }

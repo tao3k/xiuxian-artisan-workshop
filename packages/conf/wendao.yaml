@@ -40,7 +40,7 @@ link_graph:
   # 1) link_graph.cache.valkey_url (this file / user wendao.yaml)
   # 2) VALKEY_URL (environment fallback)
   cache:
-    valkey_url: "redis://127.0.0.1:6379/0"
+    valkey_url: "redis://localhost:6379/0"
     key_prefix: "xiuxian_wendao:link_graph:index"
     ttl_seconds: 300
   # Runtime guards for related-note PPR traversal.

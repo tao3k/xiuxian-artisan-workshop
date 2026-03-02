@@ -38,9 +38,6 @@ pub struct ChatCompletionResponse {
 #[derive(Debug, Deserialize)]
 pub struct Choice {
     pub message: AssistantMessage,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[allow(dead_code)]
-    pub finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

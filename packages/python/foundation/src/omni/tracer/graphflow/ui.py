@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from rich import box as rich_box
 from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+
+if TYPE_CHECKING:
+    from .tracer import GraphflowTracer
 
 console = Console()
 
@@ -86,7 +91,7 @@ def ultra_summary(
     duration_ms: float,
     steps: int,
     memory: dict,
-    tracer: LangGraphTracer | None = None,
+    tracer: GraphflowTracer | None = None,
 ) -> Columns:
     """UltraRAG execution summary with detailed memory pool."""
     summary_table = Table(box=rich_box.HEAVY, show_header=False)

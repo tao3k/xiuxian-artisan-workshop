@@ -1,4 +1,9 @@
+use xiuxian_macros::env_non_empty;
+
 use crate::config::load_runtime_settings;
+use crate::env_parse::{
+    parse_positive_u64_from_env, parse_positive_usize_from_env, resolve_valkey_url_env,
+};
 
 pub(super) const DEFAULT_SESSION_KEY_PREFIX: &str = "omni-agent:session";
 
@@ -7,6 +12,7 @@ pub(crate) struct RedisSessionConfig {
     pub(crate) url: String,
     pub(crate) key_prefix: String,
     pub(crate) ttl_secs: Option<u64>,
+    pub(crate) message_content_max_chars: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,6 +20,7 @@ pub(crate) struct RedisSessionRuntimeSnapshot {
     pub(crate) url: String,
     pub(crate) key_prefix: String,
     pub(crate) ttl_secs: Option<u64>,
+    pub(crate) message_content_max_chars: Option<usize>,
 }
 
 impl RedisSessionConfig {
@@ -26,16 +33,8 @@ impl RedisSessionConfig {
             .map(str::trim)
             .map(str::to_string)
             .filter(|v| !v.is_empty())
-            .or_else(|| {
-                std::env::var("VALKEY_URL")
-                    .ok()
-                    .map(|v| v.trim().to_string())
-                    .filter(|v| !v.is_empty())
-            })?;
-        let key_prefix = std::env::var("OMNI_AGENT_SESSION_VALKEY_PREFIX")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
+            .or_else(resolve_valkey_url_env)?;
+        let key_prefix = env_non_empty!("OMNI_AGENT_SESSION_VALKEY_PREFIX")
             .or_else(|| {
                 settings
                     .session
@@ -46,24 +45,20 @@ impl RedisSessionConfig {
                     .filter(|v| !v.is_empty())
             })
             .unwrap_or_else(|| DEFAULT_SESSION_KEY_PREFIX.to_string());
-        let ttl_secs = match std::env::var("OMNI_AGENT_SESSION_TTL_SECS") {
-            Ok(raw) => match raw.parse::<u64>() {
-                Ok(v) if v > 0 => Some(v),
-                _ => {
-                    tracing::warn!(
-                        env_var = "OMNI_AGENT_SESSION_TTL_SECS",
-                        value = %raw,
-                        "invalid session ttl env value; using settings/default"
-                    );
-                    settings.session.ttl_secs.filter(|v| *v > 0)
-                }
-            },
-            Err(_) => settings.session.ttl_secs.filter(|v| *v > 0),
-        };
+        let ttl_secs = parse_positive_u64_from_env("OMNI_AGENT_SESSION_TTL_SECS")
+            .or(settings.session.ttl_secs.filter(|v| *v > 0));
+        let message_content_max_chars = parse_positive_usize_from_env(
+            "OMNI_AGENT_SESSION_MESSAGE_CONTENT_MAX_CHARS",
+        )
+        .or(settings
+            .session
+            .message_content_max_chars
+            .filter(|value| *value > 0));
         Some(Self {
             url,
             key_prefix,
             ttl_secs,
+            message_content_max_chars,
         })
     }
 }

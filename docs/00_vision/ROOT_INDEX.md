@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "CyberXiuXian Project Registry (DFS-2026)"
+---
+
 # CyberXiuXian Project Registry (DFS-2026)
 
 This repository follows the **Filesystem-Based Documentation Hierarchy (DFS-2026)**. Access documentation via these deterministic namespaces:
@@ -11,6 +17,7 @@ This repository follows the **Filesystem-Based Documentation Hierarchy (DFS-2026
 - **Wendao**: [Graph Enhancement](../01_core/wendao/graph-enhancement.md), [PPR Algorithm](../01_core/wendao/ppr-algorithm.md).
 - **Memory**: [MemRL Evolution](../01_core/memory/memrl-evolution.md).
 - **Qianhuan**: [Orchestration Spec](../01_core/qianhuan/orchestration-spec.md).
+- **Qianji**: [Specification](../01_core/qianji/SPEC.md).
 - **Omega**: [Strategic Governance](../01_core/omega/trinity-control.md).
 
 ## [02] Dev (Rules & Handbooks)
@@ -26,6 +33,7 @@ This repository follows the **Filesystem-Based Documentation Hierarchy (DFS-2026
 ## [04] Chronicles (History)
 
 - [Milestones](../04_chronicles/MILESTONES.md): Project timeline.
+- **Research**: [Synapse-Audit Calibration](../04_chronicles/research/synapse-audit-calibration.md), [Qianji Repo Analyzer Case Study](../04_chronicles/research/2026-02-25-qianji-repo-analyzer-case-study.md), [Rust Embedding Stack Audit](../04_chronicles/research/2026-02-24-rust-embedding-stack-audit.md), [Rust Agent Hyperscale Runtime Plan](../04_chronicles/research/2026-02-25-rust-agent-hyperscale-runtime-plan.md).
 
 ## [99] LLM (Machine Interface)
 

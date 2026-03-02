@@ -1,10 +1,12 @@
+use crate::agent::{Agent, memory_recall_state};
+
 use super::super::types::{
     MemoryRecallExecutionContext, MemoryRecallPlanContext, MemoryRecallResultStats,
 };
-#[allow(clippy::wildcard_imports)]
-use super::super::*;
 
+use crate::agent::embedding_runtime::EMBEDDING_SOURCE_UNAVAILABLE;
 use crate::agent::embedding_runtime::MemoryEmbeddingErrorKind;
+use crate::observability::SessionEvent;
 
 impl Agent {
     pub(super) async fn record_injected_memory_recall(

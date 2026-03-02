@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Agent graph-executor tests for planning, tool dispatch, and failure handling.
 
 use std::sync::Arc;
 
@@ -52,9 +16,8 @@ use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, Stream
 use crate::config::{AgentConfig, McpServerEntry};
 use crate::contracts::{
     GraphExecutionPlan, GraphPlanStep, GraphPlanStepKind, GraphWorkflowMode, OmegaDecision,
-    OmegaFallbackPolicy, OmegaRiskLevel, OmegaRoute, OmegaToolTrustClass,
+    OmegaFallbackPolicy, OmegaRiskLevel, OmegaRoute, OmegaToolTrustClass, WorkflowBridgeMode,
 };
-use crate::shortcuts::WorkflowBridgeMode;
 
 use super::{GraphPlanExecutionInput, GraphPlanExecutionOutcome};
 
@@ -111,13 +74,12 @@ impl ServerHandler for MockBridgeServer {
         let args_json = request
             .arguments
             .clone()
-            .map(serde_json::Value::Object)
-            .unwrap_or_else(|| serde_json::json!({}));
+            .map_or_else(|| serde_json::json!({}), serde_json::Value::Object);
 
-        self.recorded_arguments
-            .lock()
-            .expect("recorded arguments lock poisoned")
-            .push(args_json.clone());
+        match self.recorded_arguments.lock() {
+            Ok(mut recorded_arguments) => recorded_arguments.push(args_json.clone()),
+            Err(error) => panic!("recorded arguments lock poisoned: {error}"),
+        }
 
         let has_metadata = request
             .arguments
@@ -138,10 +100,15 @@ impl ServerHandler for MockBridgeServer {
 }
 
 async fn reserve_local_addr() -> std::net::SocketAddr {
-    let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+    let probe_result = tokio::net::TcpListener::bind("127.0.0.1:0").await;
+    let probe = match probe_result {
+        Ok(listener) => listener,
+        Err(error) => panic!("reserve local addr: {error}"),
+    };
+    let addr = match probe.local_addr() {
+        Ok(addr) => addr,
+        Err(error) => panic!("read reserved local addr: {error}"),
+    };
     drop(probe);
     addr
 }
@@ -173,9 +140,11 @@ async fn spawn_mock_bridge_server(
         );
 
     let router = Router::new().nest_service("/sse", service);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind mock mcp listener");
+    let listener_result = tokio::net::TcpListener::bind(addr).await;
+    let listener = match listener_result {
+        Ok(listener) => listener,
+        Err(error) => panic!("bind mock mcp listener: {error}"),
+    };
 
     (
         tokio::spawn(async move {
@@ -267,7 +236,7 @@ async fn execute_graph_shortcut_plan_uses_plan_route_to_react_even_when_policy_i
     let decision = build_decision(OmegaFallbackPolicy::SwitchToGraph);
     let plan = build_plan(OmegaFallbackPolicy::SwitchToGraph, "route_to_react");
 
-    let outcome = agent
+    let outcome_result = agent
         .execute_graph_shortcut_plan(
             "telegram:test:graph-executor-react",
             &decision,
@@ -284,8 +253,11 @@ async fn execute_graph_shortcut_plan_uses_plan_route_to_react_even_when_policy_i
                 injection: None,
             },
         )
-        .await
-        .expect("plan should route to react instead of retrying bridge");
+        .await;
+    let outcome = match outcome_result {
+        Ok(outcome) => outcome,
+        Err(error) => panic!("plan should route to react instead of retrying bridge: {error}"),
+    };
 
     match outcome {
         GraphPlanExecutionOutcome::RouteToReact {
@@ -300,10 +272,10 @@ async fn execute_graph_shortcut_plan_uses_plan_route_to_react_even_when_policy_i
         other => panic!("expected RouteToReact, got {other:?}"),
     }
 
-    let captured = recorded_arguments
-        .lock()
-        .expect("recorded arguments lock poisoned")
-        .clone();
+    let captured = match recorded_arguments.lock() {
+        Ok(recorded_arguments) => recorded_arguments.clone(),
+        Err(error) => panic!("recorded arguments lock poisoned: {error}"),
+    };
     assert_eq!(captured.len(), 1, "plan route_to_react must not retry tool");
     assert!(captured[0].get("_omni").is_some());
 
@@ -322,7 +294,7 @@ async fn execute_graph_shortcut_plan_uses_plan_retry_even_when_policy_is_abort()
     let decision = build_decision(OmegaFallbackPolicy::Abort);
     let plan = build_plan(OmegaFallbackPolicy::Abort, "retry_bridge_without_metadata");
 
-    let outcome = agent
+    let outcome_result = agent
         .execute_graph_shortcut_plan(
             "telegram:test:graph-executor-retry",
             &decision,
@@ -339,8 +311,13 @@ async fn execute_graph_shortcut_plan_uses_plan_retry_even_when_policy_is_abort()
                 injection: None,
             },
         )
-        .await
-        .expect("plan retry should succeed on metadata-free second attempt");
+        .await;
+    let outcome = match outcome_result {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            panic!("plan retry should succeed on metadata-free second attempt: {error}")
+        }
+    };
 
     match outcome {
         GraphPlanExecutionOutcome::Completed {
@@ -355,10 +332,10 @@ async fn execute_graph_shortcut_plan_uses_plan_retry_even_when_policy_is_abort()
         other => panic!("expected Completed, got {other:?}"),
     }
 
-    let captured = recorded_arguments
-        .lock()
-        .expect("recorded arguments lock poisoned")
-        .clone();
+    let captured = match recorded_arguments.lock() {
+        Ok(recorded_arguments) => recorded_arguments.clone(),
+        Err(error) => panic!("recorded arguments lock poisoned: {error}"),
+    };
     assert_eq!(
         captured.len(),
         2,
@@ -409,7 +386,11 @@ fn ordered_steps_rejects_non_consecutive_indices() {
         ],
     };
 
-    let error = super::ordered_steps(&plan).expect_err("step index gap should fail validation");
+    let ordered_result = super::ordered_steps(&plan);
+    let error = match ordered_result {
+        Ok(_) => panic!("step index gap should fail validation"),
+        Err(error) => error,
+    };
     assert!(error.to_string().contains("step ordering is invalid"));
 }
 
@@ -450,7 +431,10 @@ fn ordered_steps_rejects_unsupported_fallback_action() {
         ],
     };
 
-    let error = super::ordered_steps(&plan)
-        .expect_err("unsupported fallback action should fail validation");
+    let ordered_result = super::ordered_steps(&plan);
+    let error = match ordered_result {
+        Ok(_) => panic!("unsupported fallback action should fail validation"),
+        Err(error) => error,
+    };
     assert!(error.to_string().contains("unsupported fallback_action"));
 }

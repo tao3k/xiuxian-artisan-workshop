@@ -10,7 +10,9 @@ params = { depth = 2 }
 id = "Annotator"
 task_type = "annotation"
 weight = 1.0
-params = { persona_id = "artisan-engineer" }
+params = {}
+[nodes.qianhuan]
+persona_id = "artisan-engineer"
 
 [[nodes]]
 id = "Skeptic"

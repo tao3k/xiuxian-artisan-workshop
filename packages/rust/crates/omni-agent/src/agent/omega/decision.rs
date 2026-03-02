@@ -1,98 +1,77 @@
+//! Strategic routing and quality-gating engine.
+
+use super::super::reflection::PolicyHintDirective;
 use crate::contracts::{
     OmegaDecision, OmegaFallbackPolicy, OmegaRiskLevel, OmegaRoute, OmegaToolTrustClass,
 };
-use crate::shortcuts::WorkflowBridgeMode;
 
-use super::super::reflection::PolicyHintDirective;
+const OMEGA_ROLE_MIX_NORMAL_POLICY_ID: &str = "omega.role_mix.normal.v1";
+const OMEGA_ROLE_MIX_RECOVERY_POLICY_ID: &str = "omega.role_mix.recovery.v1";
 
-pub(crate) fn decide_for_shortcut(
-    mode: WorkflowBridgeMode,
-    _user_message: &str,
-    tool_name: &str,
-) -> OmegaDecision {
-    match mode {
-        WorkflowBridgeMode::Graph => OmegaDecision {
-            route: OmegaRoute::Graph,
-            confidence: 0.99,
-            risk_level: OmegaRiskLevel::Low,
-            fallback_policy: OmegaFallbackPolicy::Abort,
-            tool_trust_class: OmegaToolTrustClass::Evidence,
-            reason: format!(
-                "explicit graph shortcut selected deterministic MCP bridge for `{tool_name}`"
-            ),
-            policy_id: Some("omega.shortcut.graph.v1".to_string()),
-            drift_tolerance: None,
-            next_audit_turn: None,
-        },
-        WorkflowBridgeMode::Omega => OmegaDecision {
-            route: OmegaRoute::Graph,
-            confidence: 0.82,
-            risk_level: OmegaRiskLevel::Medium,
-            fallback_policy: OmegaFallbackPolicy::SwitchToGraph,
-            tool_trust_class: OmegaToolTrustClass::Verification,
-            reason: format!(
-                "omega governance selected MCP workflow bridge for `{tool_name}` with fallback"
-            ),
-            policy_id: Some("omega.shortcut.omega.v1".to_string()),
-            drift_tolerance: None,
-            next_audit_turn: None,
-        },
-    }
-}
-
-pub(crate) fn decide_for_standard_turn(force_react: bool) -> OmegaDecision {
+/// Decides the routing strategy for a standard turn.
+#[must_use]
+pub fn decide_for_standard_turn(force_react: bool) -> OmegaDecision {
     if force_react {
         return OmegaDecision {
             route: OmegaRoute::React,
             confidence: 1.0,
             risk_level: OmegaRiskLevel::Low,
             fallback_policy: OmegaFallbackPolicy::Abort,
-            tool_trust_class: OmegaToolTrustClass::Other,
-            reason: "explicit react shortcut selected standard ReAct loop".to_string(),
-            policy_id: Some("omega.standard.react_shortcut.v1".to_string()),
-            drift_tolerance: None,
+            tool_trust_class: OmegaToolTrustClass::Evidence,
+            reason: "force_react triggered by system prefix".into(),
+            policy_id: Some(OMEGA_ROLE_MIX_NORMAL_POLICY_ID.into()),
+            drift_tolerance: Some(0.0),
             next_audit_turn: None,
         };
     }
 
+    // Default to React loop for natural language interaction
     OmegaDecision {
         route: OmegaRoute::React,
         confidence: 0.74,
         risk_level: OmegaRiskLevel::Low,
         fallback_policy: OmegaFallbackPolicy::Abort,
         tool_trust_class: OmegaToolTrustClass::Other,
-        reason: "default runtime policy selected ReAct loop".to_string(),
-        policy_id: Some("omega.standard.default.v1".to_string()),
-        drift_tolerance: None,
-        next_audit_turn: None,
+        reason: "default runtime policy selected React loop".into(),
+        policy_id: Some(OMEGA_ROLE_MIX_NORMAL_POLICY_ID.into()),
+        drift_tolerance: Some(0.1),
+        next_audit_turn: Some(10),
     }
 }
 
-pub(crate) fn apply_quality_gate(mut decision: OmegaDecision) -> OmegaDecision {
-    if decision.route == OmegaRoute::Graph
-        && risk_rank(decision.risk_level) >= risk_rank(OmegaRiskLevel::High)
-    {
-        if decision.fallback_policy == OmegaFallbackPolicy::SwitchToGraph {
-            decision.fallback_policy = OmegaFallbackPolicy::RetryReact;
-            append_quality_gate_repair(
-                &mut decision.reason,
-                "graph_retry_loop_guard",
-                "fallback_policy:retry_react",
-            );
-        }
-        if decision.tool_trust_class == OmegaToolTrustClass::Evidence {
-            decision.tool_trust_class = OmegaToolTrustClass::Verification;
-            append_quality_gate_repair(
-                &mut decision.reason,
-                "graph_high_risk_trust_upgrade",
-                "tool_trust_class:verification",
-            );
-        }
+/// Applies quality gate rules to a decision.
+#[must_use]
+pub fn apply_quality_gate(mut decision: OmegaDecision) -> OmegaDecision {
+    let mut repairs: Vec<&str> = Vec::new();
+    let is_graph = decision.route == OmegaRoute::Graph;
+    let is_high_risk = matches!(
+        decision.risk_level,
+        OmegaRiskLevel::High | OmegaRiskLevel::Critical
+    );
+
+    if is_graph && is_high_risk && decision.fallback_policy == OmegaFallbackPolicy::SwitchToGraph {
+        decision.fallback_policy = OmegaFallbackPolicy::RetryReact;
+        repairs.push("quality_gate=graph_retry_loop_guard;repair=fallback_policy:retry_react");
     }
+
+    if is_graph && is_high_risk && decision.tool_trust_class != OmegaToolTrustClass::Verification {
+        decision.tool_trust_class = OmegaToolTrustClass::Verification;
+        repairs.push(
+            "quality_gate=graph_high_risk_trust_upgrade;repair=tool_trust_class:verification",
+        );
+    }
+
+    if !repairs.is_empty() {
+        decision.reason = append_markers(decision.reason, &repairs);
+        decision.policy_id = Some(OMEGA_ROLE_MIX_RECOVERY_POLICY_ID.to_string());
+    }
+
     decision
 }
 
-pub(crate) fn apply_policy_hint(
+/// Applies policy hints from reflection to a decision.
+#[must_use]
+pub fn apply_policy_hint(
     mut decision: OmegaDecision,
     hint: Option<&PolicyHintDirective>,
 ) -> OmegaDecision {
@@ -101,30 +80,42 @@ pub(crate) fn apply_policy_hint(
     };
 
     decision.route = hint.preferred_route;
-    decision.confidence = (decision.confidence + hint.confidence_delta).clamp(0.05, 0.99);
+    decision.confidence = (decision.confidence + hint.confidence_delta).clamp(0.0, 1.0);
     decision.risk_level = max_risk(decision.risk_level, hint.risk_floor);
     if let Some(fallback_override) = hint.fallback_override {
         decision.fallback_policy = fallback_override;
     }
     decision.tool_trust_class = hint.tool_trust_class;
-    decision.reason = format!("{} [policy_hint={}]", decision.reason, hint.reason);
+    decision.reason = append_markers(
+        decision.reason,
+        &[&format!("policy_hint={}", hint.reason.trim())],
+    );
+    decision.policy_id = Some(resolve_role_mix_policy_id(
+        decision.risk_level,
+        decision.tool_trust_class,
+    ));
+
     decision
 }
 
-fn max_risk(current: OmegaRiskLevel, floor: OmegaRiskLevel) -> OmegaRiskLevel {
-    if risk_rank(current) >= risk_rank(floor) {
-        current
-    } else {
-        floor
+fn append_markers(mut reason: String, markers: &[&str]) -> String {
+    for marker in markers {
+        let trimmed = marker.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        reason.push_str("; ");
+        reason.push_str(trimmed);
     }
+    reason
 }
 
-fn append_quality_gate_repair(reason: &mut String, quality_gate: &str, repair: &str) {
-    let marker = format!("quality_gate={quality_gate};repair={repair}");
-    if reason.contains(marker.as_str()) {
-        return;
+fn max_risk(left: OmegaRiskLevel, right: OmegaRiskLevel) -> OmegaRiskLevel {
+    if risk_rank(right) >= risk_rank(left) {
+        right
+    } else {
+        left
     }
-    reason.push_str(format!(" [{marker}]").as_str());
 }
 
 const fn risk_rank(level: OmegaRiskLevel) -> u8 {
@@ -136,6 +127,12 @@ const fn risk_rank(level: OmegaRiskLevel) -> u8 {
     }
 }
 
-#[cfg(test)]
-#[path = "../../../tests/agent/omega_decision.rs"]
-mod tests;
+fn resolve_role_mix_policy_id(risk: OmegaRiskLevel, trust: OmegaToolTrustClass) -> String {
+    let recovery = matches!(risk, OmegaRiskLevel::High | OmegaRiskLevel::Critical)
+        || trust == OmegaToolTrustClass::Verification;
+    if recovery {
+        OMEGA_ROLE_MIX_RECOVERY_POLICY_ID.to_string()
+    } else {
+        OMEGA_ROLE_MIX_NORMAL_POLICY_ID.to_string()
+    }
+}

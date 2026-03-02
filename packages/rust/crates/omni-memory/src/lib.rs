@@ -61,6 +61,7 @@ mod episode;
 mod gate;
 mod persistence;
 mod q_table;
+mod recall_feedback;
 mod schema;
 mod state_backend;
 mod store;
@@ -84,10 +85,17 @@ pub use gate::{
     MemoryUtilityLedger,
 };
 pub use q_table::QTable;
+pub use recall_feedback::{
+    RecallFeedbackOutcome, RecallPlanTuning, apply_feedback_to_plan_tuning,
+    normalize_feedback_bias, update_feedback_bias,
+};
 pub use schema::EpisodeMetadata;
 #[cfg(feature = "valkey")]
 pub use state_backend::ValkeyMemoryStateStore;
-pub use state_backend::{LocalMemoryStateStore, MemoryStateStore, default_valkey_state_key};
+pub use state_backend::{
+    LocalMemoryStateStore, MemoryStateStore, default_valkey_recall_feedback_hash_key,
+    default_valkey_state_hash_keys, default_valkey_state_key,
+};
 pub use store::{EpisodeStore, MemoryStateSnapshot, StoreConfig};
 pub use two_phase::{TwoPhaseConfig, TwoPhaseSearch, calculate_score};
 

@@ -1,7 +1,7 @@
 # packages/conf/skills.yaml
 # Skill Management – loaded and merged under settings "skills.*"
 #
-# User overrides: merge via $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml
+# User overrides: merge via $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml
 # by adding a "skills:" section there (deep-merge over this file).
 
 # =============================================================================

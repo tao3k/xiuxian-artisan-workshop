@@ -54,8 +54,17 @@ impl PyLinkGraphEngine {
         if changed_paths.is_empty() {
             return Ok(());
         }
-        self.inner
-            .refresh_incremental(&changed_paths)
-            .map_err(pyo3::exceptions::PyValueError::new_err)
+        match self
+            .inner
+            .refresh_incremental_with_threshold(&changed_paths, usize::MAX)
+        {
+            Ok(_) => Ok(()),
+            Err(delta_error) => match self.refresh_impl() {
+                Ok(()) => Ok(()),
+                Err(full_error) => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "incremental refresh failed: {delta_error}; full fallback failed: {full_error}"
+                ))),
+            },
+        }
     }
 }

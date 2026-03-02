@@ -7,8 +7,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use xiuxian_llm::mcp::{DiscoverCacheConfig, DiscoverReadThroughCache};
+use xiuxian_macros::env_non_empty;
 
 use crate::config::load_runtime_settings;
+use crate::env_parse::{parse_bool_from_env, parse_positive_u64_from_env, resolve_valkey_url_env};
 
 const DEFAULT_DISCOVER_CACHE_KEY_PREFIX: &str = "omni-agent:discover";
 const DEFAULT_DISCOVER_CACHE_TTL_SECS: u64 = 30;
@@ -28,8 +30,8 @@ pub(super) fn discover_cache_from_runtime() -> Result<Option<Arc<DiscoverReadThr
 fn resolve_discover_cache_config() -> Option<DiscoverCacheConfig> {
     let settings = load_runtime_settings();
 
-    let enabled = env_bool("OMNI_AGENT_MCP_DISCOVER_CACHE_ENABLED")
-        .or(settings.mcp.agent_discover_cache_enabled)
+    let enabled = parse_bool_from_env("OMNI_AGENT_MCP_DISCOVER_CACHE_ENABLED")
+        .or(settings.mcp.discover_cache_enabled)
         .unwrap_or(true);
     if !enabled {
         return None;
@@ -42,21 +44,13 @@ fn resolve_discover_cache_config() -> Option<DiscoverCacheConfig> {
         .map(str::trim)
         .map(str::to_string)
         .filter(|value| !value.is_empty())
-        .or_else(|| {
-            std::env::var("VALKEY_URL")
-                .ok()
-                .map(|value| value.trim().to_string())
-                .filter(|value| !value.is_empty())
-        })?;
+        .or_else(resolve_valkey_url_env)?;
 
-    let key_prefix = std::env::var("OMNI_AGENT_MCP_DISCOVER_CACHE_KEY_PREFIX")
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
+    let key_prefix = env_non_empty!("OMNI_AGENT_MCP_DISCOVER_CACHE_KEY_PREFIX")
         .or_else(|| {
             settings
                 .mcp
-                .agent_discover_cache_key_prefix
+                .discover_cache_key_prefix
                 .as_deref()
                 .map(str::trim)
                 .map(str::to_string)
@@ -64,11 +58,11 @@ fn resolve_discover_cache_config() -> Option<DiscoverCacheConfig> {
         })
         .unwrap_or_else(|| DEFAULT_DISCOVER_CACHE_KEY_PREFIX.to_string());
 
-    let ttl_secs = std::env::var("OMNI_AGENT_MCP_DISCOVER_CACHE_TTL_SECS")
-        .ok()
-        .and_then(|raw| raw.parse::<u64>().ok())
-        .filter(|value| *value > 0)
-        .or(settings.mcp.agent_discover_cache_ttl_secs)
+    let ttl_secs = parse_positive_u64_from_env("OMNI_AGENT_MCP_DISCOVER_CACHE_TTL_SECS")
+        .or(settings
+            .mcp
+            .discover_cache_ttl_secs
+            .filter(|value| *value > 0))
         .unwrap_or(DEFAULT_DISCOVER_CACHE_TTL_SECS)
         .clamp(1, MAX_DISCOVER_CACHE_TTL_SECS);
 
@@ -77,13 +71,4 @@ fn resolve_discover_cache_config() -> Option<DiscoverCacheConfig> {
         key_prefix,
         ttl_secs,
     })
-}
-
-fn env_bool(name: &str) -> Option<bool> {
-    let raw = std::env::var(name).ok()?;
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Some(true),
-        "0" | "false" | "no" | "off" => Some(false),
-        _ => None,
-    }
 }

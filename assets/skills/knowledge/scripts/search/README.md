@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Knowledge Search Package"
+---
+
 # Knowledge Search Package
 
 Unified search for the knowledge skill. Single entry: `run_search(query, mode=...)`.

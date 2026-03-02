@@ -31,13 +31,11 @@ fn test_analyze_dangerous_rm_rf() {
     assert!(!result.is_safe, "rm -rf / should be blocked");
     assert!(result.is_mutation, "rm is a mutation command");
     assert!(result.violations.iter().any(|v| v.rule == "RM_RF_ROOT"));
+    let Some(violation) = result.violations.iter().find(|v| v.rule == "RM_RF_ROOT") else {
+        panic!("missing RM_RF_ROOT violation")
+    };
     assert_eq!(
-        result
-            .violations
-            .iter()
-            .find(|v| v.rule == "RM_RF_ROOT")
-            .unwrap()
-            .severity,
+        violation.severity,
         omni_executor::ViolationSeverity::Blocked
     );
 }

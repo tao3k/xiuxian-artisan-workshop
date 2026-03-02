@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Nix Language Standards"
+---
+
 # Nix Language Standards
 
 > **Philosophy**: Prefer readability over cleverness. Use `nixfmt` for formatting.

@@ -68,14 +68,14 @@ impl PyKnowledgeStorage {
             .collect())
     }
 
-    #[allow(clippy::needless_pass_by_value)]
     fn vector_search(&self, query_vector: Vec<f32>, limit: i32) -> PyResult<Vec<PyKnowledgeEntry>> {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let query_vector = query_vector.into_boxed_slice();
         let results = runtime
-            .block_on(self.inner.search(&query_vector, limit))
+            .block_on(self.inner.search(query_vector.as_ref(), limit))
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
         Ok(results
             .into_iter()

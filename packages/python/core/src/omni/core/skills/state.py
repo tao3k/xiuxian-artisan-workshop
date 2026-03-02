@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 
 class GraphState(BaseModel):
-    """Graph state container for LangGraph workflows.
+    """Graph state container for workflow pipelines.
 
     Used by smart_commit and other workflow skills.
     """

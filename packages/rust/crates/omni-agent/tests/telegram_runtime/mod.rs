@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Shared Telegram runtime test harness and webhook/polling fixtures.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -50,6 +14,7 @@ use tokio::sync::{Mutex, mpsc};
 use tower::util::ServiceExt;
 
 use crate::agent::Agent;
+use crate::channels::ForegroundQueueMode;
 use crate::channels::telegram::TelegramChannel;
 use crate::channels::telegram::TelegramSessionPartition;
 use crate::channels::traits::{Channel, ChannelMessage};
@@ -94,7 +59,7 @@ impl MockChannel {
 
 #[async_trait]
 impl Channel for MockChannel {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "mock"
     }
 
@@ -123,7 +88,7 @@ fn next_message_id() -> String {
 }
 
 fn next_numeric_id() -> i64 {
-    NEXT_ID.fetch_add(1, Ordering::Relaxed) as i64
+    i64::try_from(NEXT_ID.fetch_add(1, Ordering::Relaxed)).unwrap_or(i64::MAX)
 }
 
 fn inbound(content: &str) -> ChannelMessage {
@@ -152,9 +117,9 @@ fn sample_update(update_id: i64, text: &str) -> serde_json::Value {
 
 #[derive(Clone, Copy)]
 struct SessionIdentity {
-    chat_id: i64,
-    user_id: i64,
-    thread_id: Option<i64>,
+    chat: i64,
+    user: i64,
+    thread: Option<i64>,
 }
 
 fn partitioned_inbound_message(
@@ -173,11 +138,11 @@ fn partitioned_inbound_message(
         "message": {
             "message_id": next_numeric_id(),
             "text": text,
-            "chat": {"id": identity.chat_id},
-            "from": {"id": identity.user_id, "username": format!("u{}", identity.user_id)}
+            "chat": {"id": identity.chat},
+            "from": {"id": identity.user, "username": format!("u{}", identity.user)}
         }
     });
-    if let Some(thread_id) = identity.thread_id {
+    if let Some(thread_id) = identity.thread {
         update["message"]["message_thread_id"] = serde_json::json!(thread_id);
     }
     channel
@@ -323,6 +288,7 @@ async fn handle_inbound_message(
         &interrupt_controller,
         job_manager,
         agent,
+        ForegroundQueueMode::Interrupt,
     )
     .await
 }

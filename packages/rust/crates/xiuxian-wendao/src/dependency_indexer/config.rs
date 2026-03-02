@@ -1,4 +1,4 @@
-//! Dependency Config - Load external dependency settings from references.yaml.
+//! Dependency Config - Load external dependency settings from TOML config.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -46,15 +46,21 @@ impl From<ConfigExternalDependency> for ConfigExternalDependencyHelper {
     }
 }
 
-/// Dependency configuration loaded from references.yaml.
+/// Dependency configuration loaded from a TOML config file.
 #[derive(Debug, Clone, Default)]
 pub struct DependencyConfig {
     /// List of external dependency configurations
     pub manifests: Vec<ConfigExternalDependency>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+struct DependencyConfigFile {
+    #[serde(default)]
+    ast_symbols_external: Vec<ConfigExternalDependency>,
+}
+
 impl DependencyConfig {
-    /// Load configuration from YAML file.
+    /// Load configuration from a TOML file.
     #[must_use]
     pub fn load(path: &str) -> Self {
         let path = if let Some(stripped) = path.strip_prefix('~') {
@@ -73,62 +79,20 @@ impl DependencyConfig {
         }
 
         match std::fs::read_to_string(&path) {
-            Ok(content) => {
-                // Parse as YAML (not TOML - references.yaml is YAML format)
-                let config: serde_yaml::Value = match serde_yaml::from_str(&content) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::warn!("Failed to parse config: {e}");
-                        return Self::default();
-                    }
-                };
-
-                // Parse ast_symbols_external section
-                let manifests = if let Some(external) = config.get("ast_symbols_external") {
-                    let mut list = Vec::new();
-                    if let Some(arr) = external.as_sequence() {
-                        for item in arr {
-                            if let Some(table) = item.as_mapping() {
-                                let pkg_type = table
-                                    .get("type")
-                                    .and_then(|v| v.as_str())
-                                    .map(std::string::ToString::to_string)
-                                    .unwrap_or_default();
-
-                                let registry = table
-                                    .get("registry")
-                                    .and_then(|v| v.as_str())
-                                    .map(std::string::ToString::to_string);
-
-                                let manifests: Vec<String> = table
-                                    .get("manifests")
-                                    .and_then(|v| v.as_sequence())
-                                    .map(|arr| {
-                                        arr.iter()
-                                            .filter_map(|v| {
-                                                v.as_str().map(std::string::ToString::to_string)
-                                            })
-                                            .collect()
-                                    })
-                                    .unwrap_or_default();
-
-                                if !pkg_type.is_empty() && !manifests.is_empty() {
-                                    list.push(ConfigExternalDependency {
-                                        pkg_type,
-                                        registry,
-                                        manifests,
-                                    });
-                                }
-                            }
-                        }
-                    }
-                    list
-                } else {
-                    Vec::new()
-                };
-
-                Self { manifests }
-            }
+            Ok(content) => match toml::from_str::<DependencyConfigFile>(&content) {
+                Ok(config) => {
+                    let manifests = config
+                        .ast_symbols_external
+                        .into_iter()
+                        .filter(|entry| !entry.pkg_type.is_empty() && !entry.manifests.is_empty())
+                        .collect();
+                    Self { manifests }
+                }
+                Err(error) => {
+                    log::warn!("Failed to parse config '{}': {error}", path.display());
+                    Self::default()
+                }
+            },
             Err(e) => {
                 log::warn!("Failed to read config: {e}");
                 Self::default()

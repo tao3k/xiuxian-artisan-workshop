@@ -4,13 +4,14 @@
 //! It combines parallel file reading, template rendering, and token counting
 //! into a single efficient operation.
 
-use std::path::PathBuf;
+use std::borrow::Borrow;
+use std::path::{Path, PathBuf};
 
 use minijinja::Environment;
 use rayon::prelude::*;
 use serde_json::Value;
 
-use crate::error::Result;
+use crate::error::{IoError, Result};
 use omni_tokenizer::count_tokens;
 
 /// Result of assembling skill context.
@@ -52,7 +53,7 @@ impl ContextAssembler {
     ///
     /// # Arguments
     ///
-    /// * `main_path` - Path to the main SKILL.md file
+    /// * `main_path` - Path to the main `SKILL.md` file
     /// * `ref_paths` - List of paths to reference files
     /// * `variables` - JSON object with template variables
     ///
@@ -62,18 +63,22 @@ impl ContextAssembler {
     ///
     /// # Errors
     ///
-    /// This currently never returns an error and is modeled as `Result` for API compatibility.
+    /// Returns [`IoError::NotFound`] when the main file path does not exist and
+    /// [`IoError::System`] for other main-file I/O failures.
     #[cfg(feature = "assembler")]
-    #[allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
     pub fn assemble_skill(
         &self,
-        main_path: PathBuf,
-        ref_paths: Vec<PathBuf>,
-        variables: Value,
+        main_path: impl AsRef<Path>,
+        ref_paths: impl AsRef<[PathBuf]>,
+        variables: impl Borrow<Value>,
     ) -> Result<AssemblyResult> {
+        let main_path = main_path.as_ref();
+        let ref_paths = ref_paths.as_ref();
+        let variables = variables.borrow();
+
         // 1. [Parallel I/O] Read main file and references concurrently
         let (main_res, refs_res) = rayon::join(
-            || std::fs::read_to_string(&main_path),
+            || std::fs::read_to_string(main_path),
             || {
                 ref_paths
                     .par_iter()
@@ -82,12 +87,18 @@ impl ContextAssembler {
             },
         );
 
-        let main_template = main_res.unwrap_or_default();
+        let main_template = main_res.map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                IoError::NotFound(main_path.display().to_string())
+            } else {
+                IoError::System(error)
+            }
+        })?;
 
         // 2. [Templating] Render the main template
         let rendered_main = self
             .env
-            .render_str(&main_template, &variables)
+            .render_str(&main_template, variables)
             .unwrap_or_else(|e| format!("[Template Error: {e}]"));
 
         // 3. [Assembly] Build the final buffer
@@ -128,68 +139,5 @@ impl ContextAssembler {
 impl Default for ContextAssembler {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_assemble_skill_basic() {
-        let temp_dir = TempDir::new().unwrap();
-        let main_path = temp_dir.path().join("SKILL.md");
-        fs::write(&main_path, "Hello {{ name }}!").unwrap();
-
-        let assembler = ContextAssembler::new();
-        let variables = serde_json::json!({"name": "World"});
-
-        let result = assembler
-            .assemble_skill(main_path, Vec::new(), variables)
-            .unwrap();
-
-        assert!(result.content.contains("Hello World!"));
-        assert!(result.token_count > 0);
-        assert!(result.missing_refs.is_empty());
-    }
-
-    #[test]
-    fn test_assemble_skill_with_references() {
-        let temp_dir = TempDir::new().unwrap();
-        let main_path = temp_dir.path().join("SKILL.md");
-        fs::write(&main_path, "Main: {{ var1 }}").unwrap();
-
-        let ref_path = temp_dir.path().join("ref.md");
-        fs::write(&ref_path, "Reference content").unwrap();
-
-        let assembler = ContextAssembler::new();
-        let variables = serde_json::json!({"var1": "test"});
-
-        let result = assembler
-            .assemble_skill(main_path, vec![ref_path], variables)
-            .unwrap();
-
-        assert!(result.content.contains("Main: test"));
-        assert!(result.content.contains("Reference content"));
-        assert!(result.content.contains("# Required References"));
-    }
-
-    #[test]
-    fn test_assemble_skill_missing_reference() {
-        let temp_dir = TempDir::new().unwrap();
-        let main_path = temp_dir.path().join("SKILL.md");
-        fs::write(&main_path, "Main content").unwrap();
-
-        let missing_path = temp_dir.path().join("missing.md");
-
-        let assembler = ContextAssembler::new();
-
-        let result = assembler
-            .assemble_skill(main_path, vec![missing_path], serde_json::json!({}))
-            .unwrap();
-
-        assert!(result.missing_refs.len() == 1);
     }
 }

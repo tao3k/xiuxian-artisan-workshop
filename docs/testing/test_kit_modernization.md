@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Test Kit Modernization"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - test_kit_modernization
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Test Kit Modernization"
 ---
 
 # Test Kit Modernization
@@ -13,9 +16,9 @@ decay_rate: 0.04
 ## What Was Refactored
 
 - Added `SkillCommandTester` utility in `omni.test_kit.skill` to reduce repeated async skill-command invocation boilerplate.
-- Added reusable `temp_yaml_file` fixture in `omni.test_kit.fixtures.files` for temporary YAML test artifacts.
+- Added reusable `temp_yaml_file` fixture in `omni.test_kit.fixtures.files` for temporary TOML test artifacts.
 - Centralized skills import-path setup via `ensure_skills_import_path()` and reused it from pytest plugin and tester utility.
-- Simplified demo YAML pipeline tests by parameterizing repeated cases.
+- Simplified demo TOML pipeline tests by parameterizing repeated cases.
 - Removed outdated hardcoded skill path usage in demo command tests and switched to `SKILLS_DIR(...)` API.
 - Removed legacy flat compatibility module `omni.test_kit.fixtures.py`; the package namespace is now `omni.test_kit.fixtures.*` only.
 - Split scanner fixture responsibilities into modular files:

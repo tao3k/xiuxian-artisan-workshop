@@ -1,4 +1,5 @@
 ---
+type: skill
 name: skill
 description: Use when discovering skills, installing new capabilities, listing available tools, reloading skill manifests, or learning about project capabilities.
 metadata:

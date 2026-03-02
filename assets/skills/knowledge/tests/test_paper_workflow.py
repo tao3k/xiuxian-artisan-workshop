@@ -6,7 +6,13 @@ import json
 from contextlib import contextmanager
 
 import pytest
-from paper_workflow import _node_fetch, _node_preview, _parse_recall_output, run_chunked_recall
+from _module_loader import load_script_module
+
+_paper_workflow = load_script_module("paper_workflow", alias="knowledge_paper_workflow_test")
+_node_fetch = _paper_workflow._node_fetch
+_node_preview = _paper_workflow._node_preview
+_parse_recall_output = _paper_workflow._parse_recall_output
+run_chunked_recall = _paper_workflow.run_chunked_recall
 
 
 @pytest.mark.asyncio
@@ -18,7 +24,7 @@ async def test_node_preview_uses_single_call_recall(monkeypatch: pytest.MonkeyPa
         captured.update(kwargs)
         return json.dumps({"status": "success", "results": [{"source": "doc.md"}]})
 
-    monkeypatch.setattr("paper_workflow._get_recall", lambda: _fake_recall)
+    monkeypatch.setattr(_paper_workflow, "_get_recall", lambda: _fake_recall)
 
     state = {
         "query": "x",
@@ -44,7 +50,7 @@ async def test_node_fetch_uses_single_call_recall(monkeypatch: pytest.MonkeyPatc
         captured.update(kwargs)
         return json.dumps({"status": "success", "results": rows})
 
-    monkeypatch.setattr("paper_workflow._get_recall", lambda: _fake_recall)
+    monkeypatch.setattr(_paper_workflow, "_get_recall", lambda: _fake_recall)
 
     state = {
         "query": "x",
@@ -69,7 +75,7 @@ async def test_node_fetch_propagates_recall_error(monkeypatch: pytest.MonkeyPatc
     async def _fake_recall(**_kwargs):
         return json.dumps({"status": "error", "error": "embedding unavailable", "results": []})
 
-    monkeypatch.setattr("paper_workflow._get_recall", lambda: _fake_recall)
+    monkeypatch.setattr(_paper_workflow, "_get_recall", lambda: _fake_recall)
 
     state = {
         "query": "x",
@@ -105,8 +111,8 @@ async def test_node_fetch_suspends_monitor_for_internal_recall(
         finally:
             trace.append("exit")
 
-    monkeypatch.setattr("paper_workflow._get_recall", lambda: _fake_recall)
-    monkeypatch.setattr("paper_workflow._suspend_skills_monitor", _fake_suspend)
+    monkeypatch.setattr(_paper_workflow, "_get_recall", lambda: _fake_recall)
+    monkeypatch.setattr(_paper_workflow, "_suspend_skills_monitor", _fake_suspend)
 
     state = {
         "query": "x",
@@ -137,7 +143,7 @@ async def test_run_chunked_recall_uses_shared_chunked_runner(
             }
         )
 
-    monkeypatch.setattr("paper_workflow._get_recall", lambda: _fake_recall)
+    monkeypatch.setattr(_paper_workflow, "_get_recall", lambda: _fake_recall)
 
     out = await run_chunked_recall(
         query="x",
@@ -166,7 +172,7 @@ async def test_run_chunked_recall_returns_error_when_fetch_fails(
     async def _fake_recall(**_kwargs):
         return json.dumps({"status": "error", "error": "embedding unavailable", "results": []})
 
-    monkeypatch.setattr("paper_workflow._get_recall", lambda: _fake_recall)
+    monkeypatch.setattr(_paper_workflow, "_get_recall", lambda: _fake_recall)
 
     out = await run_chunked_recall(
         query="x",
@@ -189,7 +195,7 @@ async def test_run_chunked_recall_returns_error_when_engine_fails(
     async def _fake_auto_complete(*_args, **_kwargs):
         return {"success": False, "error": "chunked workflow failed"}
 
-    monkeypatch.setattr("paper_workflow.run_chunked_auto_complete", _fake_auto_complete)
+    monkeypatch.setattr(_paper_workflow, "run_chunked_auto_complete", _fake_auto_complete)
 
     out = await run_chunked_recall(query="x")
 
@@ -211,7 +217,7 @@ async def test_run_chunked_recall_returns_error_for_invalid_payload(
     async def _fake_auto_complete(*_args, **_kwargs):
         return {"success": True, "result": {"status": "success"}}
 
-    monkeypatch.setattr("paper_workflow.run_chunked_auto_complete", _fake_auto_complete)
+    monkeypatch.setattr(_paper_workflow, "run_chunked_auto_complete", _fake_auto_complete)
 
     out = await run_chunked_recall(query="x")
 

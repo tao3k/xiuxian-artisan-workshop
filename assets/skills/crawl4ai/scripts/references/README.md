@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Reference Documentation"
+---
+
 # Reference Documentation
 
 Detailed documentation for crawl4ai internals.

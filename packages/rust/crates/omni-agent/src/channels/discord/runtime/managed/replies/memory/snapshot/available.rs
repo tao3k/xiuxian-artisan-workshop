@@ -94,7 +94,7 @@ pub(in super::super::super::super) fn format_memory_recall_snapshot(
 pub(in super::super::super::super) fn format_memory_recall_snapshot_json(
     snapshot: SessionMemoryRecallSnapshot,
     metrics: MemoryRecallMetricsSnapshot,
-    runtime_status: MemoryRuntimeStatusSnapshot,
+    runtime_status: &MemoryRuntimeStatusSnapshot,
     admission_status: DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
@@ -131,7 +131,7 @@ pub(in super::super::super::super) fn format_memory_recall_snapshot_json(
             "weakest_score": snapshot.weakest_score,
         },
         "runtime": format_memory_runtime_status_json(runtime_status),
-        "admission": format_downstream_admission_status_json(admission_status),
+        "admission": format_downstream_admission_status_json(&admission_status),
         "metrics": format_memory_recall_metrics_json(metrics),
     })
     .to_string()

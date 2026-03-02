@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Scenario: Batch Refactoring (Search-and-Destroy)"
+---
+
 # Scenario: Batch Refactoring (Search-and-Destroy)
 
 **Danger Level**: High - Modifies multiple files in one operation

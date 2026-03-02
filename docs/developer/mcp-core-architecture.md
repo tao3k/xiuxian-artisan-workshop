@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "MCP Core Architecture"
 category: "developer"
 tags:
@@ -6,6 +7,8 @@ tags:
   - mcp
 saliency_base: 6.3
 decay_rate: 0.04
+metadata:
+  title: "MCP Core Architecture"
 ---
 
 # MCP Core Architecture

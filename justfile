@@ -375,6 +375,19 @@ setup:
         echo "Run 'just' to see available commands."; \
     fi
 
+# Import Apple Metal toolchain from local Xcode into Nix Store
+[group('nix')]
+nix-import-metal-toolchain:
+    @echo "📦 Starting Metal toolchain import..."
+    @bash scripts/nix/import-metal-toolchain.sh
+
+# Build xiuxian-llm with Metal pre-compilation
+[group('nix')]
+nix-build-xiuxian-llm:
+    @echo "🚀 Building xiuxian-llm..."
+    nix build .#xiuxian-llm-dev
+
+
 [group('validate')]
 validate: check-format check-commits lint test
     @echo "All validation checks passed!"
@@ -403,9 +416,13 @@ rust-lint-inheritance-check:
     @bash scripts/rust/check_lint_inheritance.sh
 
 [group('validate')]
+rust-test-layout:
+    @bash scripts/rust/check_test_layout.sh
+
+[group('validate')]
 rust-clippy:
     @echo "Running Rust clippy across the full workspace (warnings denied)..."
-    @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" cargo clippy --workspace -- -D warnings
+    @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" scripts/rust/cargo_exec.sh clippy --workspace -- -D warnings
 
 [group('validate')]
 rust-nextest:
@@ -415,7 +432,7 @@ rust-nextest:
         echo "Install with: nix profile add nixpkgs#cargo-nextest"; \
         exit 1; \
     fi
-    @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" cargo nextest run --workspace --exclude omni-core-rs --no-fail-fast
+    @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" scripts/rust/cargo_exec.sh nextest run --workspace --exclude omni-core-rs --no-fail-fast
 
 [group('validate')]
 rust-security-audit:
@@ -435,7 +452,7 @@ rust-security-deny:
         echo "Install with: nix profile add nixpkgs#cargo-deny"; \
         exit 1; \
     fi
-    @cargo deny check advisories bans sources
+    @scripts/rust/cargo_exec.sh deny check advisories bans sources
 
 [group('validate')]
 rust-security-gate: rust-security-audit rust-security-deny
@@ -447,7 +464,7 @@ rust-test-omni-core-rs cargo_args="--no-fail-fast":
     @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" scripts/rust/test_omni_core_rs.sh {{cargo_args}}
 
 [group('validate')]
-rust-quality-gate: rust-lint-inheritance-check rust-check rust-clippy rust-nextest rust-test-omni-core-rs rust-security-gate
+rust-quality-gate: rust-lint-inheritance-check rust-test-layout rust-check rust-clippy rust-nextest rust-test-omni-core-rs rust-security-gate
     @echo "Rust quality gates passed (check + strict clippy + nextest + omni-core-rs runtime lane + dependency security)."
 
 [group('validate')]
@@ -481,15 +498,32 @@ rust-omni-agent-backend-role-contracts:
     @bash scripts/rust/omni_agent_backend_role_contracts.sh
 
 [group('validate')]
-rust-omni-agent-embedding-role-perf-smoke single_runs="20" batch_runs="10" concurrent_total="64" concurrent_width="8":
-    @echo "Running omni-agent embedding role perf smoke (litellm_rs + mistral_local)..."
-    @OLLAMA_MODELS="${OLLAMA_MODELS:-${PRJ_DATA_HOME:-.data}/models}" \
-      OMNI_EMBED_UPSTREAM_BASE_URL="${OMNI_EMBED_UPSTREAM_BASE_URL:-http://127.0.0.1:11434}" \
-      OMNI_EMBED_SINGLE_RUNS="{{single_runs}}" \
-      OMNI_EMBED_BATCH_RUNS="{{batch_runs}}" \
-      OMNI_EMBED_CONCURRENT_TOTAL="{{concurrent_total}}" \
-      OMNI_EMBED_CONCURRENT_WIDTH="{{concurrent_width}}" \
-      cargo test -p omni-agent --test embedding_role_perf_smoke -- --ignored --nocapture
+rust-omni-agent-embedding-role-perf-smoke \
+    single_runs="20" \
+    batch_runs="10" \
+    concurrent_total="64" \
+    concurrent_width="8" \
+    max_single_p95_ms="" \
+    max_batch8_p95_ms="" \
+    min_concurrent_rps="" \
+    report_json="":
+    @bash scripts/rust/omni_agent_embedding_role_perf_smoke.sh \
+      "{{single_runs}}" \
+      "{{batch_runs}}" \
+      "{{concurrent_total}}" \
+      "{{concurrent_width}}" \
+      "{{max_single_p95_ms}}" \
+      "{{max_batch8_p95_ms}}" \
+      "{{min_concurrent_rps}}" \
+      "{{report_json}}"
+
+[group('validate')]
+rust-omni-agent-embedding-role-perf-medium-gate:
+    @bash scripts/rust/omni_agent_embedding_role_perf_medium_gate.sh
+
+[group('validate')]
+rust-omni-agent-embedding-role-perf-heavy-gate:
+    @bash scripts/rust/omni_agent_embedding_role_perf_heavy_gate.sh
 
 [group('validate')]
 rust-xiuxian-mcp:
@@ -508,7 +542,7 @@ rust-fusion-snapshots:
 [group('validate')]
 rust-search-perf-guard:
     @echo "Running omni-vector search perf guard..."
-    @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" cargo test -p omni-vector --test test_search_perf_guard
+    @CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}" scripts/rust/cargo_exec.sh test -p omni-vector --test test_search_perf_guard
 
 [group('validate')]
 rust-retrieval-audits:
@@ -530,20 +564,20 @@ telegram-session-isolation-python:
 [group('validate')]
 rust-test-snapshots:
     @echo "Running Rust snapshot contract tests..."
-    @cargo test -p omni-vector --test test_fusion_snapshots
+    @scripts/rust/cargo_exec.sh test -p omni-vector --test test_fusion_snapshots
 
 # KG cache (xiuxian-wendao) and search cache (omni-vector) unit tests
 [group('validate')]
 rust-test-cache:
     @echo "Running Rust cache tests (test_kg_cache, test_search_cache)..."
-    @cargo test -p xiuxian-wendao --test test_kg_cache -- --test-threads=1
-    @cargo test -p omni-vector --test test_search_cache -- --test-threads=1
+    @scripts/rust/cargo_exec.sh test -p xiuxian-wendao --test test_kg_cache -- --test-threads=1
+    @scripts/rust/cargo_exec.sh test -p omni-vector --test test_search_cache -- --test-threads=1
 
 # omni-agent: config, session, MCP, gateway (HTTP 400/404), agent loop
 [group('validate')]
 rust-test-agent:
     @echo "Running Rust agent tests (omni-agent)..."
-    @cargo test -p omni-agent
+    @scripts/rust/cargo_exec.sh test -p omni-agent
 
 # Regenerate Tantivy vs Lance FTS decision report from v4_large snapshot
 # See docs/testing/keyword-backend-decision.md for full loop (snapshots + report).
@@ -600,6 +634,32 @@ test:
     @echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 [group('validate')]
+test-python:
+    @echo "PYTHON TEST PIPELINE"
+    @echo "========================================"
+    @echo "[1/6] foundation"
+    @uv run pytest packages/python/foundation -q
+    @echo ""
+    @echo "[2/6] core"
+    @uv run pytest packages/python/core -q
+    @echo ""
+    @echo "[3/6] xiuxian-wendao-py"
+    @uv run pytest packages/python/xiuxian-wendao-py -q
+    @echo ""
+    @echo "[4/6] agent"
+    @uv run pytest packages/python/agent -q
+    @echo ""
+    @echo "[5/6] mcp-server"
+    @uv run pytest packages/python/mcp-server -q
+    @echo ""
+    @echo "[6/6] test-kit"
+    @uv run pytest packages/python/test-kit -q
+    @echo ""
+    @echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    @echo "                         PYTHON TESTS COMPLETE"
+    @echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+[group('validate')]
 test-channel-cursor-contracts:
     @echo "Running channel cursor contract regressions..."
     @uv run pytest -q scripts/channel/test_log_io.py scripts/channel/test_memory_ci_gate.py \
@@ -642,6 +702,13 @@ ci-scripts-smoke:
     @bash scripts/ci_scripts_smoke.sh
 
 [group('validate')]
+verify-native-runtime:
+    @echo "Running native runtime verification scripts..."
+    @uv run python scripts/verify_brain.py
+    @uv run python scripts/verify_pipeline.py
+    @uv run python scripts/verify_mcp_interface.py
+
+[group('validate')]
 memory-gate-quick:
     @python3 scripts/channel/test_omni_agent_memory_ci_gate.py --profile quick
 
@@ -667,7 +734,11 @@ memory-gate-a7:
 
 [group('validate')]
 valkey-live:
-    @bash scripts/channel/valkey_live_gate.sh "6379" "redis://127.0.0.1:6379/0"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    valkey_url="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field url)"
+    valkey_port="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field port)"
+    bash scripts/channel/valkey_live_gate.sh "${valkey_port}" "${valkey_url}"
 
 [group('validate')]
 ci-local-recall-gates runs="3" warm_runs="1" query="x" limit="2" report_dir=".run/reports/knowledge-recall-perf":
@@ -708,6 +779,71 @@ benchmark-skills-tools-network-observability runs="5":
 [group('validate')]
 benchmark-skills-tools-ci report_dir=".run/reports/skills-tools-benchmark" deterministic_runs="3" network_runs="5":
     @bash scripts/benchmark_skills_tools_ci.sh "{{report_dir}}" "{{deterministic_runs}}" "{{network_runs}}"
+
+[group('validate')]
+benchmark-mcp-tools-list-sweep base_url="" host="" port="" no_embedding="true" mcp_health_timeout_secs="120" total="1000" concurrency_values="40,80,120,160,200" warmup_calls="2" timeout_secs="30" p95_slo_ms="400" p99_slo_ms="800" strict_snapshot="false" write_snapshot="false" report_dir=".run/reports/mcp-tools-list-sweep":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_base_url="{{base_url}}"
+    resolved_host="{{host}}"
+    resolved_port="{{port}}"
+    if [ -z "$resolved_base_url" ]; then
+      resolved_base_url="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field base_url)"
+    fi
+    if [ -z "$resolved_host" ]; then
+      resolved_host="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field host)"
+    fi
+    if [ -z "$resolved_port" ]; then
+      resolved_port="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field port)"
+    fi
+    started_mcp="false"
+    mcp_pid=""
+    mcp_log=".run/logs/omni-mcp-sse.benchmark.log"
+    cleanup() {
+      if [ "$started_mcp" = "true" ] && [ -n "$mcp_pid" ]; then
+        if kill -0 "$mcp_pid" >/dev/null 2>&1; then
+          kill "$mcp_pid" >/dev/null 2>&1 || true
+          wait "$mcp_pid" >/dev/null 2>&1 || true
+        fi
+      fi
+    }
+    trap cleanup EXIT
+    if python3 scripts/channel/check_mcp_health.py --host "$resolved_host" --port "$resolved_port" --timeout-secs "1.0" >/dev/null 2>&1; then
+      echo "MCP already healthy at ${resolved_base_url}; reusing existing server."
+    else
+      mkdir -p "$(dirname "$mcp_log")"
+      cmd=(uv run omni mcp --transport sse --host "$resolved_host" --port "$resolved_port")
+      if [ "{{no_embedding}}" = "true" ]; then
+        cmd+=(--no-embedding)
+      fi
+      "${cmd[@]}" >"$mcp_log" 2>&1 &
+      mcp_pid="$!"
+      started_mcp="true"
+      timeout="{{mcp_health_timeout_secs}}"
+      end_ts=$((SECONDS + timeout))
+      until python3 scripts/channel/check_mcp_health.py --host "$resolved_host" --port "$resolved_port" --timeout-secs "1.0" >/dev/null 2>&1; do
+        if ! kill -0 "$mcp_pid" >/dev/null 2>&1; then
+          echo "MCP process exited before health was ready (pid=$mcp_pid)." >&2
+          tail -n 80 "$mcp_log" >&2 || true
+          exit 1
+        fi
+        if (( SECONDS >= end_ts )); then
+          echo "Timed out waiting for MCP health (${resolved_base_url}/health) after ${timeout}s." >&2
+          tail -n 80 "$mcp_log" >&2 || true
+          exit 1
+        fi
+        sleep 0.2
+      done
+    fi
+    mkdir -p "{{report_dir}}"
+    args=(--base-url "$resolved_base_url" --total "{{total}}" --concurrency-values "{{concurrency_values}}" --warmup-calls "{{warmup_calls}}" --timeout-secs "{{timeout_secs}}" --p95-slo-ms "{{p95_slo_ms}}" --p99-slo-ms "{{p99_slo_ms}}" --json-out "{{report_dir}}/mcp_tools_list_concurrency_sweep.json" --markdown-out "{{report_dir}}/mcp_tools_list_concurrency_sweep.md")
+    if [ "{{strict_snapshot}}" = "true" ]; then
+      args+=(--strict-snapshot)
+    fi
+    if [ "{{write_snapshot}}" = "true" ]; then
+      args+=(--write-snapshot)
+    fi
+    bash scripts/channel/test-omni-agent-mcp-tools-list-concurrency-sweep.sh "${args[@]}"
 
 [group('validate')]
 evaluate-wendao-retrieval limit="10" min_top3_rate="0.0":
@@ -824,9 +960,12 @@ test-skills:
     @echo "Running skill tests via omni skill test --all..."
     @uv run omni skill test --all
 
-# Run Rust MCP client integration test (requires MCP server: omni mcp --transport sse --port 3002)
+# Run Rust MCP client integration test (requires MCP server; endpoint resolved via settings)
 test-mcp-integration:
-    OMNI_MCP_URL=http://127.0.0.1:3002/sse cargo test -p xiuxian-mcp --test streamable_http_integration -- --ignored
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mcp_base_url="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field base_url)"
+    OMNI_MCP_URL="${mcp_base_url}/sse" scripts/rust/cargo_exec.sh test -p xiuxian-mcp --test streamable_http_integration -- --ignored
 
 [group('validate')]
 test-parallel:
@@ -1080,7 +1219,7 @@ clean-generated:
 [group('dev')]
 clean-rust:
     @echo "Cleaning Rust build artifacts via cargo clean..."
-    @cargo clean
+    @scripts/rust/cargo_exec.sh clean
     @echo "Rust build artifacts cleaned"
 
 [group('dev')]
@@ -1397,8 +1536,14 @@ agent-format: fmt
 # Bootstraps local Valkey automatically before starting the agent.
 # Usage: TELEGRAM_BOT_TOKEN=xxx just agent-channel [valkey_port]
 [group('channel')]
-agent-channel valkey_port="6379":
-    bash scripts/channel/agent-channel-polling.sh "{{valkey_port}}"
+agent-channel valkey_port="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_port="{{valkey_port}}"
+    if [ -z "$resolved_valkey_port" ]; then
+      resolved_valkey_port="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field port)"
+    fi
+    bash scripts/channel/agent-channel-polling.sh "$resolved_valkey_port"
 
 # Run Telegram channel in webhook mode via modular script entrypoint.
 # By default this also starts Discord ingress runtime (from `discord.ingress_*` settings)
@@ -1408,18 +1553,24 @@ agent-channel valkey_port="6379":
 # Note: defaults to verbose debug logs (`--verbose`, `RUST_LOG=omni_agent=debug` when unset).
 # Logs are mirrored to `${OMNI_CHANNEL_LOG_FILE:-.run/logs/omni-agent-webhook.log}` for black-box probes.
 [group('channel')]
-agent-channel-webhook valkey_port="6379" webhook_port="" gateway_port="":
+agent-channel-webhook valkey_port="" webhook_port="" gateway_port="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_port="{{valkey_port}}"
+    if [ -z "$resolved_valkey_port" ]; then
+      resolved_valkey_port="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field port)"
+    fi
     if [ -n "{{webhook_port}}" ]; then \
-        WEBHOOK_PORT="{{webhook_port}}" GATEWAY_PORT="{{gateway_port}}" bash scripts/channel/agent-channel-webhook.sh "{{valkey_port}}"; \
+        WEBHOOK_PORT="{{webhook_port}}" GATEWAY_PORT="{{gateway_port}}" bash scripts/channel/agent-channel-webhook.sh "$resolved_valkey_port"; \
     else \
-        GATEWAY_PORT="{{gateway_port}}" bash scripts/channel/agent-channel-webhook.sh "{{valkey_port}}"; \
+        GATEWAY_PORT="{{gateway_port}}" bash scripts/channel/agent-channel-webhook.sh "$resolved_valkey_port"; \
     fi
 
 # Run Discord channel in ingress mode for synthetic ingress replay/ACL probes.
 # Usage: DISCORD_BOT_TOKEN=xxx just agent-channel-discord-ingress
 [group('channel')]
 agent-channel-discord-ingress:
-    cargo run -p omni-agent -- channel --provider discord --discord-runtime-mode ingress --verbose
+    scripts/rust/cargo_exec.sh run -p omni-agent -- channel --provider discord --discord-runtime-mode ingress --verbose
 
 # Black-box probe: inject one synthetic Telegram update into local webhook and wait for bot reply log.
 # Usage: just agent-channel-blackbox "your prompt" [max_wait_secs]
@@ -1623,12 +1774,20 @@ agent-channel-blackbox-memory-evolution scenario="memory_self_correction_high_co
 # Restart local MCP SSE server and wait for /health to become ready.
 # Usage:
 #   just mcp-restart
-#   just mcp-restart 127.0.0.1 3002 false 25 .run/omni-mcp-sse.pid .run/logs/omni-mcp-sse.log
+#   just mcp-restart "<host>" "<port>" false 25 .run/omni-mcp-sse.pid .run/logs/omni-mcp-sse.log
 [group('channel')]
-mcp-restart host="127.0.0.1" port="3002" no_embedding="false" health_timeout_secs="25" pid_file=".run/omni-mcp-sse.pid" log_file=".run/logs/omni-mcp-sse.log":
+mcp-restart host="" port="" no_embedding="false" health_timeout_secs="25" pid_file=".run/omni-mcp-sse.pid" log_file=".run/logs/omni-mcp-sse.log":
     #!/usr/bin/env bash
     set -euo pipefail
-    args=(--host "{{host}}" --port "{{port}}" --health-timeout-secs "{{health_timeout_secs}}" --pid-file "{{pid_file}}" --log-file "{{log_file}}")
+    resolved_host="{{host}}"
+    resolved_port="{{port}}"
+    if [ -z "$resolved_host" ]; then
+      resolved_host="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field host)"
+    fi
+    if [ -z "$resolved_port" ]; then
+      resolved_port="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field port)"
+    fi
+    args=(--host "$resolved_host" --port "$resolved_port" --health-timeout-secs "{{health_timeout_secs}}" --pid-file "{{pid_file}}" --log-file "{{log_file}}")
     if [ "{{no_embedding}}" = "true" ]; then
       args+=(--no-embedding)
     fi
@@ -1637,17 +1796,21 @@ mcp-restart host="127.0.0.1" port="3002" no_embedding="false" health_timeout_sec
 # Stress MCP startup by repeatedly launching omni-agent gateway probes.
 # Usage:
 #   just agent-channel-mcp-startup-stress
-#   just agent-channel-mcp-startup-stress 8 4 50 0.2 ".mcp.json" "http://127.0.0.1:3002/health" "just mcp-restart" 0.2 true
+#   just agent-channel-mcp-startup-stress 8 4 50 0.2 ".mcp.json" "<health_url>" "just mcp-restart" 0.2 true
 # Reports:
 #   .run/reports/omni-agent-mcp-startup-stress.json
 #   .run/reports/omni-agent-mcp-startup-stress.md
 [group('channel')]
-agent-channel-mcp-startup-stress rounds="6" parallel="3" startup_timeout_secs="45" cooldown_secs="0.2" mcp_config=".mcp.json" health_url="http://127.0.0.1:3002/health" restart_mcp_cmd="" restart_mcp_settle_secs="2.0" strict_health_check="false" health_probe_interval_secs="0.2" health_probe_timeout_secs="1.0" output_json=".run/reports/omni-agent-mcp-startup-stress.json" output_markdown=".run/reports/omni-agent-mcp-startup-stress.md":
+agent-channel-mcp-startup-stress rounds="6" parallel="3" startup_timeout_secs="45" cooldown_secs="0.2" mcp_config=".mcp.json" health_url="" restart_mcp_cmd="" restart_mcp_settle_secs="2.0" strict_health_check="false" health_probe_interval_secs="0.2" health_probe_timeout_secs="1.0" output_json=".run/reports/omni-agent-mcp-startup-stress.json" output_markdown=".run/reports/omni-agent-mcp-startup-stress.md":
     #!/usr/bin/env bash
     set -euo pipefail
+    resolved_health_url="{{health_url}}"
+    if [ -z "$resolved_health_url" ]; then
+      resolved_health_url="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field health_url)"
+    fi
     args=(--rounds "{{rounds}}" --parallel "{{parallel}}" --startup-timeout-secs "{{startup_timeout_secs}}" --cooldown-secs "{{cooldown_secs}}" --mcp-config "{{mcp_config}}" --output-json "{{output_json}}" --output-markdown "{{output_markdown}}" --restart-mcp-settle-secs "{{restart_mcp_settle_secs}}" --health-probe-interval-secs "{{health_probe_interval_secs}}" --health-probe-timeout-secs "{{health_probe_timeout_secs}}")
-    if [ -n "{{health_url}}" ]; then
-      args+=(--health-url "{{health_url}}")
+    if [ -n "$resolved_health_url" ]; then
+      args+=(--health-url "$resolved_health_url")
     fi
     if [ -n "{{restart_mcp_cmd}}" ]; then
       args+=(--restart-mcp-cmd "{{restart_mcp_cmd}}")
@@ -1660,16 +1823,24 @@ agent-channel-mcp-startup-stress rounds="6" parallel="3" startup_timeout_secs="4
 # Run MCP startup regression suite (hot + cold start).
 # Usage:
 #   just agent-channel-mcp-startup-suite
-#   just agent-channel-mcp-startup-suite 20 8 8 4 60 0.2 127.0.0.1 3002 ".mcp.json" false false
-#   just agent-channel-mcp-startup-suite 20 8 8 4 60 0.2 127.0.0.1 3002 ".mcp.json" false false 0 1200 1500 "" 0.5 0.5
+#   just agent-channel-mcp-startup-suite 20 8 8 4 60 0.2 "<mcp_host>" "<mcp_port>" ".mcp.json" false false
+#   just agent-channel-mcp-startup-suite 20 8 8 4 60 0.2 "<mcp_host>" "<mcp_port>" ".mcp.json" false false 0 1200 1500 "" 0.5 0.5
 # Reports:
 #   .run/reports/omni-agent-mcp-startup-suite.json
 #   .run/reports/omni-agent-mcp-startup-suite.md
 [group('channel')]
-agent-channel-mcp-startup-suite hot_rounds="20" hot_parallel="8" cold_rounds="8" cold_parallel="4" startup_timeout_secs="60" cooldown_secs="0.2" mcp_host="127.0.0.1" mcp_port="3002" mcp_config=".mcp.json" skip_hot="false" skip_cold="false" health_probe_interval_secs="0.2" health_probe_timeout_secs="1.0" quality_max_failed_probes="0" quality_max_hot_p95_ms="1200" quality_max_cold_p95_ms="1500" quality_min_health_samples="1" quality_max_health_failure_rate="0.02" quality_max_health_p95_ms="350" quality_baseline_json="" quality_max_hot_p95_regression_ratio="0.5" quality_max_cold_p95_regression_ratio="0.5":
+agent-channel-mcp-startup-suite hot_rounds="20" hot_parallel="8" cold_rounds="8" cold_parallel="4" startup_timeout_secs="60" cooldown_secs="0.2" mcp_host="" mcp_port="" mcp_config=".mcp.json" skip_hot="false" skip_cold="false" health_probe_interval_secs="0.2" health_probe_timeout_secs="1.0" quality_max_failed_probes="0" quality_max_hot_p95_ms="1200" quality_max_cold_p95_ms="1500" quality_min_health_samples="1" quality_max_health_failure_rate="0.02" quality_max_health_p95_ms="350" quality_baseline_json="" quality_max_hot_p95_regression_ratio="0.5" quality_max_cold_p95_regression_ratio="0.5":
     #!/usr/bin/env bash
     set -euo pipefail
-    args=(--hot-rounds "{{hot_rounds}}" --hot-parallel "{{hot_parallel}}" --cold-rounds "{{cold_rounds}}" --cold-parallel "{{cold_parallel}}" --startup-timeout-secs "{{startup_timeout_secs}}" --cooldown-secs "{{cooldown_secs}}" --mcp-host "{{mcp_host}}" --mcp-port "{{mcp_port}}" --mcp-config "{{mcp_config}}" --health-probe-interval-secs "{{health_probe_interval_secs}}" --health-probe-timeout-secs "{{health_probe_timeout_secs}}" --quality-max-failed-probes "{{quality_max_failed_probes}}" --quality-max-hot-p95-ms "{{quality_max_hot_p95_ms}}" --quality-max-cold-p95-ms "{{quality_max_cold_p95_ms}}" --quality-min-health-samples "{{quality_min_health_samples}}" --quality-max-health-failure-rate "{{quality_max_health_failure_rate}}" --quality-max-health-p95-ms "{{quality_max_health_p95_ms}}" --quality-max-hot-p95-regression-ratio "{{quality_max_hot_p95_regression_ratio}}" --quality-max-cold-p95-regression-ratio "{{quality_max_cold_p95_regression_ratio}}")
+    resolved_mcp_host="{{mcp_host}}"
+    resolved_mcp_port="{{mcp_port}}"
+    if [ -z "$resolved_mcp_host" ]; then
+      resolved_mcp_host="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field host)"
+    fi
+    if [ -z "$resolved_mcp_port" ]; then
+      resolved_mcp_port="$(uv run python scripts/channel/resolve_mcp_endpoint.py --field port)"
+    fi
+    args=(--hot-rounds "{{hot_rounds}}" --hot-parallel "{{hot_parallel}}" --cold-rounds "{{cold_rounds}}" --cold-parallel "{{cold_parallel}}" --startup-timeout-secs "{{startup_timeout_secs}}" --cooldown-secs "{{cooldown_secs}}" --mcp-host "$resolved_mcp_host" --mcp-port "$resolved_mcp_port" --mcp-config "{{mcp_config}}" --health-probe-interval-secs "{{health_probe_interval_secs}}" --health-probe-timeout-secs "{{health_probe_timeout_secs}}" --quality-max-failed-probes "{{quality_max_failed_probes}}" --quality-max-hot-p95-ms "{{quality_max_hot_p95_ms}}" --quality-max-cold-p95-ms "{{quality_max_cold_p95_ms}}" --quality-min-health-samples "{{quality_min_health_samples}}" --quality-max-health-failure-rate "{{quality_max_health_failure_rate}}" --quality-max-health-p95-ms "{{quality_max_health_p95_ms}}" --quality-max-hot-p95-regression-ratio "{{quality_max_hot_p95_regression_ratio}}" --quality-max-cold-p95-regression-ratio "{{quality_max_cold_p95_regression_ratio}}")
     if [ -n "{{quality_baseline_json}}" ]; then
       args+=(--quality-baseline-json "{{quality_baseline_json}}")
     fi
@@ -1684,9 +1855,9 @@ agent-channel-mcp-startup-suite hot_rounds="20" hot_parallel="8" cold_rounds="8"
 # Run memory-focused black-box + regression suite.
 # Usage:
 #   just test-omni-agent-memory-suite
-#   just test-omni-agent-memory-suite full 30 30 tao3k true true redis://127.0.0.1:6379/0 false false false scripts/channel/fixtures/memory_evolution_complex_scenarios.json memory_self_correction_high_complexity_dag 1 "" ""
+#   just test-omni-agent-memory-suite full 30 30 tao3k true true "<valkey_url>" false false false scripts/channel/fixtures/memory_evolution_complex_scenarios.json memory_self_correction_high_complexity_dag 1 "" ""
 [group('channel')]
-test-omni-agent-memory-suite suite="quick" max_wait_secs="25" max_idle_secs="25" username="" require_live_turn="false" with_valkey="false" valkey_url="redis://127.0.0.1:6379/0" skip_blackbox="false" skip_rust="false" skip_evolution="false" evolution_dataset="scripts/channel/fixtures/memory_evolution_complex_scenarios.json" evolution_scenario="memory_self_correction_high_complexity_dag" evolution_max_parallel="1" evolution_output_json="" evolution_output_markdown="":
+test-omni-agent-memory-suite suite="quick" max_wait_secs="25" max_idle_secs="25" username="" require_live_turn="false" with_valkey="false" valkey_url="" skip_blackbox="false" skip_rust="false" skip_evolution="false" evolution_dataset="scripts/channel/fixtures/memory_evolution_complex_scenarios.json" evolution_scenario="memory_self_correction_high_complexity_dag" evolution_max_parallel="1" evolution_output_json="" evolution_output_markdown="":
     #!/usr/bin/env bash
     set -euo pipefail
     args=(--suite "{{suite}}" --max-wait "{{max_wait_secs}}" --max-idle-secs "{{max_idle_secs}}")
@@ -1697,7 +1868,11 @@ test-omni-agent-memory-suite suite="quick" max_wait_secs="25" max_idle_secs="25"
       args+=(--require-live-turn)
     fi
     if [ "{{with_valkey}}" = "true" ]; then
-      args+=(--with-valkey --valkey-url "{{valkey_url}}")
+      resolved_valkey_url="{{valkey_url}}"
+      if [ -z "$resolved_valkey_url" ]; then
+        resolved_valkey_url="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field url)"
+      fi
+      args+=(--with-valkey --valkey-url "$resolved_valkey_url")
     fi
     if [ "{{skip_blackbox}}" = "true" ]; then
       args+=(--skip-blackbox)
@@ -1770,57 +1945,111 @@ test-omni-agent-memory-slo-report evolution_report_json=".run/reports/omni-agent
 # Start local Valkey daemon for webhook dedup / stress tests.
 # Usage: just valkey-start [port]
 [group('channel')]
-valkey-start port="6379":
-    bash scripts/channel/valkey-start.sh "{{port}}"
+valkey-start port="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_port="{{port}}"
+    if [ -z "$resolved_valkey_port" ]; then
+      resolved_valkey_port="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field port)"
+    fi
+    bash scripts/channel/valkey-start.sh "$resolved_valkey_port"
 
 # Stop local Valkey daemon started by `just valkey-start`.
 # Usage: just valkey-stop [port]
 [group('channel')]
-valkey-stop port="6379":
-    bash scripts/channel/valkey-stop.sh "{{port}}"
+valkey-stop port="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_port="{{port}}"
+    if [ -z "$resolved_valkey_port" ]; then
+      resolved_valkey_port="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field port)"
+    fi
+    bash scripts/channel/valkey-stop.sh "$resolved_valkey_port"
 
 # Show local Valkey status for a given port.
 # Usage: just valkey-status [port]
 [group('channel')]
-valkey-status port="6379":
-    bash scripts/channel/valkey-status.sh "{{port}}"
+valkey-status port="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_port="{{port}}"
+    if [ -z "$resolved_valkey_port" ]; then
+      resolved_valkey_port="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field port)"
+    fi
+    bash scripts/channel/valkey-status.sh "$resolved_valkey_port"
 
 # Run ignored omni-agent stress tests that require live Valkey.
 # Usage: just test-omni-agent-valkey-stress [valkey_url]
 [group('channel')]
-test-omni-agent-valkey-stress valkey_url="redis://127.0.0.1:6379/0":
-    bash scripts/channel/test-omni-agent-valkey-stress.sh "{{valkey_url}}"
+test-omni-agent-valkey-stress valkey_url="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_url="{{valkey_url}}"
+    if [ -z "$resolved_valkey_url" ]; then
+      resolved_valkey_url="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field url)"
+    fi
+    bash scripts/channel/test-omni-agent-valkey-stress.sh "${resolved_valkey_url}"
 
 # Run focused distributed SessionGate verification against live Valkey.
 # Usage: just test-omni-agent-valkey-session-gate [valkey_url]
 [group('channel')]
-test-omni-agent-valkey-session-gate valkey_url="redis://127.0.0.1:6379/0":
-    bash scripts/channel/test-omni-agent-valkey-session-gate.sh "{{valkey_url}}"
+test-omni-agent-valkey-session-gate valkey_url="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_url="{{valkey_url}}"
+    if [ -z "$resolved_valkey_url" ]; then
+      resolved_valkey_url="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field url)"
+    fi
+    bash scripts/channel/test-omni-agent-valkey-session-gate.sh "${resolved_valkey_url}"
 
 # Run focused cross-instance session-context restore verification against live Valkey.
 # Usage: just test-omni-agent-valkey-session-context [valkey_url]
 [group('channel')]
-test-omni-agent-valkey-session-context valkey_url="redis://127.0.0.1:6379/0":
-    bash scripts/channel/test-omni-agent-valkey-session-context.sh "{{valkey_url}}"
+test-omni-agent-valkey-session-context valkey_url="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_url="{{valkey_url}}"
+    if [ -z "$resolved_valkey_url" ]; then
+      resolved_valkey_url="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field url)"
+    fi
+    bash scripts/channel/test-omni-agent-valkey-session-context.sh "${resolved_valkey_url}"
 
 # Run focused multi-HTTP Valkey dedup verification.
 # Usage: just test-omni-agent-valkey-multi-http [valkey_url]
 [group('channel')]
-test-omni-agent-valkey-multi-http valkey_url="redis://127.0.0.1:6379/0":
-    bash scripts/channel/test-omni-agent-valkey-multi-http.sh "{{valkey_url}}"
+test-omni-agent-valkey-multi-http valkey_url="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_url="{{valkey_url}}"
+    if [ -z "$resolved_valkey_url" ]; then
+      resolved_valkey_url="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field url)"
+    fi
+    bash scripts/channel/test-omni-agent-valkey-multi-http.sh "${resolved_valkey_url}"
 
 # Run focused multi-process Valkey dedup verification.
 # Usage: just test-omni-agent-valkey-multi-process [valkey_url]
 [group('channel')]
-test-omni-agent-valkey-multi-process valkey_url="redis://127.0.0.1:6379/0":
-    bash scripts/channel/test-omni-agent-valkey-multi-process.sh "{{valkey_url}}"
+test-omni-agent-valkey-multi-process valkey_url="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_url="{{valkey_url}}"
+    if [ -z "$resolved_valkey_url" ]; then
+      resolved_valkey_url="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field url)"
+    fi
+    bash scripts/channel/test-omni-agent-valkey-multi-process.sh "${resolved_valkey_url}"
 
 # Run full live Valkey webhook verification suite
 # (stress + distributed session gate + session-context + multi-http + multi-process).
 # Usage: just test-omni-agent-valkey-full [valkey_url]
 [group('channel')]
-test-omni-agent-valkey-full valkey_url="redis://127.0.0.1:6379/0":
-    bash scripts/channel/test-omni-agent-valkey-full.sh "{{valkey_url}}"
+test-omni-agent-valkey-full valkey_url="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    resolved_valkey_url="{{valkey_url}}"
+    if [ -z "$resolved_valkey_url" ]; then
+      resolved_valkey_url="$(uv run python scripts/channel/resolve_valkey_endpoint.py --field url)"
+    fi
+    bash scripts/channel/test-omni-agent-valkey-full.sh "${resolved_valkey_url}"
 
 # Validate observability event sequence from a captured agent log file.
 # Usage:
@@ -1877,11 +2106,12 @@ build-rust-dev:
     set -euo pipefail
 
     echo "🔨 Building Rust core library (DEBUG mode - fast)..."
+    root_dir="$(git rev-parse --show-toplevel)"
     cd packages/rust/bindings/python
 
     # maturin develop uses debug build by default (much faster than release)
     # First cargo build, then install
-    cargo build && maturin develop
+    "${root_dir}/scripts/rust/cargo_exec.sh" build && maturin develop
 
     echo "✅ Rust debug library installed to venv"
 

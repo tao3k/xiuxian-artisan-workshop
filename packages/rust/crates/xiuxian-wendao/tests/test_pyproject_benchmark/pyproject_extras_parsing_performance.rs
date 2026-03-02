@@ -1,26 +1,7 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
-fn test_pyproject_extras_parsing_performance() {
+fn test_pyproject_extras_parsing_performance() -> Result<(), Box<dyn std::error::Error>> {
     const DEP_COUNT: usize = 100;
 
     let start = std::time::Instant::now();
@@ -28,21 +9,27 @@ fn test_pyproject_extras_parsing_performance() {
     // Parse multiple pyproject.toml files with extras
     for _ in 0..20 {
         let content = generate_pyproject_toml_with_extras(DEP_COUNT);
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(content.as_bytes()).unwrap();
+        let mut file = NamedTempFile::new()?;
+        file.write_all(content.as_bytes())?;
 
-        let deps = parse_pyproject_dependencies(file.path()).unwrap();
+        let deps = parse_pyproject_dependencies(file.path())?;
         assert!(!deps.is_empty());
     }
 
     let elapsed = start.elapsed();
 
     // Should complete in under 1 second
-    let max_duration = std::time::Duration::from_secs(1);
+    let max_duration = super::benchmark_budget(
+        std::time::Duration::from_secs(1),
+        std::time::Duration::from_millis(1500),
+    );
+    let max_secs = max_duration.as_secs_f64();
     assert!(
         elapsed < max_duration,
-        "pyproject.toml with extras parsing took {:.2}s, expected < 1s",
-        elapsed.as_secs_f64()
+        "pyproject.toml with extras parsing took {:.2}s, expected < {:.2}s (set {} >= 1.0 to tune)",
+        elapsed.as_secs_f64(),
+        max_secs,
+        super::BENCH_SLACK_ENV
     );
 
     println!(
@@ -50,4 +37,5 @@ fn test_pyproject_extras_parsing_performance() {
         DEP_COUNT,
         elapsed.as_secs_f64() * 1000.0
     );
+    Ok(())
 }

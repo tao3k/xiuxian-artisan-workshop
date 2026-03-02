@@ -46,7 +46,7 @@ except ImportError:
 
 logger = get_logger("omni.bridge.vector")
 
-# Bounded defaults when settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml) have null (avoids unbounded LanceDB cache growth in long-lived MCP)
+# Bounded defaults when settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml) have null (avoids unbounded LanceDB cache growth in long-lived MCP)
 _DEFAULT_INDEX_CACHE_BYTES = 256 * 1024 * 1024  # 256 MiB
 _DEFAULT_MAX_CACHED_TABLES = 8
 _SKILL_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
@@ -171,7 +171,7 @@ class RustVectorStore:
                 (which considers truncate_dim from settings).
             enable_keyword_index: Enable Tantivy keyword index for BM25 search
             index_cache_size_bytes: Optional LanceDB index cache size in bytes.
-                If None, falls back to settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml) vector.index_cache_size_bytes.
+                If None, falls back to settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml) vector.index_cache_size_bytes.
             max_cached_tables: Optional cap on in-memory dataset cache (LRU eviction when exceeded).
                 Phase 2: use e.g. 2 or 4 for memory-constrained or many-table setups.
         """

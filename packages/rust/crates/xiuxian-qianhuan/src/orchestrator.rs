@@ -1,13 +1,16 @@
 //! Multi-layer orchestrator for xiuxian-qianhuan prompt assembly.
 
-use std::fmt::Write as _;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::calibration::AdversarialOrchestrator;
 use crate::error::InjectionError;
+use crate::manifestation::templates::{
+    SystemPromptTemplateRenderer, resolve_system_prompt_template_dirs,
+};
 use crate::persona::PersonaProfile;
 use crate::transmuter::ToneTransmuter;
-use crate::xml::SYSTEM_PROMPT_INJECTION_TAG;
+use tera::Context;
 
 /// Logical layers used to compose an injection snapshot.
 pub enum InjectionLayer {
@@ -27,6 +30,7 @@ pub enum InjectionLayer {
 pub struct ThousandFacesOrchestrator {
     genesis_rules: String,
     transmuter: Option<Arc<dyn ToneTransmuter>>,
+    template_renderer: std::result::Result<SystemPromptTemplateRenderer, String>,
     /// Optional adversarial calibrator for post-assembly alignment loops.
     pub calibrator: Option<Arc<AdversarialOrchestrator>>,
 }
@@ -35,9 +39,39 @@ impl ThousandFacesOrchestrator {
     /// Creates a new orchestrator with fixed genesis rules and optional transmuter.
     #[must_use]
     pub fn new(genesis_rules: String, transmuter: Option<Arc<dyn ToneTransmuter>>) -> Self {
+        Self::new_with_template_dirs(genesis_rules, transmuter, &[])
+    }
+
+    /// Creates a new orchestrator with optional additional template directories.
+    ///
+    /// Template resolution always includes internal system resources and default
+    /// user override path, and appends any caller-provided directories.
+    #[must_use]
+    pub fn new_with_template_dirs(
+        genesis_rules: String,
+        transmuter: Option<Arc<dyn ToneTransmuter>>,
+        template_dirs: &[PathBuf],
+    ) -> Self {
+        let resolved_template_dirs = resolve_system_prompt_template_dirs(template_dirs);
+        let template_renderer = SystemPromptTemplateRenderer::from_dirs(&resolved_template_dirs)
+            .map_err(|error| {
+                format!(
+                    "failed to initialize system prompt template renderer from [{}]: {error}",
+                    resolved_template_dirs
+                        .iter()
+                        .map(|path| path.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            });
+        if let Err(error) = template_renderer.as_ref() {
+            log::warn!("qianhuan template renderer unavailable: {error}");
+        }
+
         Self {
             genesis_rules,
             transmuter,
+            template_renderer,
             calibrator: None,
         }
     }
@@ -65,54 +99,37 @@ impl ThousandFacesOrchestrator {
             });
         }
 
-        let mut full_prompt = String::with_capacity(4096);
-        let mut pushf = |args: std::fmt::Arguments<'_>| {
-            full_prompt
-                .write_fmt(args)
-                .map_err(|_| InjectionError::XmlValidationError("failed to compose prompt".into()))
+        let narrative_entries = if let Some(ref transmuter) = self.transmuter {
+            let mut shifted = Vec::with_capacity(narrative_blocks.len());
+            for block in narrative_blocks {
+                shifted.push(transmuter.transmute(&block, persona).await?);
+            }
+            shifted
+        } else {
+            narrative_blocks
         };
 
-        // L0: Genesis (Immutable Core)
-        pushf(format_args!(
-            "<genesis_rules>\n{}\n</genesis_rules>\n",
-            self.genesis_rules
-        ))?;
-
-        // L1: Persona Steering (Automatic Translation from YAML logic to XML protocol)
-        pushf(format_args!("<persona_steering>\n"))?;
-        pushf(format_args!("  <tone>{}</tone>\n", persona.voice_tone))?;
-        pushf(format_args!(
-            "  <thought_pattern>{}</thought_pattern>\n",
-            persona.cot_template
-        ))?;
-        pushf(format_args!("  <anchors>"))?;
-        pushf(format_args!("{}", persona.style_anchors.join(", ")))?;
-        pushf(format_args!("</anchors>\n"))?;
-        pushf(format_args!("</persona_steering>\n"))?;
-
-        // L2: Narrative Context (With optional Transmutation)
-        pushf(format_args!("<narrative_context>\n"))?;
-        if let Some(ref transmuter) = self.transmuter {
-            for block in narrative_blocks {
-                let shifted = transmuter.transmute(&block, persona).await?;
-                pushf(format_args!("  <entry>{shifted}</entry>\n"))?;
-            }
-        } else {
-            for block in narrative_blocks {
-                pushf(format_args!("  <entry>{block}</entry>\n"))?;
-            }
+        let mut context = Context::new();
+        context.insert("genesis_rules", &self.genesis_rules);
+        context.insert("persona_name", &persona.name);
+        context.insert("persona_voice_tone", &persona.voice_tone);
+        if let Some(bg) = &persona.background {
+            context.insert("persona_background", bg);
         }
-        pushf(format_args!("</narrative_context>\n"))?;
+        context.insert("persona_guidelines", &persona.guidelines);
+        context.insert("persona_cot_template", &persona.cot_template);
+        context.insert("persona_style_anchors", &persona.style_anchors);
+        context.insert("persona_forbidden_words", &persona.forbidden_words);
+        context.insert("persona_metadata", &persona.metadata);
+        context.insert("narrative_entries", &narrative_entries);
+        context.insert("history", history);
 
-        // L3: Working Window (Recency)
-        pushf(format_args!(
-            "<working_history>\n{history}\n</working_history>\n"
-        ))?;
-
-        // Final Root Wrap
-        let final_xml = format!(
-            "<{SYSTEM_PROMPT_INJECTION_TAG}>\n{full_prompt}\n</{SYSTEM_PROMPT_INJECTION_TAG}>"
-        );
+        let template_renderer = self.template_renderer.as_ref().map_err(|error| {
+            InjectionError::XmlValidationError(format!("Template renderer unavailable: {error}"))
+        })?;
+        let final_xml = template_renderer.render(context).map_err(|error| {
+            InjectionError::XmlValidationError(format!("Template rendering failed: {error}"))
+        })?;
 
         // 2026 Integrity Check: Validate XML balance before returning
         Self::validate_xml(&final_xml)?;

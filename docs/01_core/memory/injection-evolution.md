@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Xiuxian-Qianhuan Injection + Memory Self-Evolution + Reflection (Rust Architecture Draft)"
 category: "plans"
 tags:
@@ -6,6 +7,8 @@ tags:
   - knowledge
 saliency_base: 7.2
 decay_rate: 0.03
+metadata:
+  title: "Xiuxian-Qianhuan Injection + Memory Self-Evolution + Reflection (Rust Architecture Draft)"
 ---
 
 # Xiuxian-Qianhuan Injection + Memory Self-Evolution + Reflection (Rust Architecture Draft)
@@ -122,6 +125,16 @@ Rule:
 
 - Prompt assembly and memory gate logic may read from both planes,
   but must not bypass data-plane contracts through ad-hoc JSON files in hot paths.
+
+## 3.5 Memory Boundaries in Multi-Agent Debates
+
+Based on 2024-2025 research on LLM Self-Correction and Multi-Agent Debate (e.g., Reflexion, CorrectBench), maintaining a strict **Memory Boundary** is crucial to prevent "Persona Drift" and "Sycophancy".
+
+When the runtime executes an **Adversarial Sub-graph** (e.g., the Agenda Validation Loop):
+
+1. **Isolated Q-Value Updates:** The `omni-memory` subsystem must track the success/failure (`Utility Score`) of the _Proposer_ separately from the _Critic_. If the Critic successfully prevents a bad plan, its Q-value increases, even if the overall turn took longer.
+2. **Context Quarantine:** The short-term memory (Session Window) belonging to the `Strict Teacher` must never bleed into the `Agenda Steward`. The `omni-memory` module enforces this by accepting a composite `session_id` + `persona_id` as the primary key for episodic state lookup during isolated workflows.
+3. **Commit Phase Sync:** Only when the Adversarial Sub-graph reaches a consensus (`Terminal Node`) does the resulting insight cross the Memory Boundary and get committed to the global `xiuxian-wendao` Knowledge Graph. Intermediate debate failures are stored only in short-term `omni-memory` for local Q-learning.
 
 ## 4. Typed Contracts
 

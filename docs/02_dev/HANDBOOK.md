@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "How to Query and Locate Ingested Papers via MCP"
 category: "how-to"
 tags:
@@ -6,6 +7,8 @@ tags:
   - knowledge
 saliency_base: 6.0
 decay_rate: 0.05
+metadata:
+  title: "How to Query and Locate Ingested Papers via MCP"
 ---
 
 # How to Query and Locate Ingested Papers via MCP
@@ -153,14 +156,14 @@ tags:
 
 ## E2E Validation Checklist
 
-| Step                | Command / Action                                                 | Status                                                 |
-| ------------------- | ---------------------------------------------------------------- | ------------------------------------------------------ |
-| 1. Build            | `cargo build -p omni-agent`                                      | ✅                                                     |
-| 2. Unit tests       | `cargo test -p omni-agent`                                       | ✅                                                     |
-| 3. Gateway + LLM    | Start MCP + gateway; `curl POST /message`                        | Manual (needs `OPENAI_API_KEY` or `LITELLM_PROXY_URL`) |
-| 4. Stdio            | `echo "msg" \| cargo run -p omni-agent -- stdio`                 | Manual                                                 |
-| 5. REPL             | `omni agent --rust` or `cargo run -p omni-agent -- repl`         | Manual                                                 |
-| 6. Integration test | `cargo test -p omni-agent --test agent_integration -- --ignored` | Manual (needs API key + MCP)                           |
+| Step                | Command / Action                                                                      | Status                                                 |
+| ------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| 1. Build            | `cargo build -p omni-agent`                                                           | ✅                                                     |
+| 2. Unit tests       | `cargo nextest run -p omni-agent`                                                     | ✅                                                     |
+| 3. Gateway + LLM    | Start MCP + gateway; `curl POST /message`                                             | Manual (needs `OPENAI_API_KEY` or `LITELLM_PROXY_URL`) |
+| 4. Stdio            | `echo "msg" \| cargo run -p omni-agent -- stdio`                                      | Manual                                                 |
+| 5. REPL             | `omni agent --rust` or `cargo run -p omni-agent -- repl`                              | Manual                                                 |
+| 6. Integration test | `cargo nextest run -p omni-agent --test agent_integration --run-ignored ignored-only` | Manual (needs API key + MCP)                           |
 
 **Full E2E (Rust agent + Python MCP + LiteLLM)**: See §3 Gateway and §9 Integration test. Run `omni mcp --transport sse --port 3002` in one terminal, then `omni gateway --rust --webhook-port 8080`, then `curl` or run the integration test.
 
@@ -246,7 +249,7 @@ cargo run -p omni-agent -- repl --query "Only reply OK"
 
 ```bash
 cargo build -p omni-agent
-cargo test -p omni-agent
+cargo nextest run -p omni-agent
 ```
 
 Or run the full test pipeline (includes omni-agent):
@@ -433,7 +436,7 @@ Environment overrides:
 Requires `OPENAI_API_KEY` and optional MCP on port 3002:
 
 ```bash
-cargo test -p omni-agent --test agent_integration -- --ignored
+cargo nextest run -p omni-agent --test agent_integration --run-ignored ignored-only
 ```
 
 ---
@@ -565,7 +568,7 @@ Or directly:
 
 ```bash
 VALKEY_URL=redis://127.0.0.1:6379/0 \
-cargo test -p omni-agent --test channels_webhook_stress -- --ignored --nocapture
+cargo nextest run -p omni-agent --test channels_webhook_stress --run-ignored ignored-only
 ```
 
 Stop local Valkey when done:
@@ -589,7 +592,7 @@ When no logs or bot reply appear:
 Run Telegram-specific robustness tests (Unicode-safe chunking, markdown fallback including API-level `ok=false`, caption MarkdownV2 fallback for single/media-group sends, transient send retries, topic routing via `chat_id:thread_id`, URL/local attachment marker routing, short-text caption routing with long-text fallback, `sendMediaGroup` batching/split/fallback behavior, polling error handling):
 
 ```bash
-cargo test -p omni-agent --test channels_telegram --test channels_telegram_chunking --test channels_telegram_markdown --test channels_telegram_media --test channels_telegram_polling
+cargo nextest run -p omni-agent --test channels_telegram --test channels_telegram_chunking --test channels_telegram_markdown --test channels_telegram_media --test channels_telegram_polling
 ```
 
 ---
@@ -692,6 +695,34 @@ cargo run -p omni-agent -- repl --query "What's my favorite number?" --session-i
 **Expected**: Turn 2 reply includes "42" (recalled from Turn 1).
 
 **Embedding**: When the embedding HTTP server is running (e.g. `omni mcp` with embedding on port 18501), omni-agent uses it for semantic encoding. Otherwise it falls back to hash-based encoder (identical wording required). Set `OMNI_EMBEDDING_URL` to override the default `http://127.0.0.1:18501`.
+
+### macOS Apple Silicon: `mistralrs` Metal build notes
+
+- In this repository, `xiuxian-llm` backend is selected by target OS at compile time:
+  - macOS: `mistralrs` with `metal`
+  - Linux: `mistralrs` with `cuda`
+  - Other OS: `mistralrs` default backend (CPU path)
+- For macOS Metal toolchain prerequisites, follow the Modular guide:  
+  <https://puzzles.modular.com/howto.html#macos-apple-silicon>
+- Quick verification commands:
+
+```bash
+xcodebuild -version
+xcrun -sdk macosx metal
+```
+
+- If `xcrun ... metal` reports missing Metal toolchain, install it:
+
+```bash
+xcodebuild -downloadComponent MetalToolchain
+```
+
+- `MISTRALRS_METAL_PRECOMPILE=0` means "skip build-time Metal kernel precompile".
+  It is a build-stability/build-speed knob, not a switch that disables Metal runtime execution.
+- For fastest cold start on a fully provisioned local macOS machine, keep precompile enabled
+  (unset `MISTRALRS_METAL_PRECOMPILE`).
+- For CI/Nix environments where `metal` tool is unavailable, set `MISTRALRS_METAL_PRECOMPILE=0`
+  to avoid build failures and allow runtime compilation fallback.
 
 ---
 

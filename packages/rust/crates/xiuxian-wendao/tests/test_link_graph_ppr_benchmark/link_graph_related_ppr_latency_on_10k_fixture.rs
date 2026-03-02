@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -80,10 +61,10 @@ fn test_link_graph_related_ppr_latency_on_10k_fixture() -> Result<(), Box<dyn st
         );
     }
 
-    let p50_ppr_ms = percentile(&ppr_core_ms, 0.50);
-    let p95_ppr_ms = percentile(&ppr_core_ms, 0.95);
-    let p95_total_ms = percentile(&ppr_total_ms, 0.95);
-    let p95_e2e_ms = percentile(&e2e_ms, 0.95);
+    let p50_ppr_ms = percentile(&ppr_core_ms, 50);
+    let p95_ppr_ms = percentile(&ppr_core_ms, 95);
+    let p95_total_ms = percentile(&ppr_total_ms, 95);
+    let p95_e2e_ms = percentile(&e2e_ms, 95);
     let target_p95_ms = env_f64("XIUXIAN_WENDAO_PPR_P95_MS_BUDGET", DEFAULT_TARGET_P95_MS);
     let enforce_target = env_flag("XIUXIAN_WENDAO_ENFORCE_PPR_P95");
     let enforce_total_sanity = env_flag("XIUXIAN_WENDAO_ENFORCE_PPR_TOTAL_SANITY");

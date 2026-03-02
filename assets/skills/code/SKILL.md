@@ -1,4 +1,5 @@
 ---
+type: skill
 name: code_tools
 description: Use when searching code by structure or meaning, analyzing code patterns, finding class or function definitions, or exploring codebase architecture.
 metadata:

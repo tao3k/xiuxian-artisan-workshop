@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Memory Skill Guide"
+---
+
 # Memory Skill Guide
 
 > "Memory is the residue of thought." - Daniel Willingham

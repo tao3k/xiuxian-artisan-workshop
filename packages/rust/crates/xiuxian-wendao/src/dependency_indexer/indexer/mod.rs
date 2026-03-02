@@ -10,6 +10,3 @@ pub use crate::dependency_indexer::config::DependencyConfig as DependencyBuildCo
 pub use crate::dependency_indexer::symbols::{ExternalSymbol, SymbolIndex};
 pub use core::DependencyIndexer;
 pub use types::{DependencyConfig, DependencyIndexResult, DependencyStats};
-
-#[cfg(test)]
-mod tests;

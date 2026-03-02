@@ -2,17 +2,21 @@
 
 use async_trait::async_trait;
 
+/// Mutation operation for recipient-scoped delegated command-admin identities.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecipientCommandAdminUsersMutation {
+    /// Replace override list with the provided identities.
     Set(Vec<String>),
+    /// Add identities to current override list.
     Add(Vec<String>),
+    /// Remove identities from current override list.
     Remove(Vec<String>),
+    /// Clear recipient-scoped override list.
     Clear,
 }
 
 /// A message received from or sent to a channel.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct ChannelMessage {
     /// Unique message ID (e.g. `telegram_{chat_id}_{message_id}` to prevent duplicate memories).
     pub id: String,
@@ -31,7 +35,6 @@ pub struct ChannelMessage {
 }
 
 /// Core channel trait — implement for any messaging platform.
-#[allow(dead_code)]
 #[async_trait]
 pub trait Channel: Send + Sync {
     /// Human-readable channel name.
@@ -143,6 +146,8 @@ pub trait Channel: Send + Sync {
     async fn listen(&self, tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> anyhow::Result<()>;
 
     /// Check if channel is healthy.
+    ///
+    /// Returns `true` when channel transport is currently healthy.
     async fn health_check(&self) -> bool {
         true
     }

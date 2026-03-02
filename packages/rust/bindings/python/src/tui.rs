@@ -1,11 +1,11 @@
-//! Python bindings for omni-tui TUI engine
+//! Python bindings for xiuxian-tui TUI engine
 
 use pyo3::prelude::*;
 
 /// Python wrapper for TuiApp
 #[pyclass]
 struct PyTuiApp {
-    inner: omni_tui::TuiApp,
+    inner: xiuxian_tui::TuiApp,
 }
 
 #[pymethods]
@@ -13,7 +13,7 @@ impl PyTuiApp {
     #[new]
     fn new(title: &str) -> Self {
         Self {
-            inner: omni_tui::TuiApp::new(title),
+            inner: xiuxian_tui::TuiApp::new(title),
         }
     }
 
@@ -24,9 +24,9 @@ impl PyTuiApp {
 
     /// Add a panel with fold state
     fn add_panel(&mut self, title: &str, content: &str, expanded: bool) {
-        let mut panel = omni_tui::FoldablePanel::new(title, content);
+        let mut panel = xiuxian_tui::FoldablePanel::new(title, content);
         if expanded {
-            panel.set_state(omni_tui::PanelState::Expanded);
+            panel.set_state(xiuxian_tui::PanelState::Expanded);
         }
         self.inner.add_panel(panel);
     }
@@ -45,7 +45,7 @@ impl PyTuiApp {
 /// Python wrapper for FoldablePanel
 #[pyclass]
 struct PyFoldablePanel {
-    inner: omni_tui::FoldablePanel,
+    inner: xiuxian_tui::FoldablePanel,
 }
 
 #[pymethods]
@@ -53,7 +53,7 @@ impl PyFoldablePanel {
     #[new]
     fn new(title: &str, content: &str) -> Self {
         Self {
-            inner: omni_tui::FoldablePanel::new(title, content),
+            inner: xiuxian_tui::FoldablePanel::new(title, content),
         }
     }
 
@@ -90,7 +90,7 @@ impl PyFoldablePanel {
 
 /// Python module definition
 #[pymodule]
-fn omni_tui_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn xiuxian_tui_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyTuiApp>()?;
     m.add_class::<PyFoldablePanel>()?;
     Ok(())

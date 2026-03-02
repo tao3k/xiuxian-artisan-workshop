@@ -1,4 +1,4 @@
-//! Administrative and maintenance operations for VectorStore.
+//! Administrative and maintenance operations for `VectorStore`.
 
 mod agentic;
 mod cache;

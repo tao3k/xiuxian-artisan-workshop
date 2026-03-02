@@ -29,7 +29,7 @@ class ContextProvider(ABC):
         """Generate context based on current state.
 
         Args:
-            state: LangGraph state (contains history, active_skill, etc.)
+            state: Workflow state (contains history, active_skill, etc.)
             budget: Remaining tokens available for this layer.
 
         Returns:

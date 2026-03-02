@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "xiuxian-wendao-py"
+---
+
 # xiuxian-wendao-py
 
 `xiuxian-wendao-py` is a standalone Python package for the `xiuxian-wendao` Rust bindings.

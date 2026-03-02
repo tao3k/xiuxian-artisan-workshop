@@ -63,7 +63,7 @@ impl TelegramChannel {
         unreachable!("send_api_request_with_retry should return before exhausting attempts")
     }
 
-    async fn send_api_request_once(
+    pub(super) async fn send_api_request_once(
         &self,
         method: &str,
         body: &serde_json::Value,
@@ -74,7 +74,7 @@ impl TelegramChannel {
             .json(body)
             .send()
             .await
-            .map_err(TelegramApiError::from_reqwest)?;
+            .map_err(|error| TelegramApiError::from_reqwest(&error))?;
         Self::validate_telegram_response(response).await
     }
 }

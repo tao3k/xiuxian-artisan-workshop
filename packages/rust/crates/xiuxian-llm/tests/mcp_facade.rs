@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
+//! MCP facade re-export and default-contract tests.
 
 use xiuxian_llm::mcp::{
     McpClientPool, McpDiscoverCacheStatsSnapshot, McpPoolConnectConfig, McpServerTransportConfig,
@@ -42,12 +30,15 @@ fn mcp_pool_connect_config_default_is_stable() {
 
 #[test]
 fn mcp_facade_reexports_pool_core_helpers() {
-    let _connect = connect_pool_clients_with_retry;
-    let _reconnect = reconnect_pool_client_with_retry;
-    let _pool_connect = connect_pool;
-    let _pool_type = std::any::type_name::<McpClientPool>();
-    let _tools_stats_type = std::any::type_name::<McpToolsListCacheStatsSnapshot>();
-    let _discover_stats_type = std::any::type_name::<McpDiscoverCacheStatsSnapshot>();
-    let _list_once = list_tools_once;
-    let _call_once = call_tool_once;
+    fn touch<T>(_value: T) {}
+
+    touch(connect_pool_clients_with_retry);
+    touch(reconnect_pool_client_with_retry);
+    touch(connect_pool);
+    touch(list_tools_once);
+    touch(call_tool_once);
+
+    assert!(!std::any::type_name::<McpClientPool>().is_empty());
+    assert!(!std::any::type_name::<McpToolsListCacheStatsSnapshot>().is_empty());
+    assert!(!std::any::type_name::<McpDiscoverCacheStatsSnapshot>().is_empty());
 }

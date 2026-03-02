@@ -1,23 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
-//! Tests for LinkGraph entity reference extraction.
+//! Tests for `LinkGraph` entity reference extraction.
 
 use xiuxian_wendao::link_graph_refs::{
     LinkGraphEntityRef, LinkGraphRefStats, extract_entity_refs, find_notes_referencing_entity,
@@ -128,11 +109,15 @@ fn test_is_valid_entity_ref() {
 
 #[test]
 fn test_parse_entity_ref() {
-    let ref1 = parse_entity_ref("[[FactoryPattern]]").unwrap();
+    let Some(ref1) = parse_entity_ref("[[FactoryPattern]]") else {
+        panic!("expected valid entity reference");
+    };
     assert_eq!(ref1.name, "FactoryPattern");
     assert_eq!(ref1.entity_type, None);
 
-    let ref2 = parse_entity_ref("[[SingletonPattern#rust]]").unwrap();
+    let Some(ref2) = parse_entity_ref("[[SingletonPattern#rust]]") else {
+        panic!("expected typed entity reference");
+    };
     assert_eq!(ref2.name, "SingletonPattern");
     assert_eq!(ref2.entity_type, Some("rust".to_string()));
 }

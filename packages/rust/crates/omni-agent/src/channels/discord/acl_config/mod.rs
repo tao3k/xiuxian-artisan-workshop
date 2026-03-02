@@ -14,20 +14,34 @@ mod principals;
 mod role_aliases;
 mod slash;
 
+/// Runtime ACL override bundle resolved for Discord channel execution.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DiscordAclOverrides {
+    /// Resolved allowlist users/roles.
     pub allowed_users: Vec<String>,
+    /// Resolved allowlist guild ids.
     pub allowed_guilds: Vec<String>,
+    /// Resolved admin identities.
     pub admin_users: Option<Vec<String>>,
+    /// Optional global control-command allow identities.
     pub control_command_allow_from: Option<Vec<String>>,
+    /// Parsed command-scoped control ACL rules.
     pub control_command_rules: Vec<DiscordCommandAdminRule>,
+    /// Optional global slash-command allow identities.
     pub slash_command_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for session status.
     pub slash_session_status_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for session budget.
     pub slash_session_budget_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for session memory.
     pub slash_session_memory_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for session feedback.
     pub slash_session_feedback_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for job status.
     pub slash_job_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for jobs summary.
     pub slash_jobs_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for background submit.
     pub slash_bg_allow_from: Option<Vec<String>>,
 }
 

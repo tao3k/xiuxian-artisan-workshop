@@ -25,6 +25,13 @@ impl TelegramChannel {
     ) -> anyhow::Result<()> {
         let mut offset: i64 = 0;
         tracing::info!("Telegram channel listening for messages...");
+
+        // NATIVE: Sync commands to Bot Menu on startup.
+        // We do this before the loop to ensure they are set.
+        if let Err(e) = self.sync_bot_commands().await {
+            tracing::warn!("Bot command sync failed: {e}");
+        }
+
         loop {
             match self.poll_updates(offset).await? {
                 PollOutcome::RetryAfterSeconds(delay_secs) => {

@@ -1,20 +1,10 @@
 """Tests for knowledge ingest_document URL support (download to project data)."""
 
-from pathlib import Path
-
-import pytest
+from _module_loader import load_script_module
 
 
-# Import helpers from skill script (scripts dir on path via conftest or parent)
 def _import_graph_module():
-    scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
-    import sys
-
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    import graph as graph_mod
-
-    return graph_mod
+    return load_script_module("graph", alias="knowledge_graph_ingest_url_test")
 
 
 def test_is_url():

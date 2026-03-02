@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Graphflow Modularization"
 category: "testing"
 tags:
@@ -6,13 +7,15 @@ tags:
   - graphflow_modularization
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Graphflow Modularization"
 ---
 
 # Graphflow Modularization
 
 ## Goal
 
-Move LangGraph graphflow logic into `packages/python` as a first-class feature, while keeping `demo` skill as a thin user-facing entrypoint.
+Move graphflow runtime logic into `packages/python` as a first-class feature, while keeping `demo` skill as a thin user-facing entrypoint.
 
 ## New Package Structure
 
@@ -27,7 +30,7 @@ Move LangGraph graphflow logic into `packages/python` as a first-class feature, 
 - `packages/python/foundation/src/omni/tracer/graphflow/types.py`
   - `DemoState`, `StepType`, `ExecutionStep`, `ExecutionTrace`
 - `packages/python/foundation/src/omni/tracer/graphflow/tracer.py`
-  - `LangGraphTracer` and memory snapshot persistence
+  - `GraphflowTracer` and memory snapshot persistence
 - `packages/python/foundation/src/omni/tracer/graphflow/llm_service.py`
   - LLM orchestration, fallback handling, meta-commentary guard
 - `packages/python/foundation/src/omni/tracer/graphflow/evaluation.py`

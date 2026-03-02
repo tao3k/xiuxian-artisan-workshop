@@ -3,9 +3,11 @@ use omni_memory::{
     EpisodeStore, LocalMemoryStateStore, MemoryStateStore, StoreConfig, ValkeyMemoryStateStore,
     default_valkey_state_key,
 };
+use xiuxian_macros::env_non_empty;
 
 use super::Agent;
 use crate::config::MemoryConfig;
+use crate::env_parse::{parse_bool_from_env, resolve_valkey_url_env};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PersistenceBackendMode {
@@ -16,7 +18,7 @@ enum PersistenceBackendMode {
 
 pub(super) enum MemoryStateBackend {
     Local(LocalMemoryStateStore),
-    Valkey(ValkeyMemoryStateStore),
+    Valkey(Box<ValkeyMemoryStateStore>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,9 +63,9 @@ impl MemoryStateBackend {
     pub(super) fn from_config(memory_cfg: &MemoryConfig) -> Result<Self> {
         let mode = resolve_mode(&memory_cfg.persistence_backend)?;
         let redis_url = non_empty_string(memory_cfg.persistence_valkey_url.clone())
-            .or_else(|| non_empty_env("VALKEY_URL"));
+            .or_else(resolve_valkey_url_env);
         let strict_startup_override =
-            parse_bool_env("OMNI_AGENT_MEMORY_PERSISTENCE_STRICT_STARTUP")
+            parse_bool_from_env("OMNI_AGENT_MEMORY_PERSISTENCE_STRICT_STARTUP")
                 .or(memory_cfg.persistence_strict_startup);
         let key_prefix = non_empty_env("OMNI_AGENT_MEMORY_VALKEY_KEY_PREFIX")
             .or_else(|| non_empty_string(Some(memory_cfg.persistence_key_prefix.clone())))
@@ -80,26 +82,26 @@ impl MemoryStateBackend {
             PersistenceBackendMode::Valkey => {
                 let redis_url = redis_url.ok_or_else(|| {
                     anyhow::anyhow!(
-                        "memory persistence backend=valkey requires valkey url (session.valkey_url or VALKEY_URL)"
+                        "memory persistence backend=valkey requires valkey url (session.valkey_url, XIUXIAN_WENDAO_VALKEY_URL, or VALKEY_URL)"
                     )
                 })?;
                 let key = default_valkey_state_key(&key_prefix, &store_config);
                 let strict_startup = strict_startup_override.unwrap_or(true);
-                Ok(Self::Valkey(ValkeyMemoryStateStore::new(
+                Ok(Self::Valkey(Box::new(ValkeyMemoryStateStore::new(
                     redis_url,
                     key,
                     strict_startup,
-                )?))
+                )?)))
             }
             PersistenceBackendMode::Auto => {
                 if let Some(redis_url) = redis_url {
                     let key = default_valkey_state_key(&key_prefix, &store_config);
                     let strict_startup = strict_startup_override.unwrap_or(true);
-                    Ok(Self::Valkey(ValkeyMemoryStateStore::new(
+                    Ok(Self::Valkey(Box::new(ValkeyMemoryStateStore::new(
                         redis_url,
                         key,
                         strict_startup,
-                    )?))
+                    )?)))
                 } else {
                     Ok(Self::Local(LocalMemoryStateStore::new()))
                 }
@@ -110,7 +112,7 @@ impl MemoryStateBackend {
     fn as_store(&self) -> &dyn MemoryStateStore {
         match self {
             Self::Local(store) => store,
-            Self::Valkey(store) => store,
+            Self::Valkey(store) => store.as_ref(),
         }
     }
 
@@ -129,6 +131,23 @@ impl MemoryStateBackend {
     pub(super) fn save(&self, store: &EpisodeStore) -> Result<()> {
         self.as_store().save(store)
     }
+
+    pub(super) fn update_q_atomic(&self, episode_id: &str, new_q: f32) -> Result<()> {
+        self.as_store().update_q_atomic(episode_id, new_q)
+    }
+
+    pub(super) fn update_scope_feedback_bias_atomic(
+        &self,
+        scope: &str,
+        new_bias: f32,
+    ) -> Result<()> {
+        self.as_store()
+            .update_scope_feedback_bias_atomic(scope, new_bias)
+    }
+
+    pub(super) fn clear_scope_feedback_bias_atomic(&self, scope: &str) -> Result<()> {
+        self.as_store().clear_scope_feedback_bias_atomic(scope)
+    }
 }
 
 fn resolve_mode(raw: &str) -> Result<PersistenceBackendMode> {
@@ -141,10 +160,7 @@ fn resolve_mode(raw: &str) -> Result<PersistenceBackendMode> {
 }
 
 fn non_empty_env(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
+    env_non_empty!(name)
 }
 
 fn non_empty_string(value: Option<String>) -> Option<String> {
@@ -153,23 +169,112 @@ fn non_empty_string(value: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-fn parse_bool_env(name: &str) -> Option<bool> {
-    let raw = std::env::var(name).ok()?;
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Some(true),
-        "0" | "false" | "no" | "off" => Some(false),
-        _ => {
-            tracing::warn!(
-                env_var = %name,
-                value = %raw,
-                "invalid boolean env value"
-            );
-            None
+impl Agent {
+    pub(in crate::agent) fn persist_memory_q_atomic(
+        &self,
+        session_id: Option<&str>,
+        episode_id: &str,
+        q_value: f32,
+        reason: &str,
+    ) {
+        let Some(backend) = self.memory_state_backend.as_ref() else {
+            return;
+        };
+        let session_id = session_id.unwrap_or_default();
+        match backend.update_q_atomic(episode_id, q_value) {
+            Ok(()) => {
+                tracing::debug!(
+                    event = "agent.memory.state.q_atomic_persisted",
+                    backend = backend.backend_name(),
+                    session_id,
+                    reason,
+                    episode_id,
+                    q_value,
+                    "memory q-value persisted with atomic backend update"
+                );
+            }
+            Err(error) => {
+                tracing::warn!(
+                    event = "agent.memory.state.q_atomic_persist_failed",
+                    backend = backend.backend_name(),
+                    session_id,
+                    reason,
+                    episode_id,
+                    q_value,
+                    error = %error,
+                    "failed to persist memory q-value atomically"
+                );
+            }
         }
     }
-}
 
-impl Agent {
+    pub(in crate::agent) fn persist_memory_recall_feedback_bias_atomic(
+        &self,
+        session_id: &str,
+        bias: f32,
+        reason: &str,
+    ) {
+        let Some(backend) = self.memory_state_backend.as_ref() else {
+            return;
+        };
+        match backend.update_scope_feedback_bias_atomic(session_id, bias) {
+            Ok(()) => {
+                tracing::debug!(
+                    event = "agent.memory.state.recall_feedback_atomic_persisted",
+                    backend = backend.backend_name(),
+                    session_id,
+                    reason,
+                    bias,
+                    "memory recall-feedback bias persisted with atomic backend update"
+                );
+            }
+            Err(error) => {
+                tracing::warn!(
+                    event = "agent.memory.state.recall_feedback_atomic_persist_failed",
+                    backend = backend.backend_name(),
+                    session_id,
+                    reason,
+                    bias,
+                    error = %error,
+                    "failed to persist memory recall-feedback bias atomically"
+                );
+            }
+        }
+    }
+
+    pub(in crate::agent) fn clear_memory_recall_feedback_bias_atomic(
+        &self,
+        session_id: &str,
+        reason: &str,
+    ) {
+        let Some(backend) = self.memory_state_backend.as_ref() else {
+            return;
+        };
+        match backend.clear_scope_feedback_bias_atomic(session_id) {
+            Ok(()) => {
+                tracing::debug!(
+                    event = "agent.memory.state.recall_feedback_atomic_cleared",
+                    backend = backend.backend_name(),
+                    session_id,
+                    reason,
+                    "memory recall-feedback bias cleared with atomic backend delete"
+                );
+            }
+            Err(error) => {
+                tracing::warn!(
+                    event = "agent.memory.state.recall_feedback_atomic_clear_failed",
+                    backend = backend.backend_name(),
+                    session_id,
+                    reason,
+                    error = %error,
+                    "failed to clear memory recall-feedback bias atomically"
+                );
+            }
+        }
+    }
+
+    /// Return a point-in-time snapshot of memory runtime configuration and health.
+    #[must_use]
     pub fn inspect_memory_runtime_status(&self) -> MemoryRuntimeStatusSnapshot {
         let (episodes_total, q_values_total) =
             self.memory_store.as_ref().map_or((None, None), |store| {

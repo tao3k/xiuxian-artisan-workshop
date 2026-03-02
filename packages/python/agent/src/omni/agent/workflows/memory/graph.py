@@ -1,26 +1,22 @@
-from langgraph.graph import END, StateGraph
-
 from .nodes import recall_node, store_node, synthesize_node
-from .state import MemoryState
 
 
-def build_memory_graph():
-    workflow = StateGraph(MemoryState)
+class MemoryWorkflowApp:
+    """Minimal async memory workflow runtime without external graph runtime dependency."""
 
-    workflow.add_node("recall", recall_node)
-    workflow.add_node("synthesize", synthesize_node)
-    workflow.add_node("store", store_node)
+    async def ainvoke(self, state: dict):
+        mode = state.get("mode", "recall")
+        merged = dict(state)
 
-    # Conditional Entry Point
-    def route_start(state: MemoryState) -> str:
-        if state["mode"] == "store":
-            return "store"
-        return "recall"
+        if mode == "store":
+            merged.update(await store_node(merged))
+            return merged
 
-    workflow.set_conditional_entry_point(route_start, {"recall": "recall", "store": "store"})
+        merged.update(await recall_node(merged))
+        merged.update(await synthesize_node(merged))
+        return merged
 
-    workflow.add_edge("recall", "synthesize")
-    workflow.add_edge("synthesize", END)
-    workflow.add_edge("store", END)
 
-    return workflow.compile()
+def build_memory_graph() -> MemoryWorkflowApp:
+    """Build memory workflow runtime."""
+    return MemoryWorkflowApp()

@@ -15,18 +15,32 @@ use super::super::policy::TelegramSlashCommandRule;
 use super::super::send_gate::{TelegramSendRateLimitBackend, TelegramSendRateLimitGateState};
 use super::super::state::TelegramChannel;
 
+pub(super) struct TelegramChannelCoreInit {
+    pub(super) bot_token: String,
+    pub(super) allowed_users: Vec<String>,
+    pub(super) allowed_groups: Vec<String>,
+    pub(super) api_base_url: String,
+    pub(super) control_command_policy: ControlCommandPolicy<TelegramCommandAdminRule>,
+    pub(super) slash_command_policy: ControlCommandPolicy<TelegramSlashCommandRule>,
+    pub(super) session_partition: TelegramSessionPartition,
+    pub(super) client: reqwest::Client,
+}
+
 impl TelegramChannel {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn new_with_base_url_and_partition_and_client_impl(
-        bot_token: String,
-        allowed_users: Vec<String>,
-        allowed_groups: Vec<String>,
-        api_base_url: String,
-        control_command_policy: ControlCommandPolicy<TelegramCommandAdminRule>,
-        slash_command_policy: ControlCommandPolicy<TelegramSlashCommandRule>,
-        session_partition: TelegramSessionPartition,
-        client: reqwest::Client,
+        init: TelegramChannelCoreInit,
     ) -> Self {
+        let TelegramChannelCoreInit {
+            bot_token,
+            allowed_users,
+            allowed_groups,
+            api_base_url,
+            control_command_policy,
+            slash_command_policy,
+            session_partition,
+            client,
+        } = init;
+
         let (system_settings_path, user_settings_path) = runtime_settings_paths();
         let control_command_policy = normalize_control_command_policy(control_command_policy);
         let slash_command_policy = normalize_slash_command_policy(slash_command_policy);
@@ -54,21 +68,18 @@ impl TelegramChannel {
     }
 
     #[doc(hidden)]
-    #[allow(clippy::needless_pass_by_value)]
     pub fn new_with_base_url_and_send_rate_limit_valkey_for_test(
         bot_token: String,
         allowed_users: Vec<String>,
         allowed_groups: Vec<String>,
         api_base_url: String,
-        redis_url: String,
-        key_prefix: String,
+        redis_url: &str,
+        key_prefix: &str,
     ) -> anyhow::Result<Self> {
         let mut channel =
             Self::new_with_base_url(bot_token, allowed_users, allowed_groups, api_base_url);
-        channel.send_rate_limit_backend = TelegramSendRateLimitBackend::new_valkey_for_test(
-            redis_url.as_str(),
-            key_prefix.as_str(),
-        )?;
+        channel.send_rate_limit_backend =
+            TelegramSendRateLimitBackend::new_valkey_for_test(redis_url, key_prefix)?;
         Ok(channel)
     }
 }

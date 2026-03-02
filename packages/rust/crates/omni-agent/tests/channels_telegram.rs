@@ -1,45 +1,9 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram channel integration tests for send behavior and ACL checks.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use omni_agent::{
     Channel, TELEGRAM_MAX_MESSAGE_LENGTH, TelegramChannel, TelegramSessionPartition,
@@ -382,6 +346,13 @@ async fn wait_for_listener(addr: std::net::SocketAddr) {
     }
 }
 
+fn require_some<T>(value: Option<T>, context: &str) -> T {
+    match value {
+        Some(value) => value,
+        None => panic!("{context}"),
+    }
+}
+
 #[test]
 fn telegram_parse_update_builds_group_chat_session_key_by_default() {
     let ch = TelegramChannel::new("t".into(), vec!["*".into()], vec![]);
@@ -390,12 +361,12 @@ fn telegram_parse_update_builds_group_chat_session_key_by_default() {
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.recipient, "-200123");
     assert_eq!(msg.sender, "888");
     assert_eq!(msg.session_key, "-200123");
@@ -410,7 +381,7 @@ fn telegram_parse_update_rejects_unauthorized_user() {
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     });
@@ -426,7 +397,7 @@ fn telegram_parse_update_rejects_all_when_allowlist_empty() {
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     });
@@ -442,12 +413,12 @@ fn telegram_parse_update_allows_numeric_user_id_in_allowlist() {
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.sender, "888");
 }
 
@@ -459,12 +430,12 @@ fn telegram_parse_update_allows_prefixed_numeric_user_id_in_allowlist() {
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.sender, "888");
 }
 
@@ -476,7 +447,7 @@ fn telegram_parse_update_rejects_username_allowlist_entries() {
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     });
@@ -492,12 +463,12 @@ fn telegram_parse_update_ignores_invalid_allowlist_entries_and_keeps_numeric_ent
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.sender, "888");
 }
 
@@ -513,12 +484,12 @@ fn telegram_parse_update_trims_allowlist_entries() {
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.sender, "888");
 }
 
@@ -530,12 +501,12 @@ fn telegram_parse_update_allows_message_from_allowed_group() {
         "message": {
             "message_id": 78,
             "text": "hi from group",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 999, "username": "bob"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.recipient, "-200123");
     assert_eq!(msg.sender, "999");
     assert_eq!(msg.session_key, "-200123");
@@ -549,12 +520,12 @@ fn telegram_parse_update_allows_message_from_allowed_group_with_chat_title() {
         "message": {
             "message_id": 78,
             "text": "hi from group",
-            "chat": {"id": -200123, "title": "Test1", "type": "group"},
+            "chat": {"id": -200_123, "title": "Test1", "type": "group"},
             "from": {"id": 999, "username": "bob"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.recipient, "-200123");
     assert_eq!(msg.sender, "999");
     assert_eq!(msg.session_key, "-200123");
@@ -573,12 +544,12 @@ fn telegram_parse_update_partition_chat_only() {
         "message": {
             "message_id": 79,
             "text": "chat scope",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 1001, "username": "alice"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.session_key, "-200123");
 }
 
@@ -595,7 +566,7 @@ fn telegram_parse_update_partition_chat_only_isolates_different_chats() {
         "message": {
             "message_id": 84,
             "text": "chat scope A",
-            "chat": {"id": -200111},
+            "chat": {"id": -200_111},
             "from": {"id": 1001, "username": "alice"}
         }
     });
@@ -604,13 +575,13 @@ fn telegram_parse_update_partition_chat_only_isolates_different_chats() {
         "message": {
             "message_id": 85,
             "text": "chat scope B",
-            "chat": {"id": -200222},
+            "chat": {"id": -200_222},
             "from": {"id": 1001, "username": "alice"}
         }
     });
 
-    let msg_a = ch.parse_update_message(&update_a).expect("message A");
-    let msg_b = ch.parse_update_message(&update_b).expect("message B");
+    let msg_a = require_some(ch.parse_update_message(&update_a), "message A");
+    let msg_b = require_some(ch.parse_update_message(&update_b), "message B");
     assert_eq!(msg_a.session_key, "-200111");
     assert_eq!(msg_b.session_key, "-200222");
     assert_ne!(msg_a.session_key, msg_b.session_key);
@@ -629,12 +600,12 @@ fn telegram_parse_update_partition_user_only() {
         "message": {
             "message_id": 80,
             "text": "user scope",
-            "chat": {"id": -200999},
+            "chat": {"id": -200_999},
             "from": {"id": 1001, "username": "alice"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.session_key, "1001");
 }
 
@@ -652,12 +623,12 @@ fn telegram_parse_update_partition_chat_thread_user() {
             "message_id": 81,
             "message_thread_id": 42,
             "text": "thread scope",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 1001, "username": "alice"}
         }
     });
 
-    let msg = ch.parse_update_message(&update).expect("message");
+    let msg = require_some(ch.parse_update_message(&update), "message");
     assert_eq!(msg.session_key, "-200123:42:1001");
     assert_eq!(msg.recipient, "-200123:42");
 }
@@ -675,7 +646,7 @@ fn telegram_parse_update_partition_runtime_toggle_changes_session_key_strategy()
         "message": {
             "message_id": 82,
             "text": "hello",
-            "chat": {"id": -200111},
+            "chat": {"id": -200_111},
             "from": {"id": 1001, "username": "alice"}
         }
     });
@@ -684,25 +655,21 @@ fn telegram_parse_update_partition_runtime_toggle_changes_session_key_strategy()
         "message": {
             "message_id": 83,
             "text": "hello",
-            "chat": {"id": -200111},
+            "chat": {"id": -200_111},
             "from": {"id": 1002, "username": "bob"}
         }
     });
 
-    let msg_a = ch.parse_update_message(&update_a).expect("message A");
-    let msg_b = ch.parse_update_message(&update_b).expect("message B");
+    let msg_a = require_some(ch.parse_update_message(&update_a), "message A");
+    let msg_b = require_some(ch.parse_update_message(&update_b), "message B");
     assert_ne!(msg_a.session_key, msg_b.session_key);
 
     ch.set_session_partition(TelegramSessionPartition::ChatOnly);
 
-    let msg_a_shared = ch
-        .parse_update_message(&update_a)
-        .expect("message A shared");
-    let msg_b_shared = ch
-        .parse_update_message(&update_b)
-        .expect("message B shared");
-    assert_eq!(msg_a_shared.session_key, "-200111");
-    assert_eq!(msg_a_shared.session_key, msg_b_shared.session_key);
+    let shared_from_alice = require_some(ch.parse_update_message(&update_a), "message A shared");
+    let shared_from_bob = require_some(ch.parse_update_message(&update_b), "message B shared");
+    assert_eq!(shared_from_alice.session_key, "-200111");
+    assert_eq!(shared_from_alice.session_key, shared_from_bob.session_key);
 }
 
 #[test]
@@ -1140,7 +1107,6 @@ async fn telegram_send_global_rate_limit_gate_delays_parallel_send() -> Result<(
     }
 
     let second_channel = Arc::clone(&channel);
-    let second_started_at = Instant::now();
     let second_send =
         tokio::spawn(async move { second_channel.send("secondgatecheck", "123456").await });
 
@@ -1148,6 +1114,17 @@ async fn telegram_send_global_rate_limit_gate_delays_parallel_send() -> Result<(
     second_send.await??;
 
     let requests = state.requests.lock().await;
+    let first_request_at = requests
+        .iter()
+        .find_map(|request| {
+            (request
+                .payload
+                .get("text")
+                .and_then(serde_json::Value::as_str)
+                == Some("firstgatecheck"))
+            .then_some(request.received_at)
+        })
+        .ok_or_else(|| anyhow!("first send request should be captured"))?;
     let second_request_at = requests
         .iter()
         .find_map(|request| {
@@ -1158,11 +1135,13 @@ async fn telegram_send_global_rate_limit_gate_delays_parallel_send() -> Result<(
                 == Some("secondgatecheck"))
             .then_some(request.received_at)
         })
-        .expect("second send request should be captured");
-    let wait_before_second_request = second_request_at.duration_since(second_started_at);
+        .ok_or_else(|| anyhow!("second send request should be captured"))?;
+    let wait_before_second_request = second_request_at
+        .checked_duration_since(first_request_at)
+        .ok_or_else(|| anyhow!("second request timestamp should not precede first request"))?;
     assert!(
         wait_before_second_request >= Duration::from_millis(850),
-        "expected second send to wait for global retry window, got {}ms",
+        "expected second send to wait for global retry window after first rate-limit response, got {}ms",
         wait_before_second_request.as_millis()
     );
 
@@ -1275,10 +1254,12 @@ async fn telegram_send_returns_timeout_error_for_slow_http_response() -> Result<
     );
 
     let started_at = Instant::now();
-    let error = channel
-        .send("timeout check", "123456")
-        .await
-        .expect_err("send should time out with a very short client timeout");
+    let result = channel.send("timeout check", "123456").await;
+    let Err(error) = result else {
+        return Err(anyhow!(
+            "send should time out with a very short client timeout"
+        ));
+    };
     assert!(
         started_at.elapsed() < Duration::from_secs(2),
         "send should fail quickly when request timeout is configured"
@@ -1286,8 +1267,7 @@ async fn telegram_send_returns_timeout_error_for_slow_http_response() -> Result<
     let error_message = error.to_string().to_lowercase();
     assert!(
         error_message.contains("timed out") || error_message.contains("deadline has elapsed"),
-        "expected timeout error, got: {}",
-        error
+        "expected timeout error, got: {error}"
     );
 
     handle.abort();

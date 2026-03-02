@@ -26,7 +26,7 @@ _services_module = None
 _utils_module = None
 _runtime_module = None
 _config_module = None
-_checkpoint_module = None
+_workflow_state_module = None
 _rag_module = None
 _embedding_client_module = None
 
@@ -40,7 +40,7 @@ def __getattr__(name: str):
         _utils_module, \
         _runtime_module, \
         _config_module, \
-        _checkpoint_module, \
+        _workflow_state_module, \
         _rag_module, \
         _embedding_client_module
 
@@ -93,7 +93,7 @@ def __getattr__(name: str):
 
         return getattr(config.dirs, name)
 
-    # Lazy load checkpoint module (unified checkpoint storage)
+    # Lazy load workflow_state module (multi-step workflow persistence)
     if name in (
         "get_checkpointer",
         "save_workflow_state",
@@ -103,9 +103,9 @@ def __getattr__(name: str):
         "save_workflow_state_sqlite",
         "load_workflow_state_sqlite",
     ):
-        if _checkpoint_module is None:
-            _checkpoint_module = __import__("omni.foundation.checkpoint", fromlist=[""])
-        return getattr(_checkpoint_module, name)
+        if _workflow_state_module is None:
+            _workflow_state_module = __import__("omni.foundation.workflow_state", fromlist=[""])
+        return getattr(_workflow_state_module, name)
 
     # Lazy load config.settings
     if name in ("get_setting",):

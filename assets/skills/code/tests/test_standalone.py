@@ -1,8 +1,8 @@
 """
-Standalone tests for code_tools AST search components.
+Standalone tests for code AST search components.
 
 Usage:
-    pytest assets/skills/code_tools/tests/test_standalone.py -v
+    pytest assets/skills/code/tests/test_standalone.py -v
 
 Or using test-kit helpers:
     from omni.test_kit.fixtures.ast import classify_query_helper, extract_ast_pattern_helper
@@ -16,14 +16,14 @@ class TestSmartAstEngine:
 
     def test_engine_init(self):
         """Test SmartAstEngine initialization."""
-        from code_tools.scripts.smart_ast.engine import SmartAstEngine
+        from code.scripts.smart_ast.engine import SmartAstEngine
 
         engine = SmartAstEngine()
         assert engine is not None
 
     def test_list_rules(self):
         """Test listing available rules."""
-        from code_tools.scripts.smart_ast.engine import SmartAstEngine
+        from code.scripts.smart_ast.engine import SmartAstEngine
 
         engine = SmartAstEngine()
         rules = engine.list_rules()
@@ -32,7 +32,7 @@ class TestSmartAstEngine:
 
     def test_register_rule(self):
         """Test registering a custom rule."""
-        from code_tools.scripts.smart_ast.engine import SmartAstEngine, BUILTIN_RULES
+        from code.scripts.smart_ast.engine import BUILTIN_RULES, SmartAstEngine
 
         engine = SmartAstEngine()
         test_rule_name = f"test_rule_{id(engine)}"
@@ -45,14 +45,14 @@ class TestPatterns:
 
     def test_language_patterns_python(self):
         """Test Python language patterns."""
-        from code_tools.scripts.smart_ast.patterns import LANG_PATTERNS
+        from code.scripts.smart_ast.patterns import LANG_PATTERNS
 
         assert "class $NAME" in LANG_PATTERNS["python"]["classes"]
         assert "def $NAME($$$)" in LANG_PATTERNS["python"]["functions"]
 
     def test_language_patterns_rust(self):
         """Test Rust language patterns."""
-        from code_tools.scripts.smart_ast.patterns import LANG_PATTERNS
+        from code.scripts.smart_ast.patterns import LANG_PATTERNS
 
         assert "struct $NAME" in LANG_PATTERNS["rust"]["structs"]
         assert "fn $NAME($$$)" in LANG_PATTERNS["rust"]["functions"]
@@ -63,37 +63,37 @@ class TestExtractAstPattern:
 
     def test_extract_class_pattern(self):
         """Test extracting class patterns."""
-        from code_tools.scripts.search.nodes.engines import extract_ast_pattern
+        from code.scripts.search.nodes.engines import extract_ast_pattern
 
         assert extract_ast_pattern("class User") == "class User"
 
     def test_extract_find_class_pattern(self):
         """Test extracting class patterns from find queries."""
-        from code_tools.scripts.search.nodes.engines import extract_ast_pattern
+        from code.scripts.search.nodes.engines import extract_ast_pattern
 
         assert extract_ast_pattern("Find the User class") == "class User"
 
     def test_extract_function_pattern(self):
         """Test extracting function patterns."""
-        from code_tools.scripts.search.nodes.engines import extract_ast_pattern
+        from code.scripts.search.nodes.engines import extract_ast_pattern
 
         assert extract_ast_pattern("def authenticate") == "def authenticate"
 
     def test_extract_fn_pattern(self):
         """Test extracting fn patterns (Rust)."""
-        from code_tools.scripts.search.nodes.engines import extract_ast_pattern
+        from code.scripts.search.nodes.engines import extract_ast_pattern
 
         assert extract_ast_pattern("fn main") == "fn main"
 
     def test_extract_impl_pattern(self):
         """Test extracting impl patterns."""
-        from code_tools.scripts.search.nodes.engines import extract_ast_pattern
+        from code.scripts.search.nodes.engines import extract_ast_pattern
 
         assert extract_ast_pattern("impl Foo") == "impl Foo"
 
     def test_extract_direct_pattern(self):
         """Test extracting direct patterns."""
-        from code_tools.scripts.search.nodes.engines import extract_ast_pattern
+        from code.scripts.search.nodes.engines import extract_ast_pattern
 
         assert extract_ast_pattern("connect($$$)") == "connect($$$)"
 
@@ -103,7 +103,7 @@ class TestClassifier:
 
     def test_classify_structural_class(self):
         """Test classifying class queries."""
-        from code_tools.scripts.search.nodes.classifier import classify_query
+        from code.scripts.search.nodes.classifier import classify_query
 
         state = {"query": "class User"}
         result = classify_query(state)
@@ -111,7 +111,7 @@ class TestClassifier:
 
     def test_classify_structural_function(self):
         """Test classifying function queries."""
-        from code_tools.scripts.search.nodes.classifier import classify_query
+        from code.scripts.search.nodes.classifier import classify_query
 
         state = {"query": "def authenticate"}
         result = classify_query(state)
@@ -119,7 +119,7 @@ class TestClassifier:
 
     def test_classify_semantic(self):
         """Test classifying semantic queries."""
-        from code_tools.scripts.search.nodes.classifier import classify_query
+        from code.scripts.search.nodes.classifier import classify_query
 
         state = {"query": "how does authentication work?"}
         result = classify_query(state)
@@ -127,7 +127,7 @@ class TestClassifier:
 
     def test_classify_grep_todo(self):
         """Test classifying TODO queries."""
-        from code_tools.scripts.search.nodes.classifier import classify_query
+        from code.scripts.search.nodes.classifier import classify_query
 
         state = {"query": "TODO: fix"}
         result = classify_query(state)
@@ -139,14 +139,14 @@ class TestGraph:
 
     def test_create_search_graph(self):
         """Test search graph creation."""
-        from code_tools.scripts.search.graph import create_search_graph
+        from code.scripts.search.graph import create_search_graph
 
         graph = create_search_graph()
         assert graph is not None
 
     def test_create_initial_state(self):
         """Test initial state creation."""
-        from code_tools.scripts.search.graph import create_initial_state
+        from code.scripts.search.graph import create_initial_state
 
         state = create_initial_state("test query", "test-thread")
         assert state["query"] == "test query"
@@ -158,9 +158,7 @@ class TestState:
 
     def test_search_result_type(self):
         """Test SearchResult type."""
-        from code_tools.scripts.search.state import SearchResult
-
-        result: SearchResult = {
+        result = {
             "engine": "ast",
             "file": "test.py",
             "line": 10,
@@ -185,7 +183,7 @@ class TestYAMLRules:
 
     def test_rules_loaded_by_engine(self):
         """Test that YAML rules are loaded by engine."""
-        from code_tools.scripts.smart_ast.engine import SmartAstEngine
+        from code.scripts.smart_ast.engine import SmartAstEngine
 
         engine = SmartAstEngine()
         rules = engine.list_rules()
@@ -197,8 +195,8 @@ class TestCodeSearchIntegration:
 
     def test_code_search_module_imports(self):
         """Test that all modules can be imported."""
-        from code_tools.scripts.search.commands import code_search
-        from code_tools.scripts.search.graph import get_search_graph
+        from code.scripts.search.commands import code_search
+        from code.scripts.search.graph import get_search_graph
 
         assert callable(code_search)
         assert get_search_graph() is not None

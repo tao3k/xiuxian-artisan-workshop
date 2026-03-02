@@ -21,6 +21,7 @@ import pytest
 from typer.testing import CliRunner
 
 from omni.agent.cli.app import app
+from omni.agent.cli.commands.skill.manage import _extract_skill_name_from_nodeid
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -244,6 +245,35 @@ description: A skill
 
         assert result.exit_code == 0
         assert "Skill Structure Check" in result.output
+
+
+class TestSkillNodeIdParsing:
+    """Tests for robust skill extraction from pytest nodeid paths."""
+
+    def test_extract_skill_name_from_project_relative_nodeid(self):
+        nodeid = "assets/skills/knowledge/tests/test_recall_filter.py::test_recall_single_call"
+        assert _extract_skill_name_from_nodeid(nodeid, {"knowledge", "code"}) == "knowledge"
+
+    def test_extract_skill_name_from_absolute_nodeid(self):
+        nodeid = (
+            "/Users/dev/repo/assets/skills/advanced_tools/tests/"
+            "test_advanced_tools_modular.py::TestAdvancedToolsModular::test_smart_search"
+        )
+        assert (
+            _extract_skill_name_from_nodeid(nodeid, {"advanced_tools", "memory"})
+            == "advanced_tools"
+        )
+
+    def test_extract_skill_name_from_windows_nodeid(self):
+        nodeid = (
+            r"C:\repo\assets\skills\crawl4ai\tests\test_graph.py::"
+            r"TestExtractSkeleton::test_extract_stats"
+        )
+        assert _extract_skill_name_from_nodeid(nodeid, {"crawl4ai", "writer"}) == "crawl4ai"
+
+    def test_extract_skill_name_returns_none_when_unmatched(self):
+        nodeid = "packages/python/agent/tests/unit/test_misc.py::test_smoke"
+        assert _extract_skill_name_from_nodeid(nodeid, {"knowledge", "code"}) is None
 
 
 class TestSkillInstallUnavailable:

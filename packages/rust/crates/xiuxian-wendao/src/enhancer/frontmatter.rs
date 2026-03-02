@@ -1,37 +1,11 @@
 use crate::enhancer::types::NoteFrontmatter;
-
-/// Extract YAML frontmatter from markdown content.
-///
-/// Looks for `---\n...\n---\n` at the start of the content.
-fn extract_frontmatter_yaml(content: &str) -> Option<String> {
-    let trimmed = content.trim_start();
-    if !trimmed.starts_with("---") {
-        return None;
-    }
-
-    let after_first = &trimmed[3..];
-    // Find the closing ---
-    if let Some(end_pos) = after_first.find("\n---") {
-        let yaml = &after_first[..end_pos];
-        // Skip leading newline
-        let yaml = yaml.strip_prefix('\n').unwrap_or(yaml);
-        Some(yaml.to_string())
-    } else {
-        None
-    }
-}
+use xiuxian_skills::parse_frontmatter_from_markdown;
 
 /// Parse frontmatter from markdown content.
 #[must_use]
 pub fn parse_frontmatter(content: &str) -> NoteFrontmatter {
-    let Some(yaml_str) = extract_frontmatter_yaml(content) else {
+    let Ok(Some(value)) = parse_frontmatter_from_markdown(content) else {
         return NoteFrontmatter::default();
-    };
-
-    // Parse top-level YAML
-    let value: serde_yaml::Value = match serde_yaml::from_str(&yaml_str) {
-        Ok(v) => v,
-        Err(_) => return NoteFrontmatter::default(),
     };
 
     let Some(mapping) = value.as_mapping() else {

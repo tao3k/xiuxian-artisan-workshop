@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Rust Language Standards"
+---
+
 # Rust Language Standards
 
 > **Philosophy**: Memory safety, explicit error handling, cargo-first workflow.

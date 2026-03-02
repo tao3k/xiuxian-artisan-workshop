@@ -6,9 +6,11 @@ import time
 import urllib.request
 import urllib.error
 
+from omni.foundation.runtime.cargo_subprocess_env import prepare_cargo_subprocess_env
+
 
 async def main():
-    env = os.environ.copy()
+    env = prepare_cargo_subprocess_env(os.environ)
 
     # Do NOT overwrite real keys if they exist in the user's environment.
     # We only set dummy keys if they are completely missing, so the proxy can boot/test.
@@ -18,7 +20,6 @@ async def main():
         env["OPENAI_API_KEY"] = "dummy_openai_key"
 
     env["VALKEY_URL"] = env.get("VALKEY_URL", "redis://127.0.0.1:6379/0")
-    env.pop("DYLD_LIBRARY_PATH", None)
 
     print("Building omni-agent...")
     subprocess.run(["cargo", "build", "--bin", "omni-agent"], check=True, env=env)

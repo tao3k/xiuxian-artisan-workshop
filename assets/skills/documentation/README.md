@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Skill: Documentation Management"
+---
+
 # Skill: Documentation Management
 
 ## Overview

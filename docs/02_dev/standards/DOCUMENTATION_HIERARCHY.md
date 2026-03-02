@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Standard: Filesystem-Based Documentation Hierarchy (DFS-2026)"
+---
+
 # Standard: Filesystem-Based Documentation Hierarchy (DFS-2026)
 
 > **Authority:** CyberXiuXian Artisan Studio  

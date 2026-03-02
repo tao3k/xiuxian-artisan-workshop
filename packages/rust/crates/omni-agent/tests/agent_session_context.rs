@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Agent session-context mode behavior tests for bounded and unbounded stores.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -49,11 +13,13 @@ fn unique_session_id(prefix: &str) -> String {
 }
 
 async fn build_agent(window_max_turns: Option<usize>) -> anyhow::Result<Agent> {
-    let mut config = AgentConfig::default();
-    config.inference_url = "http://127.0.0.1:4000/v1/chat/completions".to_string();
-    config.window_max_turns = window_max_turns;
-    config.memory = None;
-    config.consolidation_threshold_turns = None;
+    let config = AgentConfig {
+        inference_url: "http://127.0.0.1:4000/v1/chat/completions".to_string(),
+        window_max_turns,
+        memory: None,
+        consolidation_threshold_turns: None,
+        ..AgentConfig::default()
+    };
     Agent::from_config(config).await
 }
 
@@ -71,11 +37,13 @@ async fn build_agent_with_shared_redis(
     key_prefix: &str,
     window_max_turns: usize,
 ) -> anyhow::Result<Agent> {
-    let mut config = AgentConfig::default();
-    config.inference_url = "http://127.0.0.1:4000/v1/chat/completions".to_string();
-    config.window_max_turns = Some(window_max_turns);
-    config.memory = None;
-    config.consolidation_threshold_turns = None;
+    let config = AgentConfig {
+        inference_url: "http://127.0.0.1:4000/v1/chat/completions".to_string(),
+        window_max_turns: Some(window_max_turns),
+        memory: None,
+        consolidation_threshold_turns: None,
+        ..AgentConfig::default()
+    };
 
     let session = SessionStore::new_with_redis(
         redis_url.to_string(),
@@ -123,10 +91,10 @@ async fn reset_resume_unbounded_keeps_snapshot_across_repeated_reset() -> anyhow
     assert_eq!(first_reset.messages, 4);
     assert_eq!(first_reset.summary_segments, 0);
 
-    let info = agent
-        .peek_context_window_backup(&session_id)
-        .await?
-        .expect("reset should persist a snapshot");
+    let info = agent.peek_context_window_backup(&session_id).await?;
+    let Some(info) = info else {
+        panic!("reset should persist a snapshot");
+    };
     assert_eq!(info.messages, 4);
     assert_eq!(info.summary_segments, 0);
     assert!(info.saved_at_unix_ms.is_some());
@@ -138,7 +106,9 @@ async fn reset_resume_unbounded_keeps_snapshot_across_repeated_reset() -> anyhow
     assert_eq!(second_reset.summary_segments, 0);
 
     let resumed = agent.resume_context_window(&session_id).await?;
-    let resumed = resumed.expect("snapshot from first reset should still be restorable");
+    let Some(resumed) = resumed else {
+        panic!("snapshot from first reset should still be restorable");
+    };
     assert_eq!(resumed.messages, 4);
     assert_eq!(resumed.summary_segments, 0);
 
@@ -167,7 +137,9 @@ async fn reset_resume_bounded_restores_messages() -> anyhow::Result<()> {
     assert_eq!(reset_stats.messages, 6);
 
     let resumed = agent.resume_context_window(&session_id).await?;
-    let resumed = resumed.expect("bounded session snapshot should be restorable");
+    let Some(resumed) = resumed else {
+        panic!("bounded session snapshot should be restorable");
+    };
     assert_eq!(resumed.messages, 6);
     assert_eq!(resumed.summary_segments, 0);
 
@@ -326,7 +298,9 @@ async fn reset_resume_bounded_restores_across_agent_instances_with_valkey() -> a
     assert_eq!(after_reset.total_tool_calls, Some(0));
 
     let resumed = agent_b.resume_context_window(&session_id).await?;
-    let resumed = resumed.expect("snapshot should be restored by second agent instance");
+    let Some(resumed) = resumed else {
+        panic!("snapshot should be restored by second agent instance");
+    };
     assert_eq!(resumed.messages, 4);
     assert_eq!(resumed.summary_segments, 0);
 

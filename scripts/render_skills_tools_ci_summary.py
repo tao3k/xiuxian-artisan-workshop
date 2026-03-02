@@ -231,7 +231,18 @@ def _build_trend_entry(
             change = "regressed"
         else:
             change = "unchanged"
-    regression_streak = int(previous_regression_streak) + 1 if change == "regressed" else 0
+    previous_streak = max(0, int(previous_regression_streak))
+    current_is_regression = _status_rank(normalized_current) >= 2
+    previous_is_regression = (
+        _status_rank(normalized_previous) >= 2 if normalized_previous is not None else False
+    )
+    if current_is_regression:
+        if previous_is_regression:
+            regression_streak = previous_streak + 1 if previous_streak > 0 else 1
+        else:
+            regression_streak = 1
+    else:
+        regression_streak = 0
     return {
         "change": change,
         "current_status": normalized_current,

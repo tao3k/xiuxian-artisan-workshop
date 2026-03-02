@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -32,7 +13,7 @@ fn test_link_graph_build_search_and_stats() -> Result<(), Box<dyn std::error::Er
     )?;
     write_file(&tmp.path().join("docs/c.md"), "# Gamma\n\nNo links here.\n")?;
 
-    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
     let stats = index.stats();
     assert_eq!(stats.total_notes, 3);
     assert_eq!(stats.nodes_in_graph, 3);
@@ -57,11 +38,60 @@ fn test_link_graph_search_limit_is_enforced() -> Result<(), Box<dyn std::error::
     write_file(&tmp.path().join("docs/c.md"), "# C\n\nshared keyword\n")?;
     write_file(&tmp.path().join("docs/d.md"), "# D\n\nshared keyword\n")?;
 
-    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
     let hits = index
         .search_planned("shared keyword", 2, LinkGraphSearchOptions::default())
         .1;
     assert_eq!(hits.len(), 2);
+    Ok(())
+}
+
+#[test]
+fn test_link_graph_search_short_circuits_id_directive() -> Result<(), Box<dyn std::error::Error>> {
+    let tmp = TempDir::new()?;
+    write_file(
+        &tmp.path().join("docs/a.md"),
+        "# Alpha\n\nalpha keyword only\n",
+    )?;
+    write_file(
+        &tmp.path().join("docs/b.md"),
+        "# Beta\n\nbeta specific content\n",
+    )?;
+
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
+    let (parsed, hits) = index.search_planned(
+        "id:docs/b this phrase should not be required",
+        5,
+        LinkGraphSearchOptions::default(),
+    );
+
+    assert_eq!(parsed.direct_id.as_deref(), Some("docs/b"));
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].path, "docs/b.md");
+    assert_eq!(hits[0].match_reason.as_deref(), Some("direct_id"));
+    Ok(())
+}
+
+#[test]
+fn test_link_graph_search_payload_short_circuits_id_directive()
+-> Result<(), Box<dyn std::error::Error>> {
+    let tmp = TempDir::new()?;
+    write_file(
+        &tmp.path().join("notes/release.md"),
+        "# Release\n\nrelease notes\n",
+    )?;
+
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
+    let payload =
+        index.search_planned_payload("id:notes/release", 5, LinkGraphSearchOptions::default());
+
+    assert_eq!(payload.hit_count, 1);
+    assert_eq!(payload.results.len(), 1);
+    assert_eq!(payload.results[0].path, "notes/release.md");
+    assert_eq!(
+        payload.results[0].match_reason.as_deref(),
+        Some("direct_id")
+    );
     Ok(())
 }
 
@@ -78,7 +108,7 @@ fn test_link_graph_search_fts_boosts_high_reference_notes() -> Result<(), Box<dy
     write_file(&tmp.path().join("docs/ref-2.md"), "# R2\n\n[[hub]]\n")?;
     write_file(&tmp.path().join("docs/ref-3.md"), "# R3\n\n[[hub]]\n")?;
 
-    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
     let hits = index
         .search_planned("shared phrase", 5, LinkGraphSearchOptions::default())
         .1;
@@ -110,7 +140,7 @@ The checkpoint schema defines validation behavior for checkpoint records.\n",
         )?;
     }
 
-    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
     let hits = index
         .search_planned("checkpoint schema", 5, LinkGraphSearchOptions::default())
         .1;
@@ -128,7 +158,7 @@ fn test_link_graph_search_sort_by_path() -> Result<(), Box<dyn std::error::Error
     let tmp = TempDir::new()?;
     write_file(&tmp.path().join("zeta.md"), "# Zeta\n\nkeyword\n")?;
     write_file(&tmp.path().join("alpha.md"), "# Alpha\n\nkeyword\n")?;
-    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
 
     let options = LinkGraphSearchOptions {
         match_strategy: LinkGraphMatchStrategy::Fts,
@@ -152,7 +182,7 @@ fn test_link_graph_search_planned_payload_has_consistent_counts()
         "# Alpha\n\n## Architecture\n\ngraph engine planner token\n",
     )?;
     write_file(&tmp.path().join("docs/b.md"), "# Beta\n\ngraph token\n")?;
-    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
 
     let payload =
         index.search_planned_payload("architecture graph", 10, LinkGraphSearchOptions::default());
@@ -210,7 +240,7 @@ fn test_link_graph_search_planned_payload_escalates_when_graph_hits_are_empty()
 -> Result<(), Box<dyn std::error::Error>> {
     let tmp = TempDir::new()?;
     write_file(&tmp.path().join("docs/a.md"), "# Alpha\n\ngraph token\n")?;
-    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(tmp.path()).map_err(|e| e.clone())?;
 
     let payload = index.search_planned_payload(
         "missing-term-never-hit",
@@ -224,11 +254,11 @@ fn test_link_graph_search_planned_payload_escalates_when_graph_hits_are_empty()
         payload.graph_confidence_level,
         LinkGraphConfidenceLevel::None
     );
-    assert_eq!(payload.graph_confidence_score, 0.0);
+    assert!((payload.graph_confidence_score - 0.0_f64).abs() < 1e-12_f64);
+    let reason = &payload.reason;
     assert!(
         payload.reason == "graph_insufficient" || payload.reason == "vector_only_requested",
-        "unexpected reason for empty graph hits: {}",
-        payload.reason
+        "unexpected reason for empty graph hits: {reason}",
     );
     Ok(())
 }

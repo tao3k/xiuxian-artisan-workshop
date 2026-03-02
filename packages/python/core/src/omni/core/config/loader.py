@@ -1,7 +1,7 @@
 """
 omni.core.config.loader - Configuration Loader
 
-Loads and provides access to skill-related configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml).
+Loads and provides access to skill-related configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml).
 
 Usage:
     from omni.core.config.loader import get_skill_limits, get_filter_commands, get_active_preload_skills
@@ -107,7 +107,7 @@ _overrides_config: OverridesConfig | None = None
 
 
 def load_skill_limits() -> SkillLimitsConfig:
-    """Load skill limits configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml).
+    """Load skill limits configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml).
 
     Returns:
         SkillLimitsConfig instance with loaded values or defaults
@@ -198,7 +198,7 @@ def get_active_preload_skills(mode: str = "default") -> list[str]:
 
 
 def load_filter_commands() -> FilterCommandsConfig:
-    """Load filter commands configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml).
+    """Load filter commands configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml).
 
     Returns:
         FilterCommandsConfig instance with patterns list
@@ -273,7 +273,7 @@ def is_filtered(command: str) -> bool:
 
 
 def load_command_overrides() -> OverridesConfig:
-    """Load command overrides from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml).
+    """Load command overrides from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml).
 
     This enables "Configuration over Convention" for tool naming.
     LLM sees friendly aliases (save_memory) while kernel uses canonical names

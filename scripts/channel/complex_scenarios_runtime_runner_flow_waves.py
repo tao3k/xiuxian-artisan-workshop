@@ -40,7 +40,6 @@ def execute_waves(
                 session,
                 wave_index,
                 reason,
-                cfg.runtime_partition_mode,
             )
             results.append(result)
             failed.add(step.step_id)

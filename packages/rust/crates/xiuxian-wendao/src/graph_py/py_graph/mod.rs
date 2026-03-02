@@ -10,7 +10,7 @@ mod skill_methods;
 
 pub use cache::{invalidate_kg_cache, load_kg_from_valkey_cached};
 
-/// Python wrapper for KnowledgeGraph.
+/// Python wrapper for `KnowledgeGraph`.
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct PyKnowledgeGraph {
@@ -109,15 +109,14 @@ impl PyKnowledgeGraph {
         skill_methods::register_skill_entities_json(self, json_str)
     }
 
-    /// Query-time tool relevance scoring via KnowledgeGraph traversal.
+    /// Query-time tool relevance scoring via `KnowledgeGraph` traversal.
     #[pyo3(signature = (query_terms, max_hops = 2, limit = 10))]
-    #[allow(clippy::needless_pass_by_value)]
     fn query_tool_relevance(
         &self,
         query_terms: Vec<String>,
         max_hops: usize,
         limit: usize,
     ) -> PyResult<String> {
-        skill_methods::query_tool_relevance(self, &query_terms, max_hops, limit)
+        skill_methods::query_tool_relevance(self, query_terms, max_hops, limit)
     }
 }

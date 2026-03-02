@@ -1,23 +1,28 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
+
+fn run_agentic_persist(
+    tmp: &TempDir,
+    config_path: &Path,
+) -> Result<Value, Box<dyn std::error::Error>> {
+    let run_output = wendao_cmd()
+        .arg("--root")
+        .arg(tmp.path())
+        .arg("--conf")
+        .arg(config_path)
+        .arg("agentic")
+        .arg("run")
+        .arg("--query")
+        .arg("alpha")
+        .arg("--persist")
+        .output()?;
+    let stderr = String::from_utf8_lossy(&run_output.stderr);
+    assert!(
+        run_output.status.success(),
+        "wendao agentic run persist failed: {stderr}"
+    );
+    let run_stdout = String::from_utf8(run_output.stdout)?;
+    Ok(serde_json::from_str(&run_stdout)?)
+}
 
 #[test]
 fn test_wendao_agentic_run_can_persist_suggestions() -> Result<(), Box<dyn std::error::Error>> {
@@ -38,24 +43,7 @@ fn test_wendao_agentic_run_can_persist_suggestions() -> Result<(), Box<dyn std::
         ),
     )?;
 
-    let run_output = wendao_cmd()
-        .arg("--root")
-        .arg(tmp.path())
-        .arg("--conf")
-        .arg(&config_path)
-        .arg("agentic")
-        .arg("run")
-        .arg("--query")
-        .arg("alpha")
-        .arg("--persist")
-        .output()?;
-    assert!(
-        run_output.status.success(),
-        "wendao agentic run persist failed: {}",
-        String::from_utf8_lossy(&run_output.stderr)
-    );
-    let run_stdout = String::from_utf8(run_output.stdout)?;
-    let run_payload: Value = serde_json::from_str(&run_stdout)?;
+    let run_payload = run_agentic_persist(&tmp, &config_path)?;
     let persisted = run_payload
         .get("persisted_proposals")
         .and_then(Value::as_u64)
@@ -66,24 +54,7 @@ fn test_wendao_agentic_run_can_persist_suggestions() -> Result<(), Box<dyn std::
         Some(0)
     );
 
-    let run_output_2 = wendao_cmd()
-        .arg("--root")
-        .arg(tmp.path())
-        .arg("--conf")
-        .arg(&config_path)
-        .arg("agentic")
-        .arg("run")
-        .arg("--query")
-        .arg("alpha")
-        .arg("--persist")
-        .output()?;
-    assert!(
-        run_output_2.status.success(),
-        "wendao second agentic run persist failed: {}",
-        String::from_utf8_lossy(&run_output_2.stderr)
-    );
-    let run_stdout_2 = String::from_utf8(run_output_2.stdout)?;
-    let run_payload_2: Value = serde_json::from_str(&run_stdout_2)?;
+    let run_payload_2 = run_agentic_persist(&tmp, &config_path)?;
     assert_eq!(
         run_payload_2
             .get("persisted_proposals")
@@ -108,10 +79,10 @@ fn test_wendao_agentic_run_can_persist_suggestions() -> Result<(), Box<dyn std::
         .arg("--limit")
         .arg("10")
         .output()?;
+    let recent_stderr = String::from_utf8_lossy(&recent_output.stderr);
     assert!(
         recent_output.status.success(),
-        "wendao agentic recent after run failed: {}",
-        String::from_utf8_lossy(&recent_output.stderr)
+        "wendao agentic recent after run failed: {recent_stderr}"
     );
     let recent_stdout = String::from_utf8(recent_output.stdout)?;
     let rows: Value = serde_json::from_str(&recent_stdout)?;

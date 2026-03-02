@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Omega + Graph + Loop/ReAct: Rust Unification Blueprint"
 category: "plans"
 tags:
@@ -6,6 +7,8 @@ tags:
   - omega
 saliency_base: 7.2
 decay_rate: 0.03
+metadata:
+  title: "Omega + Graph + Loop/ReAct: Rust Unification Blueprint"
 ---
 
 # Omega + Graph + Loop/ReAct: Rust Unification Blueprint
@@ -240,6 +243,7 @@ After A0-A7 closure, the next implementation queue is feature-driven (not gate-d
 | P0-2     | Omega Deliberation Engine (Rust)            | Expand policy routing into explicit plan-repair/quality-gate path in Rust.                       | Route policy can enforce repair or fallback with auditable reason fields.                  | `cargo test -p omni-agent --test agent_injection` + reflection threshold tests |
 | P0-3     | Role-Mix Injection Profiles                 | Add `single/classified/hybrid` profile selection with deterministic assembly.                    | Role-mix profile is selected by policy and recorded in injection snapshot traces.          | `cargo test -p omni-agent --lib injection::tests` + trace reconstruction gate  |
 | P0-4     | Python Runtime Decommissioning (Loop paths) | Remove duplicated Python runtime loop entrypoints while preserving MCP tool plane.               | Runtime orchestration entry remains Rust-only (`omni-agent`).                              | `python3 scripts/channel/test_omni_agent_memory_ci_gate.py --profile nightly`  |
+| P0-5     | Adversarial Sub-graph Routing               | Deprecate regex-based triggers for Qianji workflows; elevate to Omega routing policy.            | Omega natively outputs `route: graph` + `workflow_mode: agenda_validation` via LLM JSON.   | `cargo test -p omni-agent --test agent_omega_routing`                          |
 
 ### P0-1 Status Update (2026-02-23)
 
@@ -314,14 +318,31 @@ Completed in current branch:
 
 - `omni.agent.cli.commands.gateway_agent` now dispatches to Rust runtime only; Python loop helpers removed.
 - `omni.agent.gateway.webhook.create_webhook_app()` is explicitly decommissioned and fails fast with a migration message.
-- `omni.agent.workflows.run_entry` Python execute entrypoints (`execute_task_via_kernel`, `execute_task_with_session`) are decommissioned and fail fast.
-- MCP tool-plane behavior is preserved; no compatibility fallback to the legacy Python runtime loop was added.
+- Added Rust-orchestrator startup guard in Python CLI (`agent.runtime_orchestrator` must stay `rust`).
+- `omni.agent.workflows.run_entry` is removed from the package.
+- `omni.agent.core.omni` public API no longer exports Python runtime orchestrators (`OmniLoop`, `OmegaRunner`, `MissionConfig`).
+- Python modules `core/omni/loop.py` and `core/omni/omega.py` are fully removed from the package.
+- Python runtime modules `omni.agent.main` and `omni.agent.cli.omni_loop` are fully removed from the package.
+- MCP tool-plane behavior is preserved; no compatibility fallback to Python runtime loops was added.
 
 Verification evidence:
 
-- `uv run pytest -n0 packages/python/agent/tests/unit/workflows/test_run_entry.py -q`
+- `uv run pytest -n0 packages/python/agent/tests/unit/runtime/test_python_runtime_decommission.py -q`
+- `uv run pytest -n0 packages/python/agent/tests/contracts/test_runtime_decommission_contract.py -q`
 - `uv run pytest -n0 packages/python/agent/tests/contracts/test_data_interface_services.py -q`
 - `uv run pytest -n0 packages/python/agent/tests/unit -q -W error::RuntimeWarning`
+
+### P0-5 Status Update (Planned: Adversarial Sub-graph Routing)
+
+**Goal:** Eradicate the regex-based `should_run_agenda_validation` placeholder.
+
+**Action Plan:**
+
+1. Extend `OmegaDecision` in `packages/rust/crates/omni-agent/src/contracts/omega.rs` to support `workflow_mode = "agenda_validation"`.
+2. Update the Omega system prompt (or tool schema) so the LLM explicitly selects this mode when asked to schedule tasks.
+3. Remove `apply_agenda_validation_if_needed` from `agent/turn_execution/react_loop/mod.rs`.
+4. Intercept the request in `agent/turn_execution/shortcut.rs`. When `route == graph` and `workflow_mode == agenda_validation`, execute the Qianji `agenda_validation_pipeline.toml`.
+5. Ensure the final result of the Qianji execution is returned directly as the user-facing response, avoiding the secondary ReAct loop entirely.
 
 Execution rule:
 

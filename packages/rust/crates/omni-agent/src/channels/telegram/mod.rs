@@ -20,7 +20,9 @@ pub use channel::{
 };
 pub use idempotency::{DEFAULT_REDIS_KEY_PREFIX, WebhookDedupBackend, WebhookDedupConfig};
 pub use runtime::{
-    TelegramWebhookApp, build_telegram_webhook_app,
+    TelegramWebhookApp, TelegramWebhookControlPolicyBuildRequest,
+    TelegramWebhookPartitionBuildRequest, TelegramWebhookPolicyRunRequest,
+    TelegramWebhookRunRequest, build_telegram_webhook_app,
     build_telegram_webhook_app_with_control_command_policy,
     build_telegram_webhook_app_with_partition, run_telegram, run_telegram_webhook,
     run_telegram_webhook_with_control_command_policy, run_telegram_with_control_command_policy,

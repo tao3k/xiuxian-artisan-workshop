@@ -1,52 +1,17 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram webhook endpoint tests for auth, dedup, and command forwarding.
 
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use axum::{
     Router,
     body::Body,
     http::{Request, StatusCode},
 };
 use omni_agent::{
-    DEFAULT_REDIS_KEY_PREFIX, TelegramSessionPartition, WebhookDedupBackend, WebhookDedupConfig,
-    build_telegram_webhook_app, build_telegram_webhook_app_with_partition,
+    DEFAULT_REDIS_KEY_PREFIX, TelegramSessionPartition, TelegramWebhookPartitionBuildRequest,
+    WebhookDedupBackend, WebhookDedupConfig, build_telegram_webhook_app,
+    build_telegram_webhook_app_with_partition,
 };
 use tokio::sync::mpsc;
 use tower::util::ServiceExt;
@@ -59,7 +24,7 @@ fn sample_update(update_id: i64) -> serde_json::Value {
         "message": {
             "message_id": 77,
             "text": "hello",
-            "chat": {"id": -200123},
+            "chat": {"id": -200_123},
             "from": {"id": 888, "username": "alice"}
         }
     })
@@ -227,26 +192,27 @@ async fn webhook_fail_open_when_valkey_is_unavailable() -> Result<()> {
 #[tokio::test]
 async fn webhook_partition_chat_only_shares_session_across_users() -> Result<()> {
     let (tx, mut rx) = mpsc::channel(8);
-    let webhook = build_telegram_webhook_app_with_partition(
-        "fake-token".to_string(),
-        vec!["*".to_string()],
-        vec![],
-        vec!["*".to_string()],
-        "/telegram/webhook",
-        None,
-        WebhookDedupConfig {
-            backend: WebhookDedupBackend::Memory,
-            ttl_secs: 600,
-        },
-        TelegramSessionPartition::ChatOnly,
-        tx,
-    )?;
+    let webhook =
+        build_telegram_webhook_app_with_partition(TelegramWebhookPartitionBuildRequest {
+            bot_token: "fake-token".to_string(),
+            allowed_users: vec!["*".to_string()],
+            allowed_groups: vec![],
+            admin_users: vec!["*".to_string()],
+            webhook_path: "/telegram/webhook".to_string(),
+            secret_token: None,
+            dedup_config: WebhookDedupConfig {
+                backend: WebhookDedupBackend::Memory,
+                ttl_secs: 600,
+            },
+            session_partition: TelegramSessionPartition::ChatOnly,
+            tx,
+        })?;
 
     assert_eq!(
         post_update(
             webhook.app.clone(),
             &webhook.path,
-            sample_update_with_identity(40001, 81, -200123, 888, None),
+            sample_update_with_identity(40_001, 81, -200_123, 888, None),
             None,
         )
         .await?,
@@ -256,19 +222,21 @@ async fn webhook_partition_chat_only_shares_session_across_users() -> Result<()>
         post_update(
             webhook.app.clone(),
             &webhook.path,
-            sample_update_with_identity(40002, 82, -200123, 999, None),
+            sample_update_with_identity(40_002, 82, -200_123, 999, None),
             None,
         )
         .await?,
         StatusCode::OK
     );
 
-    let first = tokio::time::timeout(Duration::from_millis(250), rx.recv())
-        .await?
-        .expect("first webhook message");
-    let second = tokio::time::timeout(Duration::from_millis(250), rx.recv())
-        .await?
-        .expect("second webhook message");
+    let first = tokio::time::timeout(Duration::from_millis(250), rx.recv()).await?;
+    let Some(first) = first else {
+        return Err(anyhow!("first webhook message"));
+    };
+    let second = tokio::time::timeout(Duration::from_millis(250), rx.recv()).await?;
+    let Some(second) = second else {
+        return Err(anyhow!("second webhook message"));
+    };
 
     assert_eq!(first.session_key, "-200123");
     assert_eq!(second.session_key, "-200123");
@@ -278,26 +246,27 @@ async fn webhook_partition_chat_only_shares_session_across_users() -> Result<()>
 #[tokio::test]
 async fn webhook_partition_chat_only_isolates_same_user_across_chats() -> Result<()> {
     let (tx, mut rx) = mpsc::channel(8);
-    let webhook = build_telegram_webhook_app_with_partition(
-        "fake-token".to_string(),
-        vec!["*".to_string()],
-        vec![],
-        vec!["*".to_string()],
-        "/telegram/webhook",
-        None,
-        WebhookDedupConfig {
-            backend: WebhookDedupBackend::Memory,
-            ttl_secs: 600,
-        },
-        TelegramSessionPartition::ChatOnly,
-        tx,
-    )?;
+    let webhook =
+        build_telegram_webhook_app_with_partition(TelegramWebhookPartitionBuildRequest {
+            bot_token: "fake-token".to_string(),
+            allowed_users: vec!["*".to_string()],
+            allowed_groups: vec![],
+            admin_users: vec!["*".to_string()],
+            webhook_path: "/telegram/webhook".to_string(),
+            secret_token: None,
+            dedup_config: WebhookDedupConfig {
+                backend: WebhookDedupBackend::Memory,
+                ttl_secs: 600,
+            },
+            session_partition: TelegramSessionPartition::ChatOnly,
+            tx,
+        })?;
 
     assert_eq!(
         post_update(
             webhook.app.clone(),
             &webhook.path,
-            sample_update_with_identity(40101, 83, -200123, 888, None),
+            sample_update_with_identity(40_101, 83, -200_123, 888, None),
             None,
         )
         .await?,
@@ -307,19 +276,21 @@ async fn webhook_partition_chat_only_isolates_same_user_across_chats() -> Result
         post_update(
             webhook.app.clone(),
             &webhook.path,
-            sample_update_with_identity(40102, 84, -200124, 888, None),
+            sample_update_with_identity(40_102, 84, -200_124, 888, None),
             None,
         )
         .await?,
         StatusCode::OK
     );
 
-    let first = tokio::time::timeout(Duration::from_millis(250), rx.recv())
-        .await?
-        .expect("first webhook message");
-    let second = tokio::time::timeout(Duration::from_millis(250), rx.recv())
-        .await?
-        .expect("second webhook message");
+    let first = tokio::time::timeout(Duration::from_millis(250), rx.recv()).await?;
+    let Some(first) = first else {
+        return Err(anyhow!("first webhook message"));
+    };
+    let second = tokio::time::timeout(Duration::from_millis(250), rx.recv()).await?;
+    let Some(second) = second else {
+        return Err(anyhow!("second webhook message"));
+    };
 
     assert_eq!(first.session_key, "-200123");
     assert_eq!(second.session_key, "-200124");
@@ -330,26 +301,27 @@ async fn webhook_partition_chat_only_isolates_same_user_across_chats() -> Result
 #[tokio::test]
 async fn webhook_partition_chat_user_isolates_users() -> Result<()> {
     let (tx, mut rx) = mpsc::channel(8);
-    let webhook = build_telegram_webhook_app_with_partition(
-        "fake-token".to_string(),
-        vec!["*".to_string()],
-        vec![],
-        vec!["*".to_string()],
-        "/telegram/webhook",
-        None,
-        WebhookDedupConfig {
-            backend: WebhookDedupBackend::Memory,
-            ttl_secs: 600,
-        },
-        TelegramSessionPartition::ChatUser,
-        tx,
-    )?;
+    let webhook =
+        build_telegram_webhook_app_with_partition(TelegramWebhookPartitionBuildRequest {
+            bot_token: "fake-token".to_string(),
+            allowed_users: vec!["*".to_string()],
+            allowed_groups: vec![],
+            admin_users: vec!["*".to_string()],
+            webhook_path: "/telegram/webhook".to_string(),
+            secret_token: None,
+            dedup_config: WebhookDedupConfig {
+                backend: WebhookDedupBackend::Memory,
+                ttl_secs: 600,
+            },
+            session_partition: TelegramSessionPartition::ChatUser,
+            tx,
+        })?;
 
     assert_eq!(
         post_update(
             webhook.app.clone(),
             &webhook.path,
-            sample_update_with_identity(41001, 91, -200123, 888, None),
+            sample_update_with_identity(41_001, 91, -200_123, 888, None),
             None,
         )
         .await?,
@@ -359,19 +331,21 @@ async fn webhook_partition_chat_user_isolates_users() -> Result<()> {
         post_update(
             webhook.app.clone(),
             &webhook.path,
-            sample_update_with_identity(41002, 92, -200123, 999, None),
+            sample_update_with_identity(41_002, 92, -200_123, 999, None),
             None,
         )
         .await?,
         StatusCode::OK
     );
 
-    let first = tokio::time::timeout(Duration::from_millis(250), rx.recv())
-        .await?
-        .expect("first webhook message");
-    let second = tokio::time::timeout(Duration::from_millis(250), rx.recv())
-        .await?
-        .expect("second webhook message");
+    let first = tokio::time::timeout(Duration::from_millis(250), rx.recv()).await?;
+    let Some(first) = first else {
+        return Err(anyhow!("first webhook message"));
+    };
+    let second = tokio::time::timeout(Duration::from_millis(250), rx.recv()).await?;
+    let Some(second) = second else {
+        return Err(anyhow!("second webhook message"));
+    };
 
     assert_ne!(first.session_key, second.session_key);
     assert!(first.session_key.starts_with("-200123:"));
@@ -382,26 +356,27 @@ async fn webhook_partition_chat_user_isolates_users() -> Result<()> {
 #[tokio::test]
 async fn webhook_partition_chat_thread_user_isolates_topics() -> Result<()> {
     let (tx, mut rx) = mpsc::channel(8);
-    let webhook = build_telegram_webhook_app_with_partition(
-        "fake-token".to_string(),
-        vec!["*".to_string()],
-        vec![],
-        vec!["*".to_string()],
-        "/telegram/webhook",
-        None,
-        WebhookDedupConfig {
-            backend: WebhookDedupBackend::Memory,
-            ttl_secs: 600,
-        },
-        TelegramSessionPartition::ChatThreadUser,
-        tx,
-    )?;
+    let webhook =
+        build_telegram_webhook_app_with_partition(TelegramWebhookPartitionBuildRequest {
+            bot_token: "fake-token".to_string(),
+            allowed_users: vec!["*".to_string()],
+            allowed_groups: vec![],
+            admin_users: vec!["*".to_string()],
+            webhook_path: "/telegram/webhook".to_string(),
+            secret_token: None,
+            dedup_config: WebhookDedupConfig {
+                backend: WebhookDedupBackend::Memory,
+                ttl_secs: 600,
+            },
+            session_partition: TelegramSessionPartition::ChatThreadUser,
+            tx,
+        })?;
 
     assert_eq!(
         post_update(
             webhook.app.clone(),
             &webhook.path,
-            sample_update_with_identity(42001, 101, -200123, 888, Some(11)),
+            sample_update_with_identity(42_001, 101, -200_123, 888, Some(11)),
             None,
         )
         .await?,
@@ -411,19 +386,21 @@ async fn webhook_partition_chat_thread_user_isolates_topics() -> Result<()> {
         post_update(
             webhook.app.clone(),
             &webhook.path,
-            sample_update_with_identity(42002, 102, -200123, 888, Some(22)),
+            sample_update_with_identity(42_002, 102, -200_123, 888, Some(22)),
             None,
         )
         .await?,
         StatusCode::OK
     );
 
-    let first = tokio::time::timeout(Duration::from_millis(250), rx.recv())
-        .await?
-        .expect("first webhook message");
-    let second = tokio::time::timeout(Duration::from_millis(250), rx.recv())
-        .await?
-        .expect("second webhook message");
+    let first = tokio::time::timeout(Duration::from_millis(250), rx.recv()).await?;
+    let Some(first) = first else {
+        return Err(anyhow!("first webhook message"));
+    };
+    let second = tokio::time::timeout(Duration::from_millis(250), rx.recv()).await?;
+    let Some(second) = second else {
+        return Err(anyhow!("second webhook message"));
+    };
 
     assert_ne!(first.session_key, second.session_key);
     assert_eq!(first.recipient, "-200123:11");

@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram group policy and per-group override projection tests.
 
 use std::fs;
 
@@ -43,12 +7,32 @@ use omni_agent::{
     TelegramSessionPartition, load_runtime_settings_from_paths,
 };
 
-fn build_channel_with_settings(settings_yaml: &str) -> (tempfile::TempDir, TelegramChannel) {
-    let temp_dir = tempfile::tempdir().expect("tempdir");
-    let system_settings_path = temp_dir.path().join("settings-system.yaml");
-    let user_settings_path = temp_dir.path().join("settings-user.yaml");
-    fs::write(&system_settings_path, settings_yaml).expect("write system settings");
-    fs::write(&user_settings_path, "").expect("write user settings");
+fn require_ok<T, E>(result: std::result::Result<T, E>, context: &str) -> T
+where
+    E: std::fmt::Display,
+{
+    match result {
+        Ok(value) => value,
+        Err(error) => panic!("{context}: {error}"),
+    }
+}
+
+fn require_some<T>(value: Option<T>, context: &str) -> T {
+    match value {
+        Some(value) => value,
+        None => panic!("{context}"),
+    }
+}
+
+fn build_channel_with_settings(settings_toml: &str) -> (tempfile::TempDir, TelegramChannel) {
+    let temp_dir = require_ok(tempfile::tempdir(), "tempdir");
+    let system_settings_path = temp_dir.path().join("settings-system.toml");
+    let user_settings_path = temp_dir.path().join("settings-user.toml");
+    require_ok(
+        fs::write(&system_settings_path, settings_toml),
+        "write system settings",
+    );
+    require_ok(fs::write(&user_settings_path, ""), "write user settings");
 
     let channel = TelegramChannel::new_with_partition_and_control_command_policy(
         "fake-token".to_string(),
@@ -56,8 +40,7 @@ fn build_channel_with_settings(settings_yaml: &str) -> (tempfile::TempDir, Teleg
         vec![],
         TelegramControlCommandPolicy::default(),
         TelegramSessionPartition::ChatUser,
-    )
-    .expect("policy should compile");
+    );
     channel.set_acl_reload_paths_for_test(system_settings_path, user_settings_path);
     channel.reload_acl_from_settings_for_test();
     (temp_dir, channel)
@@ -65,8 +48,8 @@ fn build_channel_with_settings(settings_yaml: &str) -> (tempfile::TempDir, Teleg
 
 fn settings_paths(temp_dir: &tempfile::TempDir) -> (std::path::PathBuf, std::path::PathBuf) {
     (
-        temp_dir.path().join("settings-system.yaml"),
-        temp_dir.path().join("settings-user.yaml"),
+        temp_dir.path().join("settings-system.toml"),
+        temp_dir.path().join("settings-user.toml"),
     )
 }
 
@@ -83,7 +66,7 @@ fn group_update_for_chat(chat_id: i64, user_id: i64, text: &str) -> serde_json::
 }
 
 fn group_update(user_id: i64, text: &str) -> serde_json::Value {
-    group_update_for_chat(-200100, user_id, text)
+    group_update_for_chat(-200_100, user_id, text)
 }
 
 fn topic_update(user_id: i64, text: &str, topic_id: i64) -> serde_json::Value {
@@ -96,12 +79,12 @@ fn topic_update(user_id: i64, text: &str, topic_id: i64) -> serde_json::Value {
 fn telegram_group_policy_disabled_rejects_group_messages() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-  group_policy: "disabled"
+[telegram]
+group_policy = "disabled"
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
 "#,
     );
 
@@ -116,13 +99,13 @@ telegram:
 fn telegram_group_policy_allowlist_uses_group_allow_from() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-  group_policy: "allowlist"
-  group_allow_from: "111"
+[telegram]
+group_policy = "allowlist"
+group_allow_from = "111"
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
 "#,
     );
 
@@ -142,12 +125,12 @@ telegram:
 fn telegram_group_policy_allowlist_falls_back_to_allowed_users_when_group_allow_from_unset() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: ["999"]
-      groups: ["-200100"]
-  group_policy: "allowlist"
+[telegram]
+group_policy = "allowlist"
+
+[telegram.acl.allow]
+users = ["999"]
+groups = ["-200100"]
 "#,
     );
 
@@ -167,15 +150,15 @@ telegram:
 fn telegram_group_policy_group_override_can_open_when_global_disabled() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-  group_policy: "disabled"
-  groups:
-    "-200100":
-      group_policy: "open"
+[telegram]
+group_policy = "disabled"
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.groups."-200100"]
+group_policy = "open"
 "#,
     );
 
@@ -190,13 +173,13 @@ telegram:
 fn telegram_group_policy_require_mention_blocks_plain_group_text() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-  group_policy: "open"
-  require_mention: true
+[telegram]
+group_policy = "open"
+require_mention = true
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
 "#,
     );
 
@@ -221,19 +204,18 @@ telegram:
 fn telegram_group_policy_topic_override_has_higher_priority() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-  group_policy: "open"
-  groups:
-    "-200100":
-      topics:
-        "42":
-          group_policy: "allowlist"
-          allow_from:
-            users: ["111"]
+[telegram]
+group_policy = "open"
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.groups."-200100".topics."42"]
+group_policy = "allowlist"
+
+[telegram.groups."-200100".topics."42".allow_from]
+users = ["111"]
 "#,
     );
 
@@ -258,28 +240,29 @@ telegram:
 fn telegram_group_policy_wildcard_override_is_applied_before_specific_group_override() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100", "-200200"]
-  group_policy: "open"
-  require_mention: false
-  groups:
-    "*":
-      require_mention: true
-    "-200100":
-      require_mention: false
+[telegram]
+group_policy = "open"
+require_mention = false
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100", "-200200"]
+
+[telegram.groups."*"]
+require_mention = true
+
+[telegram.groups."-200100"]
+require_mention = false
 "#,
     );
 
-    let group_specific = group_update_for_chat(-200100, 111, "plain group text");
+    let group_specific = group_update_for_chat(-200_100, 111, "plain group text");
     assert!(channel.parse_update_message(&group_specific).is_some());
 
-    let wildcard_only = group_update_for_chat(-200200, 111, "plain group text");
+    let wildcard_only = group_update_for_chat(-200_200, 111, "plain group text");
     assert!(channel.parse_update_message(&wildcard_only).is_none());
 
-    let wildcard_triggered = group_update_for_chat(-200200, 111, "/session status");
+    let wildcard_triggered = group_update_for_chat(-200_200, 111, "/session status");
     assert!(channel.parse_update_message(&wildcard_triggered).is_some());
 }
 
@@ -287,13 +270,13 @@ telegram:
 fn telegram_group_policy_require_mention_accepts_reply_to_bot_trigger() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-  group_policy: "open"
-  require_mention: true
+[telegram]
+group_policy = "open"
+require_mention = true
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
 "#,
     );
 
@@ -308,13 +291,13 @@ telegram:
 fn telegram_group_policy_require_mention_accepts_entity_mention_trigger() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-  group_policy: "open"
-  require_mention: true
+[telegram]
+group_policy = "open"
+require_mention = true
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
 "#,
     );
 
@@ -329,17 +312,15 @@ telegram:
 fn telegram_group_policy_group_admin_users_are_scoped_by_recipient() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100", "-200200"]
-    admin:
-      users: []
-  groups:
-    "-200100":
-      admin_users:
-        users: ["111"]
+[telegram.acl.allow]
+users = []
+groups = ["-200100", "-200200"]
+
+[telegram.acl.admin]
+users = []
+
+[telegram.groups."-200100".admin_users]
+users = ["111"]
 "#,
     );
 
@@ -366,24 +347,21 @@ telegram:
 fn telegram_group_policy_topic_admin_users_override_group_and_wildcard_admin_users() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100", "-200200"]
-    admin:
-      users: []
-  groups:
-    "*":
-      admin_users:
-        users: ["900"]
-    "-200100":
-      admin_users:
-        users: ["111"]
-      topics:
-        "42":
-          admin_users:
-            users: ["222"]
+[telegram.acl.allow]
+users = []
+groups = ["-200100", "-200200"]
+
+[telegram.acl.admin]
+users = []
+
+[telegram.groups."*".admin_users]
+users = ["900"]
+
+[telegram.groups."-200100".admin_users]
+users = ["111"]
+
+[telegram.groups."-200100".topics."42".admin_users]
+users = ["222"]
 "#,
     );
 
@@ -418,20 +396,18 @@ telegram:
 fn telegram_group_policy_group_admin_users_do_not_override_explicit_global_control_deny() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
-    control:
-      allow_from:
-        users: []
-  groups:
-    "-200100":
-      admin_users:
-        users: ["111"]
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
+
+[telegram.acl.control.allow_from]
+users = []
+
+[telegram.groups."-200100".admin_users]
+users = ["111"]
 "#,
     );
 
@@ -442,20 +418,18 @@ telegram:
 fn telegram_group_policy_group_admin_users_do_not_override_explicit_global_slash_deny() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
-    slash:
-      global:
-        users: []
-  groups:
-    "-200100":
-      admin_users:
-        users: ["111"]
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
+
+[telegram.acl.slash.global]
+users = []
+
+[telegram.groups."-200100".admin_users]
+users = ["111"]
 "#,
     );
 
@@ -470,30 +444,31 @@ telegram:
 fn telegram_group_policy_recipient_admin_users_runtime_mutation_group_scope() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
 "#,
     );
 
     assert_eq!(
-        channel
-            .recipient_command_admin_users("-200100")
-            .expect("group recipient query should succeed"),
+        require_ok(
+            channel.recipient_command_admin_users("-200100"),
+            "group recipient query should succeed",
+        ),
         None
     );
 
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100",
                 RecipientCommandAdminUsersMutation::Add(vec!["telegram:111".to_string()]),
-            )
-            .expect("group add should succeed"),
+            ),
+            "group add should succeed",
+        ),
         Some(vec!["111".to_string()])
     );
     assert!(channel.is_authorized_for_control_command_for_recipient(
@@ -503,18 +478,20 @@ telegram:
     ));
 
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100",
                 RecipientCommandAdminUsersMutation::Remove(vec!["111".to_string()]),
-            )
-            .expect("group remove should succeed"),
+            ),
+            "group remove should succeed",
+        ),
         None
     );
     assert_eq!(
-        channel
-            .recipient_command_admin_users("-200100")
-            .expect("group recipient query should succeed"),
+        require_ok(
+            channel.recipient_command_admin_users("-200100"),
+            "group recipient query should succeed",
+        ),
         None
     );
 }
@@ -523,23 +500,23 @@ telegram:
 fn telegram_group_policy_recipient_admin_users_runtime_mutation_topic_scope() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
 "#,
     );
 
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100:42",
                 RecipientCommandAdminUsersMutation::Set(vec!["222".to_string(), "222".to_string()]),
-            )
-            .expect("topic set should succeed"),
+            ),
+            "topic set should succeed",
+        ),
         Some(vec!["222".to_string()])
     );
     assert!(channel.is_authorized_for_control_command_for_recipient(
@@ -554,18 +531,20 @@ telegram:
     ));
 
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100:42",
                 RecipientCommandAdminUsersMutation::Clear,
-            )
-            .expect("topic clear should succeed"),
+            ),
+            "topic clear should succeed",
+        ),
         None
     );
     assert_eq!(
-        channel
-            .recipient_command_admin_users("-200100:42")
-            .expect("topic query should succeed"),
+        require_ok(
+            channel.recipient_command_admin_users("-200100:42"),
+            "topic query should succeed",
+        ),
         None
     );
 }
@@ -574,32 +553,33 @@ telegram:
 fn telegram_group_policy_recipient_admin_users_runtime_mutation_group_topic_isolation() {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
 "#,
     );
 
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100",
                 RecipientCommandAdminUsersMutation::Set(vec!["111".to_string()]),
-            )
-            .expect("group set should succeed"),
+            ),
+            "group set should succeed",
+        ),
         Some(vec!["111".to_string()])
     );
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100:42",
                 RecipientCommandAdminUsersMutation::Set(vec!["222".to_string()]),
-            )
-            .expect("topic set should succeed"),
+            ),
+            "topic set should succeed",
+        ),
         Some(vec!["222".to_string()])
     );
 
@@ -630,13 +610,12 @@ fn telegram_group_policy_recipient_admin_users_runtime_mutation_rejects_invalid_
 {
     let (_temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
 "#,
     );
 
@@ -659,47 +638,47 @@ telegram:
 fn telegram_group_policy_recipient_admin_users_runtime_mutation_persists_when_enabled() {
     let (temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
-  session_admin_persist: true
+[telegram]
+session_admin_persist = true
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
 "#,
     );
 
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100",
                 RecipientCommandAdminUsersMutation::Add(vec!["telegram:111".to_string()]),
-            )
-            .expect("group add should succeed"),
+            ),
+            "group add should succeed",
+        ),
         Some(vec!["111".to_string()])
     );
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100:42",
                 RecipientCommandAdminUsersMutation::Set(vec![
                     "222".to_string(),
                     "telegram:333".to_string(),
                     "222".to_string(),
                 ]),
-            )
-            .expect("topic set should succeed"),
+            ),
+            "topic set should succeed",
+        ),
         Some(vec!["222".to_string(), "333".to_string()])
     );
 
     let (system_settings_path, user_settings_path) = settings_paths(&temp_dir);
     let merged = load_runtime_settings_from_paths(&system_settings_path, &user_settings_path);
-    let groups = merged
-        .telegram
-        .groups
-        .expect("group overrides should persist");
-    let group = groups.get("-200100").expect("group override should exist");
+    let groups = require_some(merged.telegram.groups, "group overrides should persist");
+    let group = require_some(groups.get("-200100"), "group override should exist");
     assert_eq!(
         group
             .admin_users
@@ -707,11 +686,8 @@ telegram:
             .and_then(|value| value.users.clone()),
         Some(vec!["111".to_string()])
     );
-    let topics = group
-        .topics
-        .as_ref()
-        .expect("topic override should persist");
-    let topic = topics.get("42").expect("topic override should exist");
+    let topics = require_some(group.topics.as_ref(), "topic override should persist");
+    let topic = require_some(topics.get("42"), "topic override should exist");
     assert_eq!(
         topic
             .admin_users
@@ -725,38 +701,46 @@ telegram:
 fn telegram_group_policy_recipient_admin_users_runtime_mutation_clear_prunes_persisted_entries() {
     let (temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
-  session_admin_persist: true
+[telegram]
+session_admin_persist = true
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
 "#,
     );
 
-    channel
-        .mutate_recipient_command_admin_users(
+    require_ok(
+        channel.mutate_recipient_command_admin_users(
             "-200100",
             RecipientCommandAdminUsersMutation::Set(vec!["111".to_string()]),
-        )
-        .expect("group set should succeed");
-    channel
-        .mutate_recipient_command_admin_users(
+        ),
+        "group set should succeed",
+    );
+    require_ok(
+        channel.mutate_recipient_command_admin_users(
             "-200100:42",
             RecipientCommandAdminUsersMutation::Set(vec!["222".to_string()]),
-        )
-        .expect("topic set should succeed");
-    channel
-        .mutate_recipient_command_admin_users(
+        ),
+        "topic set should succeed",
+    );
+    require_ok(
+        channel.mutate_recipient_command_admin_users(
             "-200100:42",
             RecipientCommandAdminUsersMutation::Clear,
-        )
-        .expect("topic clear should succeed");
-    channel
-        .mutate_recipient_command_admin_users("-200100", RecipientCommandAdminUsersMutation::Clear)
-        .expect("group clear should succeed");
+        ),
+        "topic clear should succeed",
+    );
+    require_ok(
+        channel.mutate_recipient_command_admin_users(
+            "-200100",
+            RecipientCommandAdminUsersMutation::Clear,
+        ),
+        "group clear should succeed",
+    );
 
     let (system_settings_path, user_settings_path) = settings_paths(&temp_dir);
     let merged = load_runtime_settings_from_paths(&system_settings_path, &user_settings_path);
@@ -764,57 +748,65 @@ telegram:
         merged.telegram.groups.is_none(),
         "clearing overrides should prune persisted group/topic admin entries"
     );
-    let user_yaml =
-        fs::read_to_string(user_settings_path).expect("user settings should be readable");
-    assert!(!user_yaml.contains("admin_users"));
-    assert!(!user_yaml.contains("-200100"));
-    assert!(!user_yaml.contains("42"));
+    let user_toml = require_ok(
+        fs::read_to_string(user_settings_path),
+        "user settings should be readable",
+    );
+    assert!(!user_toml.contains("admin_users"));
+    assert!(!user_toml.contains("-200100"));
+    assert!(!user_toml.contains("42"));
 }
 
 #[test]
 fn telegram_group_policy_recipient_admin_users_runtime_mutation_does_not_persist_when_disabled() {
     let (temp_dir, channel) = build_channel_with_settings(
         r#"
-telegram:
-  acl:
-    allow:
-      users: []
-      groups: ["-200100"]
-    admin:
-      users: []
-  session_admin_persist: false
+[telegram]
+session_admin_persist = false
+
+[telegram.acl.allow]
+users = []
+groups = ["-200100"]
+
+[telegram.acl.admin]
+users = []
 "#,
     );
 
     assert_eq!(
-        channel
-            .mutate_recipient_command_admin_users(
+        require_ok(
+            channel.mutate_recipient_command_admin_users(
                 "-200100",
                 RecipientCommandAdminUsersMutation::Set(vec!["111".to_string()]),
-            )
-            .expect("group set should succeed"),
+            ),
+            "group set should succeed",
+        ),
         Some(vec!["111".to_string()])
     );
     assert_eq!(
-        channel
-            .recipient_command_admin_users("-200100")
-            .expect("group query should succeed"),
+        require_ok(
+            channel.recipient_command_admin_users("-200100"),
+            "group query should succeed",
+        ),
         Some(vec!["111".to_string()])
     );
 
     let (system_settings_path, user_settings_path) = settings_paths(&temp_dir);
-    let user_yaml =
-        fs::read_to_string(&user_settings_path).expect("user settings should be readable");
+    let user_toml = require_ok(
+        fs::read_to_string(&user_settings_path),
+        "user settings should be readable",
+    );
     assert!(
-        user_yaml.trim().is_empty(),
+        user_toml.trim().is_empty(),
         "persistence-disabled mode must not mutate user settings"
     );
 
     channel.reload_acl_from_settings_for_test();
     assert_eq!(
-        channel
-            .recipient_command_admin_users("-200100")
-            .expect("group query should succeed"),
+        require_ok(
+            channel.recipient_command_admin_users("-200100"),
+            "group query should succeed",
+        ),
         None,
         "process-local override should disappear after reload when persistence is disabled"
     );

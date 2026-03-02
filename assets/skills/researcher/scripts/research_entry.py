@@ -8,14 +8,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import subprocess
 import urllib.parse
 import uuid
+from pathlib import Path
 from typing import Any
 
 from omni.foundation.api.decorators import skill_command
 from omni.foundation.config.logging import get_logger
+from omni.foundation.runtime.cargo_subprocess_env import prepare_cargo_subprocess_env
+from omni.foundation.runtime.gitops import get_git_toplevel
 
 logger = get_logger("researcher.entry")
 
@@ -27,10 +29,11 @@ async def _run_subprocess(
     text: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     """Run subprocess in a worker thread to avoid blocking the event loop."""
-    env = os.environ.copy()
-    # Remove uv/python specific vars that might break nested cargo runs on macOS
-    env.pop("DYLD_LIBRARY_PATH", None)
-
+    env = prepare_cargo_subprocess_env()
+    logger.debug(
+        "Prepared cargo subprocess env",
+        pyo3_python=env.get("PYO3_PYTHON", "<unset>"),
+    )
     return await asyncio.to_thread(
         subprocess.run,
         args,
@@ -67,7 +70,12 @@ async def run_qianji_engine(
         session_id,
     ]
 
-    proc = await _run_subprocess(cmd, cwd=".")
+    # LLM runtime config is resolved by Rust (`qianji.toml` + user overrides + env).
+    try:
+        engine_root = str(get_git_toplevel(Path(__file__).resolve()))
+    except RuntimeError:
+        engine_root = "."
+    proc = await _run_subprocess(cmd, cwd=engine_root)
 
     if proc.returncode != 0:
         logger.error(f"Qianji Engine Failed: {proc.stderr}")
@@ -152,9 +160,12 @@ async def run_research_graph(
             return {"success": False, "error": f"Workflow Failed: {err}"}
 
         suspend_prompt = result_json.get("suspend_prompt", "")
-        proposed_plan = result_json.get(
-            "analysis_trace", []
-        )  # Example output key from Architect node
+        analysis_trace = result_json.get("analysis_trace")
+        proposed_plan = (
+            [item for item in analysis_trace if isinstance(item, dict)]
+            if isinstance(analysis_trace, list)
+            else []
+        )
 
         return {
             "success": True,

@@ -1,7 +1,13 @@
+---
+type: prompt
+metadata:
+  title: "Knowledge Base System Prompt"
+---
+
 # Knowledge Base System Prompt
 
 This file provides system instructions for the Knowledge Librarian.
-Loaded dynamically at runtime with paths from references.yaml (system: `packages/conf/references.yaml`; user override: `$PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml`).
+Loaded dynamically at runtime with paths from references.yaml (system: `packages/conf/references.yaml`; user override: `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml`).
 
 ## Role
 

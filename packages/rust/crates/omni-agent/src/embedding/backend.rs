@@ -1,10 +1,12 @@
 use crate::config::load_runtime_settings;
 use xiuxian_llm::embedding::backend::{EmbeddingBackendKind, parse_embedding_backend_kind};
+use xiuxian_macros::env_non_empty;
 
 const DEFAULT_EMBED_TIMEOUT_SECS: u64 = 15;
 const MIN_EMBED_TIMEOUT_SECS: u64 = 1;
 const MAX_EMBED_TIMEOUT_SECS: u64 = 300;
 const MAX_EMBED_MAX_IN_FLIGHT: usize = 4096;
+const MAX_MISTRAL_SDK_EMBED_MAX_NUM_SEQS: usize = 4096;
 
 pub(crate) type EmbeddingBackendMode = EmbeddingBackendKind;
 
@@ -15,6 +17,9 @@ pub(crate) struct EmbeddingBackendSettings {
     pub(crate) timeout_secs: u64,
     pub(crate) max_in_flight: Option<usize>,
     pub(crate) default_model: Option<String>,
+    pub(crate) mistral_sdk_hf_cache_path: Option<String>,
+    pub(crate) mistral_sdk_hf_revision: Option<String>,
+    pub(crate) mistral_sdk_max_num_seqs: Option<usize>,
 }
 
 pub(crate) fn resolve_backend_settings(
@@ -26,7 +31,7 @@ pub(crate) fn resolve_backend_settings(
         .map(str::trim)
         .map(ToString::to_string)
         .filter(|raw| !raw.is_empty());
-    let env_backend = non_empty_env("OMNI_AGENT_EMBED_BACKEND");
+    let env_backend = env_non_empty!("OMNI_AGENT_EMBED_BACKEND");
     let settings_backend = runtime_settings
         .embedding
         .backend
@@ -40,19 +45,19 @@ pub(crate) fn resolve_backend_settings(
         (parse_backend_mode(Some(raw)), "env")
     } else if let Some(raw) = settings_backend.as_deref() {
         (parse_backend_mode(Some(raw)), "settings")
-    } else if let Some(raw) = non_empty_env("OMNI_AGENT_LLM_BACKEND") {
+    } else if let Some(raw) = env_non_empty!("OMNI_AGENT_LLM_BACKEND") {
         (parse_backend_mode(Some(raw.as_str())), "llm_env")
     } else {
         (default_backend_mode(), "default")
     };
 
-    let timeout_secs = non_empty_env("OMNI_AGENT_EMBED_TIMEOUT_SECS")
+    let timeout_secs = env_non_empty!("OMNI_AGENT_EMBED_TIMEOUT_SECS")
         .and_then(|raw| raw.parse::<u64>().ok())
         .or(runtime_settings.embedding.timeout_secs)
         .unwrap_or(default_timeout_secs.max(DEFAULT_EMBED_TIMEOUT_SECS))
         .clamp(MIN_EMBED_TIMEOUT_SECS, MAX_EMBED_TIMEOUT_SECS);
 
-    let max_in_flight = non_empty_env("OMNI_AGENT_EMBED_MAX_IN_FLIGHT")
+    let max_in_flight = env_non_empty!("OMNI_AGENT_EMBED_MAX_IN_FLIGHT")
         .and_then(|raw| raw.parse::<usize>().ok())
         .or(runtime_settings
             .embedding
@@ -60,7 +65,7 @@ pub(crate) fn resolve_backend_settings(
             .filter(|value| *value > 0))
         .map(|value| value.min(MAX_EMBED_MAX_IN_FLIGHT));
 
-    let default_model = non_empty_env("OMNI_AGENT_EMBED_MODEL").or_else(|| {
+    let default_model = env_non_empty!("OMNI_AGENT_EMBED_MODEL").or_else(|| {
         runtime_settings
             .embedding
             .litellm_model
@@ -79,12 +84,44 @@ pub(crate) fn resolve_backend_settings(
             })
     });
 
+    let mistral_sdk_hf_cache_path =
+        env_non_empty!("OMNI_AGENT_MISTRAL_SDK_HF_CACHE_PATH").or_else(|| {
+            runtime_settings
+                .mistral
+                .sdk_hf_cache_path
+                .as_deref()
+                .map(str::trim)
+                .map(ToString::to_string)
+                .filter(|value| !value.is_empty())
+        });
+
+    let mistral_sdk_hf_revision =
+        env_non_empty!("OMNI_AGENT_MISTRAL_SDK_HF_REVISION").or_else(|| {
+            runtime_settings
+                .mistral
+                .sdk_hf_revision
+                .as_deref()
+                .map(str::trim)
+                .map(ToString::to_string)
+                .filter(|value| !value.is_empty())
+        });
+    let mistral_sdk_max_num_seqs = env_non_empty!("OMNI_AGENT_MISTRAL_SDK_EMBED_MAX_NUM_SEQS")
+        .and_then(|raw| raw.parse::<usize>().ok())
+        .or(runtime_settings
+            .mistral
+            .sdk_embedding_max_num_seqs
+            .filter(|value| *value > 0))
+        .map(|value| value.min(MAX_MISTRAL_SDK_EMBED_MAX_NUM_SEQS));
+
     EmbeddingBackendSettings {
         mode,
         source,
         timeout_secs,
         max_in_flight,
         default_model,
+        mistral_sdk_hf_cache_path,
+        mistral_sdk_hf_revision,
+        mistral_sdk_max_num_seqs,
     }
 }
 
@@ -93,7 +130,7 @@ fn parse_backend_mode(raw: Option<&str>) -> EmbeddingBackendMode {
     match parse_embedding_backend_kind(trimmed) {
         Some(EmbeddingBackendKind::Http) => EmbeddingBackendMode::Http,
         Some(EmbeddingBackendKind::OpenAiHttp) => EmbeddingBackendMode::OpenAiHttp,
-        Some(EmbeddingBackendKind::MistralLocal) => EmbeddingBackendMode::MistralLocal,
+        Some(EmbeddingBackendKind::MistralSdk) => EmbeddingBackendMode::MistralSdk,
         Some(EmbeddingBackendKind::LiteLlmRs) => {
             #[cfg(feature = "agent-provider-litellm")]
             {
@@ -131,15 +168,4 @@ fn default_backend_mode() -> EmbeddingBackendMode {
     {
         EmbeddingBackendMode::Http
     }
-}
-
-#[cfg(test)]
-#[path = "../../tests/embedding/backend.rs"]
-mod tests;
-
-fn non_empty_env(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|raw| raw.trim().to_string())
-        .filter(|raw| !raw.is_empty())
 }

@@ -2,11 +2,10 @@ use crate::agent::SessionContextBudgetSnapshot;
 
 use super::class_format::{compute_largest_bottlenecks, format_context_budget_class_row};
 
-#[allow(clippy::large_types_passed_by_value)]
 pub(in super::super::super) fn format_context_budget_snapshot(
-    snapshot: SessionContextBudgetSnapshot,
+    snapshot: &SessionContextBudgetSnapshot,
 ) -> String {
-    let (largest_drop, largest_trunc) = compute_largest_bottlenecks(&snapshot);
+    let (largest_drop, largest_trunc) = compute_largest_bottlenecks(snapshot);
 
     let mut lines = vec![
         "============================================================".to_string(),

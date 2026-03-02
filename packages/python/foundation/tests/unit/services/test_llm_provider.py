@@ -317,7 +317,7 @@ class TestProviderConfig:
     """Tests for provider configuration loading."""
 
     def test_config_from_settings(self):
-        """Test that config is loaded from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml)."""
+        """Test that config is loaded from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml)."""
         reset_provider()
 
         with patch("omni.foundation.config.settings.get_setting") as mock_setting:

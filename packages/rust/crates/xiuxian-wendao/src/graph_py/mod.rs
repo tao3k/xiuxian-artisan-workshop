@@ -1,5 +1,5 @@
-//! PyO3 bindings for the KnowledgeGraph (entity, relation, graph, skill doc).
-#![allow(clippy::doc_markdown)]
+//! `PyO3` bindings for the `KnowledgeGraph`
+//! (`entity`, `relation`, `graph`, `skill doc`).
 
 mod parsers;
 mod py_entity;

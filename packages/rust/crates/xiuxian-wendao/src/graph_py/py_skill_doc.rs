@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use crate::graph::SkillDoc;
 
-/// Python wrapper for SkillDoc (used by register_skill_entities).
+/// Python wrapper for `SkillDoc` (used by `register_skill_entities`).
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct PySkillDoc {

@@ -13,6 +13,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 _profiles_module = importlib.import_module("memory_ci_gate_runner_profiles")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_run_quick_profile_executes_suite_and_quality_steps(tmp_path: Path) -> None:
@@ -23,7 +24,7 @@ def test_run_quick_profile_executes_suite_and_quality_steps(tmp_path: Path) -> N
         skip_rust_regressions=True,
         project_root=tmp_path,
     )
-    env = {"VALKEY_URL": "redis://127.0.0.1:16379/0"}
+    env = {"XIUXIAN_WENDAO_VALKEY_URL": endpoints.redis_url(16379, 0)}
     memory_suite = tmp_path / "test_omni_agent_memory_suite.py"
     recorded_titles: list[str] = []
     gate_steps: list[str] = []
@@ -32,7 +33,7 @@ def test_run_quick_profile_executes_suite_and_quality_steps(tmp_path: Path) -> N
         assert cmd
         assert "--skip-rust" in cmd
         assert str(cwd) == str(tmp_path)
-        assert env["VALKEY_URL"] == "redis://127.0.0.1:16379/0"
+        assert env["XIUXIAN_WENDAO_VALKEY_URL"] == endpoints.redis_url(16379, 0)
         recorded_titles.append(title)
 
     def _mark(name: str):
@@ -83,7 +84,7 @@ def test_run_nightly_profile_runs_matrix_and_benchmark_flows(tmp_path: Path) -> 
         benchmark_report_json=tmp_path / "benchmark.json",
         project_root=tmp_path,
     )
-    env = {"VALKEY_URL": "redis://127.0.0.1:16379/0"}
+    env = {"XIUXIAN_WENDAO_VALKEY_URL": endpoints.redis_url(16379, 0)}
     memory_suite = tmp_path / "test_omni_agent_memory_suite.py"
     session_matrix = tmp_path / "test_omni_agent_session_matrix.py"
     memory_benchmark = tmp_path / "test_omni_agent_memory_benchmark.py"
@@ -93,7 +94,7 @@ def test_run_nightly_profile_runs_matrix_and_benchmark_flows(tmp_path: Path) -> 
     def _run_command(cmd: list[str], *, title: str, cwd: Path, env: dict[str, str]) -> None:
         assert cmd
         assert str(cwd) == str(tmp_path)
-        assert env["VALKEY_URL"] == "redis://127.0.0.1:16379/0"
+        assert env["XIUXIAN_WENDAO_VALKEY_URL"] == endpoints.redis_url(16379, 0)
         titles.append(title)
 
     def _mark(name: str):

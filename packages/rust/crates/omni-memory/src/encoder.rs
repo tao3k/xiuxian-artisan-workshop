@@ -70,9 +70,8 @@ impl IntentEncoder {
 
     /// Calculate cosine similarity between two embeddings.
     #[must_use]
-    #[allow(clippy::unused_self)]
     pub fn cosine_similarity(&self, a: &[f32], b: &[f32]) -> f32 {
-        if a.len() != b.len() {
+        if self.dimension == 0 || a.len() != b.len() {
             return 0.0;
         }
 

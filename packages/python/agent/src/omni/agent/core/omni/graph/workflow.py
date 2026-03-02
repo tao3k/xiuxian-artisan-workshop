@@ -1,34 +1,25 @@
-from langgraph.graph import END, StateGraph
-
 from .nodes import act_node, reflect_node, think_node
-from .state import AgentState
 
 
-def build_react_graph():
-    workflow = StateGraph(AgentState)
+class ReactWorkflowApp:
+    """Simple ReAct loop runtime without external graph runtime dependency."""
 
-    workflow.add_node("think", think_node)
-    workflow.add_node("act", act_node)
-    workflow.add_node("reflect", reflect_node)
+    async def ainvoke(self, state: dict, max_iterations: int = 24) -> dict:
+        merged = dict(state)
 
-    workflow.set_entry_point("think")
+        for _ in range(max_iterations):
+            merged.update(await think_node(merged))
+            if merged.get("exit_reason") or not merged.get("tool_calls"):
+                break
 
-    def route_think(state: AgentState) -> str:
-        if state.get("exit_reason"):
-            return END
-        if state.get("tool_calls"):
-            return "act"
-        return END  # No tool calls = done (or just chat)
+            merged.update(await act_node(merged))
+            merged.update(await reflect_node(merged))
+            if merged.get("exit_reason"):
+                break
 
-    workflow.add_conditional_edges("think", route_think, {"act": "act", END: END})
+        return merged
 
-    workflow.add_edge("act", "reflect")
 
-    def route_reflect(state: AgentState) -> str:
-        if state.get("exit_reason"):
-            return END
-        return "think"
-
-    workflow.add_conditional_edges("reflect", route_reflect, {"think": "think", END: END})
-
-    return workflow.compile()
+def build_react_graph() -> ReactWorkflowApp:
+    """Build ReAct runtime app."""
+    return ReactWorkflowApp()

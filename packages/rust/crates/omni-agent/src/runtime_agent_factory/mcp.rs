@@ -20,40 +20,37 @@ pub(super) fn resolve_runtime_mcp_servers(mcp_config_path: &Path) -> Result<Vec<
 pub(super) fn resolve_runtime_mcp_options(runtime_settings: &RuntimeSettings) -> McpRuntimeOptions {
     McpRuntimeOptions {
         pool_size: parse_positive_usize_from_env("OMNI_AGENT_MCP_POOL_SIZE")
-            .or(runtime_settings
-                .mcp
-                .agent_pool_size
-                .filter(|value| *value > 0))
+            .or(runtime_settings.mcp.pool_size.filter(|value| *value > 0))
             .unwrap_or(4),
         handshake_timeout_secs: parse_positive_u64_from_env(
             "OMNI_AGENT_MCP_HANDSHAKE_TIMEOUT_SECS",
         )
         .or(runtime_settings
             .mcp
-            .agent_handshake_timeout_secs
+            .handshake_timeout_secs
             .filter(|value| *value > 0))
         .unwrap_or(30),
         connect_retries: parse_positive_u32_from_env("OMNI_AGENT_MCP_CONNECT_RETRIES")
             .or(runtime_settings
                 .mcp
-                .agent_connect_retries
+                .connect_retries
                 .filter(|value| *value > 0))
             .unwrap_or(3),
         strict_startup: parse_bool_from_env("OMNI_AGENT_MCP_STRICT_STARTUP")
-            .or(runtime_settings.mcp.agent_strict_startup)
+            .or(runtime_settings.mcp.strict_startup)
             .unwrap_or(true),
         connect_retry_backoff_ms: parse_positive_u64_from_env(
             "OMNI_AGENT_MCP_CONNECT_RETRY_BACKOFF_MS",
         )
         .or(runtime_settings
             .mcp
-            .agent_connect_retry_backoff_ms
+            .connect_retry_backoff_ms
             .filter(|value| *value > 0))
         .unwrap_or(1_000),
         tool_timeout_secs: parse_positive_u64_from_env("OMNI_AGENT_MCP_TOOL_TIMEOUT_SECS")
             .or(runtime_settings
                 .mcp
-                .agent_tool_timeout_secs
+                .tool_timeout_secs
                 .filter(|value| *value > 0))
             .unwrap_or(180),
         list_tools_cache_ttl_ms: parse_positive_u64_from_env(
@@ -61,7 +58,7 @@ pub(super) fn resolve_runtime_mcp_options(runtime_settings: &RuntimeSettings) ->
         )
         .or(runtime_settings
             .mcp
-            .agent_list_tools_cache_ttl_ms
+            .list_tools_cache_ttl_ms
             .filter(|value| *value > 0))
         .unwrap_or(1_000),
     }

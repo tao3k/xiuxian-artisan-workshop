@@ -1,10 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown
-)]
+//! Master research workflow tests for Qianji.
 
 #[cfg(feature = "llm")]
 use async_trait::async_trait;
@@ -17,7 +11,10 @@ use std::sync::Arc;
 #[cfg(feature = "llm")]
 use xiuxian_llm::llm::{ChatRequest, LlmClient};
 #[cfg(feature = "llm")]
-use xiuxian_qianhuan::{PersonaProfile, PersonaRegistry, ThousandFacesOrchestrator};
+use xiuxian_qianhuan::{
+    orchestrator::ThousandFacesOrchestrator,
+    persona::{PersonaProfile, PersonaRegistry},
+};
 #[cfg(feature = "llm")]
 use xiuxian_qianji::{QianjiCompiler, QianjiScheduler};
 #[cfg(feature = "llm")]
@@ -39,16 +36,19 @@ const MASTER_RESEARCH_TOML: &str = include_str!("../resources/tests/master_resea
 
 #[cfg(feature = "llm")]
 #[tokio::test]
-async fn test_qianji_master_research_array_flow() {
-    let temp = tempfile::tempdir().unwrap();
-    let index = Arc::new(LinkGraphIndex::build(temp.path()).unwrap());
+async fn test_qianji_master_research_array_flow()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    let index = Arc::new(LinkGraphIndex::build(temp.path())?);
     let orchestrator = Arc::new(ThousandFacesOrchestrator::new("Rules".to_string(), None));
 
-    let mut registry = PersonaRegistry::with_builtins();
+    let registry = PersonaRegistry::with_builtins();
     registry.register(PersonaProfile {
         id: "artisan-engineer".to_string(),
         name: "Artisan".to_string(),
+        background: None,
         voice_tone: "Precise".to_string(),
+        guidelines: Vec::new(),
         style_anchors: vec![
             "milimeter-level alignment".to_string(),
             "audit trail".to_string(),
@@ -61,21 +61,21 @@ async fn test_qianji_master_research_array_flow() {
     let llm_client: Arc<dyn LlmClient> = Arc::new(MockLlmClient);
 
     let compiler = QianjiCompiler::new(index, orchestrator, registry_arc, Some(llm_client));
-    let engine = compiler
-        .compile(MASTER_RESEARCH_TOML)
-        .expect("Master Test compilation failed");
+    let engine = compiler.compile(MASTER_RESEARCH_TOML)?;
     let scheduler = QianjiScheduler::new(engine);
 
-    let result = scheduler.run(json!({
-        "query": "Verify Trinity",
-        "raw_facts": "The system enforces milimeter-level alignment and full audit trail traceability. Architectural consistency is verified.",
-        "drift_score": 0.01
-    })).await.expect("Master Array execution failed");
+    let result = scheduler
+        .run(json!({
+            "query": "Verify Trinity",
+            "raw_facts": "The system enforces milimeter-level alignment and full audit trail traceability. Architectural consistency is verified.",
+            "drift_score": 0.01
+        }))
+        .await?;
 
     let conclusion = result["analysis_conclusion"].as_str().unwrap_or("");
     assert!(
         conclusion.contains("Synapse-Audit"),
-        "Conclusion missing: {}",
-        conclusion
+        "Conclusion missing: {conclusion}",
     );
+    Ok(())
 }

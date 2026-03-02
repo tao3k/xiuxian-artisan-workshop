@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::too_many_lines,
-    clippy::similar_names,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::uninlined_format_args,
-    clippy::needless_pass_by_value
-)]
+//! Embedding role performance smoke tests and report generation harness.
 
 use std::env;
 use std::fs::{self, File};
@@ -72,7 +60,7 @@ struct RoleConfig {
     port: u16,
     model: String,
     upstream_model: String,
-    settings_yaml: String,
+    settings_toml: String,
 }
 
 #[derive(Debug)]
@@ -338,48 +326,49 @@ fn build_role_configs(config: &PerfConfig, temp_root: &Path) -> Vec<RoleConfig> 
 
     let litellm_memory_path = temp_root.join("memory-litellm-rs");
     let litellm_settings = format!(
-        "agent:\n\
-         \x20\x20llm_backend: litellm_rs\n\
-         embedding:\n\
-         \x20\x20backend: litellm_rs\n\
-         \x20\x20batch_max_size: 128\n\
-         \x20\x20batch_max_concurrency: 1\n\
-         \x20\x20litellm_model: {litellm_model}\n\
-         \x20\x20model: {litellm_model}\n\
-         \x20\x20litellm_api_base: {}\n\
-         memory:\n\
-         \x20\x20embedding_backend: litellm_rs\n\
-         \x20\x20embedding_model: {litellm_model}\n\
-         \x20\x20persistence_backend: local\n\
-         \x20\x20path: {}\n\
-         mcp:\n\
-         \x20\x20agent_strict_startup: false\n",
+        "[agent]\n\
+         llm_backend = \"litellm_rs\"\n\
+         \n\
+         [llm.embedding]\n\
+         backend = \"litellm_rs\"\n\
+         batch_max_size = 128\n\
+         batch_max_concurrency = 1\n\
+         litellm_model = \"{litellm_model}\"\n\
+         model = \"{litellm_model}\"\n\
+         litellm_api_base = \"{}\"\n\
+         \n\
+         [memory]\n\
+         embedding_backend = \"litellm_rs\"\n\
+         embedding_model = \"{litellm_model}\"\n\
+         persistence_backend = \"local\"\n\
+         path = \"{}\"\n\
+         \n\
+         [mcp]\n\
+         strict_startup = false\n",
         config.upstream_base_url,
         litellm_memory_path.display()
     );
 
-    let mistral_memory_path = temp_root.join("memory-mistral-local");
+    let mistral_memory_path = temp_root.join("memory-mistral-sdk");
     let mistral_settings = format!(
-        "agent:\n\
-         \x20\x20llm_backend: mistral_local\n\
-         embedding:\n\
-         \x20\x20backend: mistral_local\n\
-         \x20\x20batch_max_size: 128\n\
-         \x20\x20batch_max_concurrency: 1\n\
-         \x20\x20model: {base_model}\n\
-         memory:\n\
-         \x20\x20embedding_backend: mistral_local\n\
-         \x20\x20embedding_model: {base_model}\n\
-         \x20\x20persistence_backend: local\n\
-         \x20\x20path: {}\n\
-         mistral:\n\
-         \x20\x20enabled: false\n\
-         \x20\x20auto_start: false\n\
-         \x20\x20base_url: {}\n\
-         mcp:\n\
-         \x20\x20agent_strict_startup: false\n",
-        mistral_memory_path.display(),
-        config.upstream_base_url
+        "[agent]\n\
+         llm_backend = \"http\"\n\
+         \n\
+         [llm.embedding]\n\
+         backend = \"mistral_sdk\"\n\
+         batch_max_size = 128\n\
+         batch_max_concurrency = 1\n\
+         model = \"{base_model}\"\n\
+         \n\
+         [memory]\n\
+         embedding_backend = \"mistral_sdk\"\n\
+         embedding_model = \"{base_model}\"\n\
+         persistence_backend = \"local\"\n\
+         path = \"{}\"\n\
+         \n\
+         [mcp]\n\
+         strict_startup = false\n",
+        mistral_memory_path.display()
     );
 
     vec![
@@ -388,14 +377,14 @@ fn build_role_configs(config: &PerfConfig, temp_root: &Path) -> Vec<RoleConfig> 
             port: config.base_port,
             model: litellm_model,
             upstream_model: base_model.clone(),
-            settings_yaml: litellm_settings,
+            settings_toml: litellm_settings,
         },
         RoleConfig {
-            name: "mistral_local",
+            name: "mistral_sdk",
             port: config.base_port + 1,
             model: base_model.clone(),
             upstream_model: base_model,
-            settings_yaml: mistral_settings,
+            settings_toml: mistral_settings,
         },
     ]
 }
@@ -443,15 +432,17 @@ fn resolve_agent_binary(workspace_root: &Path) -> Result<PathBuf> {
     let target_dir = env::var("CARGO_TARGET_DIR")
         .ok()
         .filter(|value| !value.trim().is_empty())
-        .map(PathBuf::from)
-        .map(|path| {
-            if path.is_absolute() {
-                path
-            } else {
-                workspace_root.join(path)
-            }
-        })
-        .unwrap_or_else(|| workspace_root.join("target"));
+        .map_or_else(
+            || workspace_root.join("target"),
+            |value| {
+                let path = PathBuf::from(value);
+                if path.is_absolute() {
+                    path
+                } else {
+                    workspace_root.join(path)
+                }
+            },
+        );
     let agent_bin = target_dir.join("debug/omni-agent");
     if agent_bin.is_file() {
         return Ok(agent_bin);
@@ -643,12 +634,12 @@ async fn run_role_benchmark(
 
 fn write_role_config(temp_root: &Path, role: &RoleConfig) -> Result<PathBuf> {
     let conf_root = temp_root.join(format!("conf-{}", role.name));
-    let conf_dir = conf_root.join("omni-dev-fusion");
+    let conf_dir = conf_root.join("xiuxian-artisan-workshop");
     fs::create_dir_all(&conf_dir)
         .with_context(|| format!("create role config dir: {}", conf_dir.display()))?;
-    let settings_path = conf_dir.join("settings.yaml");
-    fs::write(&settings_path, role.settings_yaml.as_bytes())
-        .with_context(|| format!("write role settings yaml: {}", settings_path.display()))?;
+    let settings_path = conf_dir.join("xiuxian.toml");
+    fs::write(&settings_path, role.settings_toml.as_bytes())
+        .with_context(|| format!("write role settings toml: {}", settings_path.display()))?;
     Ok(conf_root)
 }
 
@@ -705,10 +696,7 @@ async fn wait_for_health(client: &Client, health_url: &str, timeout: Duration) -
             return Ok(());
         }
         if Instant::now() >= deadline {
-            bail!(
-                "gateway health not ready within {:?}: {health_url}",
-                timeout
-            );
+            bail!("gateway health not ready within {timeout:?}: {health_url}");
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
@@ -931,7 +919,7 @@ async fn run_concurrent(
         ok,
         err,
         concurrency,
-        rps: round2((total as f64) / elapsed_secs),
+        rps: round2(usize_to_f64(total) / elapsed_secs),
         errors: truncate_errors(errors),
         avg_ms,
         p95_ms,
@@ -939,11 +927,15 @@ async fn run_concurrent(
     }
 }
 
+fn usize_to_f64(value: usize) -> f64 {
+    f64::from(u32::try_from(value).unwrap_or(u32::MAX))
+}
+
 fn calc_latency_stats(latencies_ms: &[f64]) -> (f64, f64, f64) {
     if latencies_ms.is_empty() {
         return (0.0, 0.0, 0.0);
     }
-    let avg = latencies_ms.iter().sum::<f64>() / latencies_ms.len() as f64;
+    let avg = latencies_ms.iter().sum::<f64>() / usize_to_f64(latencies_ms.len());
     let p95 = percentile(latencies_ms, 0.95);
     let max = latencies_ms.iter().copied().fold(0.0, f64::max);
     (round2(avg), round2(p95), round2(max))
@@ -958,13 +950,18 @@ fn percentile(values: &[f64], pct: f64) -> f64 {
     }
     let mut ordered = values.to_vec();
     ordered.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
-    let rank = (ordered.len() - 1) as f64 * pct;
-    let lower = rank.floor() as usize;
-    let upper = rank.ceil() as usize;
+    let rank = usize_to_f64(ordered.len() - 1) * pct;
+    let lower = (0..ordered.len())
+        .rev()
+        .find(|index| usize_to_f64(*index) <= rank)
+        .unwrap_or(0);
+    let upper = (0..ordered.len())
+        .find(|index| usize_to_f64(*index) >= rank)
+        .unwrap_or(ordered.len() - 1);
     if lower == upper {
         ordered[lower]
     } else {
-        let weight = rank - lower as f64;
+        let weight = rank - usize_to_f64(lower);
         ordered[lower] * (1.0 - weight) + ordered[upper] * weight
     }
 }

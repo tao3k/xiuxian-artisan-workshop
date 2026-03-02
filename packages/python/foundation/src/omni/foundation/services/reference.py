@@ -3,7 +3,7 @@
 Reference Knowledge Library - Knowledge Document Path Resolution
 
 System default: <project_root>/packages/conf/references.yaml
-User override:  $PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml (e.g. .config/... or --conf <dir>)
+User override:  $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml (e.g. .config/... or --conf <dir>)
 
 User config is merged on top of system default (deep merge).
 """
@@ -29,7 +29,7 @@ def get_references_config_path() -> Path:
 
     Precedence:
       1. OMNI_REFERENCES_YAML env (if set)
-      2. User override: $PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml
+      2. User override: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml
       3. System default: <project_root>/packages/conf/references.yaml
 
     Returns:
@@ -39,7 +39,7 @@ def get_references_config_path() -> Path:
     if env_path:
         return Path(env_path)
 
-    user_refs = PRJ_CONFIG("omni-dev-fusion", "references.yaml")
+    user_refs = PRJ_CONFIG("xiuxian-artisan-workshop", "references.yaml")
     if user_refs.exists():
         return user_refs
 
@@ -75,7 +75,7 @@ class ReferenceLibrary:
     Reference Knowledge Library - Singleton for knowledge document references.
 
     Load order: 1) system default packages/conf/references.yaml, 2) user override
-    $PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml (user layer wins).
+    $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml (user layer wins).
 
     Usage:
         ref = ReferenceLibrary()
@@ -112,8 +112,8 @@ class ReferenceLibrary:
         root = get_project_root()
         # System-level default (lives with code under packages/conf)
         system_refs = root / "packages" / "conf" / "references.yaml"
-        # User override (--conf or $PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml)
-        user_refs = PRJ_CONFIG("omni-dev-fusion", "references.yaml")
+        # User override (--conf or $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml)
+        user_refs = PRJ_CONFIG("xiuxian-artisan-workshop", "references.yaml")
 
         self._data = {}
         # 1. Load system default

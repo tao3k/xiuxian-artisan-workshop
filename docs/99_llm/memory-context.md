@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "LLM Memory Context Guide"
 category: "llm"
 tags:
@@ -6,6 +7,8 @@ tags:
   - memory
 saliency_base: 6.6
 decay_rate: 0.04
+metadata:
+  title: "LLM Memory Context Guide"
 ---
 
 # LLM Memory Context Guide

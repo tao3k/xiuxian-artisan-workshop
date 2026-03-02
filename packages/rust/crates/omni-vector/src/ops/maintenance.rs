@@ -14,9 +14,12 @@ use crate::error::VectorStoreError;
 use crate::ops::types::{CompactionStats, IndexStats, IndexThresholds};
 use crate::{CATEGORY_COLUMN, SKILL_NAME_COLUMN, VectorStore};
 
-#[allow(clippy::missing_errors_doc, clippy::doc_markdown)]
 impl VectorStore {
-    /// Returns true if the table has any vector index (e.g. IVF_FLAT, IVF_PQ).
+    /// Returns true if the table has any vector index (e.g. `IVF_FLAT`, `IVF_PQ`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] when index descriptions cannot be loaded.
     pub async fn has_vector_index(&self, table_name: &str) -> Result<bool, VectorStoreError> {
         let indices = self.describe_indices(table_name).await?;
         let is_vector_type = |t: &str| {
@@ -32,6 +35,10 @@ impl VectorStore {
     }
 
     /// Returns true if the table has an FTS (inverted) index on content.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] when index descriptions cannot be loaded.
     pub async fn has_fts_index(&self, table_name: &str) -> Result<bool, VectorStoreError> {
         let indices = self.describe_indices(table_name).await?;
         Ok(indices
@@ -39,7 +46,11 @@ impl VectorStore {
             .any(|d| d.index_type() == "Inverted" || d.name() == "content_fts"))
     }
 
-    /// Returns true if the table has any scalar index (BTree or Bitmap) on skill_name or category.
+    /// Returns true if the table has any scalar index (`BTree` or Bitmap) on `skill_name` or category.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] when index descriptions cannot be loaded.
     pub async fn has_scalar_index(&self, table_name: &str) -> Result<bool, VectorStoreError> {
         let indices = self.describe_indices(table_name).await?;
         Ok(indices.iter().any(|d| {
@@ -50,6 +61,10 @@ impl VectorStore {
     }
 
     /// List index descriptions for the table (empty if table missing or no indices).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] if the dataset cannot be opened or Lance fails to describe indexes.
     pub(crate) async fn describe_indices(
         &self,
         table_name: &str,
@@ -67,8 +82,12 @@ impl VectorStore {
             .map_err(VectorStoreError::LanceDB)
     }
 
-    /// Create indexes if the table meets thresholds (vector, FTS, scalar on skill_name/category).
-    /// Uses [IndexThresholds] for row thresholds. Best-effort: logs and continues on per-index errors.
+    /// Create indexes if the table meets thresholds (vector, FTS, scalar on `skill_name/category`).
+    /// Uses [`IndexThresholds`] for row thresholds. Best-effort: logs and continues on per-index errors.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] when row counting or index presence checks fail.
     pub async fn auto_index_if_needed(
         &self,
         table_name: &str,
@@ -77,8 +96,11 @@ impl VectorStore {
             .await
     }
 
-    /// Like [Self::auto_index_if_needed] with custom thresholds.
-    #[allow(clippy::collapsible_if)]
+    /// Like [`Self::auto_index_if_needed`] with custom thresholds.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] when row counting or index presence checks fail.
     pub async fn auto_index_if_needed_with_thresholds(
         &self,
         table_name: &str,
@@ -91,16 +113,18 @@ impl VectorStore {
 
         let mut last_stats: Option<IndexStats> = None;
 
-        if !self.has_vector_index(table_name).await? && count >= thresholds.auto_index_at {
-            if let Err(e) = self.create_index(table_name).await {
-                log::warn!("auto_index: create vector index failed: {e}");
-            }
+        if !self.has_vector_index(table_name).await?
+            && count >= thresholds.auto_index_at
+            && let Err(error) = self.create_index(table_name).await
+        {
+            log::warn!("auto_index: create vector index failed: {error}");
         }
 
-        if !self.has_fts_index(table_name).await? && count >= thresholds.auto_index_at {
-            if let Err(e) = self.create_fts_index(table_name).await {
-                log::warn!("auto_index: create FTS index failed: {e}");
-            }
+        if !self.has_fts_index(table_name).await?
+            && count >= thresholds.auto_index_at
+            && let Err(error) = self.create_fts_index(table_name).await
+        {
+            log::warn!("auto_index: create FTS index failed: {error}");
         }
 
         if !self.has_scalar_index(table_name).await?
@@ -122,6 +146,11 @@ impl VectorStore {
     }
 
     /// Run cleanup of old versions and optional file compaction; returns stats.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VectorStoreError`] if the table does not exist, dataset open fails,
+    /// cleanup fails, or compaction fails.
     pub async fn compact(&self, table_name: &str) -> Result<CompactionStats, VectorStoreError> {
         let table_path = self.table_path(table_name);
         if !table_path.exists() {

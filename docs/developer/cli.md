@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "CLI Developer Guide"
 category: "developer"
 tags:
@@ -6,6 +7,8 @@ tags:
   - cli
 saliency_base: 6.3
 decay_rate: 0.04
+metadata:
+  title: "CLI Developer Guide"
 ---
 
 # CLI Developer Guide
@@ -124,13 +127,13 @@ omni route test
 Configuration resolution follows the CLI `--conf` option:
 
 1. `<git-root>/packages/conf/settings.yaml` (system defaults)
-2. `$PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml` (user override layer)
+2. `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml` (user override layer)
 
 For LinkGraph/Wendao settings, a dedicated config is merged with the same
 priority order:
 
 1. `<git-root>/packages/conf/wendao.yaml` (system defaults)
-2. `$PRJ_CONFIG_HOME/omni-dev-fusion/wendao.yaml` (user override layer)
+2. `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/wendao.yaml` (user override layer)
 
 Route defaults and confidence profile settings live under `router.search.*`, including:
 

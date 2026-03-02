@@ -54,11 +54,11 @@ const SKILLS_MONITOR_SIGNALS_V1: &str =
 const MEMORY_GATE_EVENT_V1: &str =
     include_str!("../../omni-memory/resources/omni.memory.gate_event.v1.schema.json");
 
-// --- omni-scanner schemas ---
+// --- xiuxian-skills schemas ---
 const SKILL_METADATA_V1: &str =
-    include_str!("../../omni-scanner/resources/skill_metadata.schema.json");
+    include_str!("../../xiuxian-skills/resources/skill_metadata.schema.json");
 const SKILL_COMMAND_INDEX_V1: &str =
-    include_str!("../../omni-scanner/resources/omni.skill.command_index.v1.schema.json");
+    include_str!("../../xiuxian-skills/resources/omni.skill.command_index.v1.schema.json");
 
 // --- omni-vector schemas ---
 const VECTOR_HYBRID_V1: &str =
@@ -67,8 +67,6 @@ const VECTOR_SEARCH_V1: &str =
     include_str!("../../omni-vector/resources/omni.vector.search.v1.schema.json");
 const VECTOR_TOOL_SEARCH_V1: &str =
     include_str!("../../omni-vector/resources/omni.vector.tool_search.v1.schema.json");
-const CHECKPOINT_RECORD_V1: &str =
-    include_str!("../../omni-vector/resources/omni.checkpoint.record.v1.schema.json");
 
 // --- xiuxian-mcp schemas ---
 const MCP_TOOL_RESULT_V1: &str =
@@ -117,7 +115,6 @@ pub fn get_schema(name: &str) -> Option<&'static str> {
         "omni.vector.hybrid.v1" => Some(VECTOR_HYBRID_V1),
         "omni.vector.search.v1" => Some(VECTOR_SEARCH_V1),
         "omni.vector.tool_search.v1" => Some(VECTOR_TOOL_SEARCH_V1),
-        "omni.checkpoint.record.v1" => Some(CHECKPOINT_RECORD_V1),
 
         "omni.mcp.tool_result.v1" => Some(MCP_TOOL_RESULT_V1),
         _ => None,

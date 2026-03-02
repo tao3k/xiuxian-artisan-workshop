@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cargo_bin="${CARGO_BIN:-${script_dir}/cargo_exec.sh}"
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 cd "${ROOT_DIR}"
 
@@ -29,9 +31,9 @@ case "$(uname -s)" in
 Darwin)
   DYLD_INSERT_LIBRARIES="${PYLIB_PATH}" \
     CARGO_TARGET_DIR="${TARGET_DIR}" \
-    cargo test -p omni-core-rs "$@"
+    "${cargo_bin}" test -p omni-core-rs "$@"
   ;;
 *)
-  CARGO_TARGET_DIR="${TARGET_DIR}" cargo test -p omni-core-rs "$@"
+  CARGO_TARGET_DIR="${TARGET_DIR}" "${cargo_bin}" test -p omni-core-rs "$@"
   ;;
 esac

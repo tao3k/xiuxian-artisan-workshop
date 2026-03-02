@@ -1,7 +1,7 @@
 """Context Management Module - Rust-accelerated Context Pruning.
 
 This module provides high-performance context window management for
-LangGraph workflows, including token counting, message compression,
+workflow runtimes, including token counting, message compression,
 and cognitive re-anchoring for AutoFix recovery.
 
 Exports:

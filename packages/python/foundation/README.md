@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni Foundation"
+---
+
 # Omni Foundation
 
 Shared kernel and utilities for omni-dev-fusion MCP servers.

@@ -4,6 +4,7 @@ use super::super::TelegramSessionPartition;
 use super::super::acl::build_slash_command_policy;
 use super::super::state::TelegramChannel;
 use super::super::{TelegramSlashCommandPolicy, policy::TelegramSlashCommandRule};
+use super::core::TelegramChannelCoreInit;
 
 impl TelegramChannel {
     /// Create a Telegram channel with a custom API base URL (useful for tests/proxies).
@@ -62,16 +63,16 @@ impl TelegramChannel {
     ) -> Self {
         let slash_command_policy =
             build_slash_command_policy(admin_users.clone(), TelegramSlashCommandPolicy::default());
-        Self::new_with_base_url_and_partition_and_client_impl(
+        Self::new_with_base_url_and_partition_and_client_impl(TelegramChannelCoreInit {
             bot_token,
             allowed_users,
             allowed_groups,
             api_base_url,
-            ControlCommandPolicy::new(admin_users, None, Vec::new()),
+            control_command_policy: ControlCommandPolicy::new(admin_users, None, Vec::new()),
             slash_command_policy,
             session_partition,
             client,
-        )
+        })
     }
 
     pub(super) fn new_with_base_url_and_partition_and_control_command_policy(
@@ -85,7 +86,7 @@ impl TelegramChannel {
         slash_command_policy: ControlCommandPolicy<TelegramSlashCommandRule>,
         session_partition: TelegramSessionPartition,
     ) -> Self {
-        Self::new_with_base_url_and_partition_and_client_impl(
+        Self::new_with_base_url_and_partition_and_client_impl(TelegramChannelCoreInit {
             bot_token,
             allowed_users,
             allowed_groups,
@@ -93,7 +94,7 @@ impl TelegramChannel {
             control_command_policy,
             slash_command_policy,
             session_partition,
-            super::super::client::build_telegram_http_client(),
-        )
+            client: super::super::client::build_telegram_http_client(),
+        })
     }
 }

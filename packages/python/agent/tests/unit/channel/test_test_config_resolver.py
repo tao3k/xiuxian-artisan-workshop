@@ -27,7 +27,7 @@ def test_username_from_settings_prefers_user_override(tmp_path: Path, monkeypatc
     )
 
     user_conf_home = tmp_path / "custom_conf"
-    user_settings = user_conf_home / "omni-dev-fusion" / "settings.yaml"
+    user_settings = user_conf_home / "xiuxian-artisan-workshop" / "settings.yaml"
     user_settings.parent.mkdir(parents=True)
     user_settings.write_text(
         'telegram:\n  acl:\n    allow:\n      users: ["override_user", "backup_user"]\n',

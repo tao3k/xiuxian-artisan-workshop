@@ -1,17 +1,17 @@
-//! Tests for VectorStore - delete operations and core functionality.
+//! Tests for `VectorStore` - delete operations and core functionality.
 
+use anyhow::Result;
 use omni_vector::VectorStore;
 
 #[tokio::test]
-async fn test_delete_by_file_path_with_underscores() {
+async fn test_delete_by_file_path_with_underscores() -> Result<()> {
     // Create a temporary directory for the test database
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_delete");
+    let db_path_str = db_path.to_string_lossy();
 
     // Create vector store (VectorStore::new is async)
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     // Add a document with a path containing underscores
     let test_id = "test_tool.test_function";
@@ -38,35 +38,34 @@ async fn test_delete_by_file_path_with_underscores() {
             vec![test_content.to_string()],
             vec![test_metadata],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Verify it's there
-    let count_before = store.count("test_table").await.unwrap();
+    let count_before = store.count("test_table").await?;
     assert_eq!(count_before, 1, "Document should be added");
 
     // Delete by file path (with underscore)
     store
         .delete_by_file_path("test_table", vec![test_path.to_string()])
-        .await
-        .unwrap();
+        .await?;
 
     // Verify it's deleted
-    let count_after = store.count("test_table").await.unwrap();
+    let count_after = store.count("test_table").await?;
     assert_eq!(
         count_after, 0,
         "Document should be deleted after calling delete_by_file_path"
     );
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_delete_by_file_path_multiple_paths() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_delete_by_file_path_multiple_paths() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_multi_delete");
+    let db_path_str = db_path.to_string_lossy();
 
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     // Add multiple documents with different path formats
     let paths_and_ids = vec![
@@ -91,35 +90,32 @@ async fn test_delete_by_file_path_multiple_paths() {
                 vec!["content".to_string()],
                 vec![metadata],
             )
-            .await
-            .unwrap();
+            .await?;
     }
 
-    let count_before = store.count("multi_test").await.unwrap();
+    let count_before = store.count("multi_test").await?;
     assert_eq!(count_before, 3);
 
     // Delete all paths
     let paths: Vec<String> = paths_and_ids.iter().map(|(p, _)| p.to_string()).collect();
-    store
-        .delete_by_file_path("multi_test", paths)
-        .await
-        .unwrap();
+    store.delete_by_file_path("multi_test", paths).await?;
 
-    let count_after = store.count("multi_test").await.unwrap();
+    let count_after = store.count("multi_test").await?;
     assert_eq!(count_after, 0);
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_delete_regression_sql_like_patterns() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_delete_regression_sql_like_patterns() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_regression");
+    let db_path_str = db_path.to_string_lossy();
 
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     // These paths contain characters that have special meaning in SQL LIKE
-    let problematic_paths = vec![
+    let problematic_paths = [
         "my_skill/scripts/utils.py",
         "path%with%percent/script.js",
         "dir.with.dots/config.yaml",
@@ -141,34 +137,34 @@ async fn test_delete_regression_sql_like_patterns() {
                 vec!["content".to_string()],
                 vec![metadata],
             )
-            .await
-            .unwrap();
+            .await?;
     }
 
     // Delete all problematic paths
-    let paths: Vec<String> = problematic_paths.iter().map(|s| s.to_string()).collect();
-    store
-        .delete_by_file_path("regression_test", paths)
-        .await
-        .unwrap();
+    let paths: Vec<String> = problematic_paths
+        .iter()
+        .map(std::string::ToString::to_string)
+        .collect();
+    store.delete_by_file_path("regression_test", paths).await?;
 
     // Verify all deleted
-    let count = store.count("regression_test").await.unwrap();
+    let count = store.count("regression_test").await?;
     assert_eq!(
         count, 0,
         "All paths with SQL-like special chars should be deleted"
     );
+
+    Ok(())
 }
 
-/// Robustness: replace_documents with empty batch must not drop the table.
+/// Robustness: `replace_documents` with empty batch must not drop the table.
 #[tokio::test]
-async fn test_replace_documents_empty_batch_preserves_table() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_replace_documents_empty_batch_preserves_table() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_replace_empty");
+    let db_path_str = db_path.to_string_lossy();
 
-    let mut store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let mut store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     // Add initial data
     store
@@ -179,32 +175,31 @@ async fn test_replace_documents_empty_batch_preserves_table() {
             vec!["content1".to_string()],
             vec!["{}".to_string()],
         )
-        .await
-        .unwrap();
-    assert_eq!(store.count("skills").await.unwrap(), 1);
+        .await?;
+    assert_eq!(store.count("skills").await?, 1);
 
     // replace_documents with empty batch must not drop (robustness: avoid empty table)
     store
         .replace_documents("skills", vec![], vec![], vec![], vec![])
-        .await
-        .unwrap();
+        .await?;
 
     // Table must still have the original data
     assert_eq!(
-        store.count("skills").await.unwrap(),
+        store.count("skills").await?,
         1,
         "replace_documents with empty batch must preserve existing table"
     );
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_replace_documents_rebuilds_table_snapshot() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_replace_documents_rebuilds_table_snapshot() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_replace_docs");
+    let db_path_str = db_path.to_string_lossy();
 
-    let mut store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let mut store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     store
         .add_documents(
@@ -214,9 +209,8 @@ async fn test_replace_documents_rebuilds_table_snapshot() {
             vec!["content1".to_string(), "content2".to_string()],
             vec!["{}".to_string(), "{}".to_string()],
         )
-        .await
-        .unwrap();
-    assert_eq!(store.count("skills").await.unwrap(), 2);
+        .await?;
+    assert_eq!(store.count("skills").await?, 2);
 
     store
         .replace_documents(
@@ -226,21 +220,21 @@ async fn test_replace_documents_rebuilds_table_snapshot() {
             vec!["content3".to_string()],
             vec!["{}".to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Old snapshot should be fully replaced.
-    assert_eq!(store.count("skills").await.unwrap(), 1);
+    assert_eq!(store.count("skills").await?, 1);
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_delete_by_metadata_source() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_delete_by_metadata_source() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_delete_by_source");
+    let db_path_str = db_path.to_string_lossy();
 
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(64))
-        .await
-        .unwrap();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(64)).await?;
 
     let source = "/tmp/docs/2602.12108.pdf";
     let metadatas = vec![
@@ -260,15 +254,15 @@ async fn test_delete_by_metadata_source() {
             vec!["a".to_string(), "b".to_string(), "c".to_string()],
             metadatas,
         )
-        .await
-        .unwrap();
+        .await?;
 
-    assert_eq!(store.count("knowledge_chunks").await.unwrap(), 3);
+    assert_eq!(store.count("knowledge_chunks").await?, 3);
 
     let deleted = store
         .delete_by_metadata_source("knowledge_chunks", source)
-        .await
-        .unwrap();
+        .await?;
     assert_eq!(deleted, 3);
-    assert_eq!(store.count("knowledge_chunks").await.unwrap(), 0);
+    assert_eq!(store.count("knowledge_chunks").await?, 0);
+
+    Ok(())
 }

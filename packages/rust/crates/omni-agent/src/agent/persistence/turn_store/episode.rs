@@ -1,4 +1,5 @@
 use omni_memory::{Episode, EpisodeStore};
+use xiuxian_llm::embedding::runtime::repair_embedding_dimension;
 
 use crate::observability::SessionEvent;
 
@@ -68,10 +69,7 @@ impl Agent {
                 let repaired_fallback = if fallback_dim == expected_dim {
                     fallback_embedding
                 } else {
-                    super::super::super::embedding_dimension::repair_embedding_dimension(
-                        &fallback_embedding,
-                        expected_dim,
-                    )
+                    repair_embedding_dimension(&fallback_embedding, expected_dim)
                 };
 
                 tracing::warn!(

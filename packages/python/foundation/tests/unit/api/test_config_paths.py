@@ -154,8 +154,8 @@ def test_wendao_settings_file_uses_prj_config_home(monkeypatch: pytest.MonkeyPat
     PRJ_DIRS.clear_cache()
 
     paths = get_config_paths()
-    assert paths.settings_file == config_home / "omni-dev-fusion" / "settings.yaml"
-    assert paths.wendao_settings_file == config_home / "omni-dev-fusion" / "wendao.yaml"
+    assert paths.settings_file == config_home / "xiuxian-artisan-workshop" / "settings.yaml"
+    assert paths.wendao_settings_file == config_home / "xiuxian-artisan-workshop" / "wendao.yaml"
     PRJ_DIRS.clear_cache()
 
 
@@ -164,7 +164,7 @@ def test_list_config_files_includes_wendao_yaml(monkeypatch: pytest.MonkeyPatch,
     from omni.foundation.config.paths import get_config_paths
 
     config_home = tmp_path / ".config"
-    app_config = config_home / "omni-dev-fusion"
+    app_config = config_home / "xiuxian-artisan-workshop"
     app_config.mkdir(parents=True)
     (app_config / "settings.yaml").write_text("core:\n  mode: test\n", encoding="utf-8")
     (app_config / "wendao.yaml").write_text("link_graph:\n  backend: wendao\n", encoding="utf-8")

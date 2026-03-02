@@ -53,7 +53,7 @@ def test_backend_modules_depend_on_interface_layer() -> None:
 
 def test_factory_module_does_not_depend_on_tracer_or_pipeline() -> None:
     imported = _imported_modules(_parse("factory.py"))
-    forbidden = {"omni.tracer", "pipeline_", "langgraph"}
+    forbidden = {"omni.tracer", "pipeline_", "workflow_engine", "graphflow"}
     for module in imported:
         assert not any(name in module for name in forbidden), (
             "factory.py must remain retrieval-only without tracer/pipeline coupling"

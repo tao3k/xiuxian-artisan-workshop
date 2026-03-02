@@ -3,20 +3,20 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
+use anyhow::{Result, anyhow};
 use omni_vector::{KeywordSearchBackend, VectorStore};
 use serde_json::json;
 
-async fn build_store_with_tool_data() -> VectorStore {
+async fn build_store_with_tool_data() -> Result<VectorStore> {
     let temp_dir = tempfile::Builder::new()
         .prefix("omni_vector_fts_")
-        .tempdir()
-        .unwrap()
+        .tempdir()?
         .keep();
     let db_path = temp_dir.join("fts_store");
+    let db_path_str = db_path.to_string_lossy();
     let store =
-        VectorStore::new_with_keyword_index(db_path.to_str().unwrap(), Some(8), true, None, None)
-            .await
-            .unwrap();
+        VectorStore::new_with_keyword_index(db_path_str.as_ref(), Some(8), true, None, None)
+            .await?;
 
     let ids = vec![
         "git.commit".to_string(),
@@ -73,29 +73,27 @@ async fn build_store_with_tool_data() -> VectorStore {
 
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
-    store.create_fts_index("tools").await.unwrap();
-    store
+        .await?;
+    store.create_fts_index("tools").await?;
+    Ok(store)
 }
 
-async fn build_store_with_lance_backend() -> VectorStore {
+async fn build_store_with_lance_backend() -> Result<VectorStore> {
     let temp_dir = tempfile::Builder::new()
         .prefix("omni_vector_fts_backend_")
-        .tempdir()
-        .unwrap()
+        .tempdir()?
         .keep();
     let db_path = temp_dir.join("fts_store");
+    let db_path_str = db_path.to_string_lossy();
     let store = VectorStore::new_with_keyword_backend(
-        db_path.to_str().unwrap(),
+        db_path_str.as_ref(),
         Some(8),
         true,
         KeywordSearchBackend::LanceFts,
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
     store
         .add_documents(
@@ -123,32 +121,33 @@ async fn build_store_with_lance_backend() -> VectorStore {
                 .to_string(),
             ],
         )
-        .await
-        .unwrap();
-    store.create_fts_index("tools").await.unwrap();
-    store
+        .await?;
+    store.create_fts_index("tools").await?;
+    Ok(store)
 }
 
 #[tokio::test]
-async fn test_lance_fts_returns_expected_hits() {
-    let store = build_store_with_tool_data().await;
+async fn test_lance_fts_returns_expected_hits() -> Result<()> {
+    let store = build_store_with_tool_data().await?;
 
-    let results = store.search_fts("tools", "commit", 10, None).await.unwrap();
+    let results = store.search_fts("tools", "commit", 10, None).await?;
     assert!(!results.is_empty());
     assert_eq!(results[0].tool_name, "git.commit");
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_lance_fts_and_tantivy_overlap() {
-    let store = build_store_with_tool_data().await;
+async fn test_lance_fts_and_tantivy_overlap() -> Result<()> {
+    let store = build_store_with_tool_data().await?;
 
-    let tantivy_hits = store
+    let keyword_index = store
         .keyword_index
         .as_ref()
-        .unwrap()
-        .search("build", 10)
-        .unwrap();
-    let fts_hits = store.search_fts("tools", "build", 10, None).await.unwrap();
+        .ok_or_else(|| anyhow!("keyword index missing"))?;
+
+    let tantivy_hits = keyword_index.search("build", 10)?;
+    let fts_hits = store.search_fts("tools", "build", 10, None).await?;
 
     assert!(!tantivy_hits.is_empty());
     assert!(!fts_hits.is_empty());
@@ -158,43 +157,45 @@ async fn test_lance_fts_and_tantivy_overlap() {
     let overlap = tantivy_names.intersection(&fts_names).count();
     assert!(
         overlap >= 1,
-        "expected at least one common hit, tantivy={:?}, fts={:?}",
-        tantivy_names,
-        fts_names
+        "expected at least one common hit, tantivy={tantivy_names:?}, fts={fts_names:?}"
     );
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_lance_fts_tantivy_smoke_latency() {
-    let store = build_store_with_tool_data().await;
-    let rounds = 25usize;
+async fn test_lance_fts_tantivy_smoke_latency() -> Result<()> {
+    let store = build_store_with_tool_data().await?;
+    let rounds: u32 = 25;
+
+    let keyword_index = store
+        .keyword_index
+        .as_ref()
+        .ok_or_else(|| anyhow!("keyword index missing"))?;
 
     let t0 = Instant::now();
     for _ in 0..rounds {
-        let _ = store.search_fts("tools", "history", 5, None).await.unwrap();
+        let _ = store.search_fts("tools", "history", 5, None).await?;
     }
-    let fts_avg_ms = t0.elapsed().as_millis() as f64 / rounds as f64;
+    let fts_avg_ms = t0.elapsed().as_secs_f64() * 1000.0 / f64::from(rounds);
 
     let t1 = Instant::now();
     for _ in 0..rounds {
-        let _ = store
-            .keyword_index
-            .as_ref()
-            .unwrap()
-            .search("history", 5)
-            .unwrap();
+        let _ = keyword_index.search("history", 5)?;
     }
-    let tantivy_avg_ms = t1.elapsed().as_millis() as f64 / rounds as f64;
+    let tantivy_avg_ms = t1.elapsed().as_secs_f64() * 1000.0 / f64::from(rounds);
 
     // Benchmark smoke output only; no strict pass/fail threshold in CI.
     eprintln!("fts_avg_ms={fts_avg_ms:.2}, tantivy_avg_ms={tantivy_avg_ms:.2}, rounds={rounds}");
     assert!(fts_avg_ms >= 0.0);
     assert!(tantivy_avg_ms >= 0.0);
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_hybrid_search_with_lance_keyword_backend() {
-    let store = build_store_with_lance_backend().await;
+async fn test_hybrid_search_with_lance_keyword_backend() -> Result<()> {
+    let store = build_store_with_lance_backend().await?;
     let results = store
         .hybrid_search(
             "tools",
@@ -202,9 +203,10 @@ async fn test_hybrid_search_with_lance_keyword_backend() {
             vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             5,
         )
-        .await
-        .unwrap();
+        .await?;
 
     assert!(!results.is_empty());
     assert_eq!(results[0].tool_name, "git.commit");
+
+    Ok(())
 }

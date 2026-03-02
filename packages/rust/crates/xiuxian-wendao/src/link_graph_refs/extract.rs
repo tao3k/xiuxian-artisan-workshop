@@ -5,9 +5,9 @@ use std::collections::HashSet;
 /// Extract all entity references from note content.
 ///
 /// Supports:
-/// - [[EntityName]] - reference by name
-/// - [[EntityName#type]] - reference with type hint (rust, py, pattern, etc.)
-/// - [[EntityName|alias]] - reference with alias (alias is ignored)
+/// - `[[EntityName]]` - reference by name
+/// - `[[EntityName#type]]` - reference with type hint (`rust`, `py`, `pattern`, etc.)
+/// - `[[EntityName|alias]]` - reference with alias (alias is ignored)
 ///
 /// # Arguments
 ///
@@ -43,16 +43,16 @@ pub fn extract_entity_refs(content: &str) -> Vec<LinkGraphEntityRef> {
 
 /// Extract entity references from multiple notes (batch processing).
 ///
-/// More efficient than calling extract_entity_refs individually
+/// More efficient than calling `extract_entity_refs` individually
 /// when processing many notes.
 ///
 /// # Arguments
 ///
-/// * `notes` - Vector of (note_id, content) tuples
+/// * `notes` - Vector of (`note_id`, content) tuples
 ///
 /// # Returns
 ///
-/// Vector of (note_id, entity_references) tuples
+/// Vector of (`note_id`, `entity_references`) tuples
 #[must_use]
 pub fn extract_entity_refs_batch<'a>(
     notes: &[(&'a str, &'a str)],
@@ -68,7 +68,7 @@ pub fn extract_entity_refs_batch<'a>(
 /// # Arguments
 ///
 /// * `entity_name` - The entity name to search for
-/// * `contents` - Vector of (note_id, content) tuples to search
+/// * `contents` - Vector of (`note_id`, content) tuples to search
 ///
 /// # Returns
 ///

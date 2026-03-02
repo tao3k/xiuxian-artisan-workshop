@@ -7,6 +7,12 @@ import argparse
 from pathlib import Path
 
 from path_resolver import default_report_path, project_root_from
+from resolve_mcp_endpoint import resolve_mcp_endpoint
+
+
+def _default_health_url() -> str:
+    """Resolve default MCP health endpoint from settings."""
+    return str(resolve_mcp_endpoint()["health_url"])
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,8 +59,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--bind-addr",
-        default="127.0.0.1:0",
-        help="Gateway bind address (default: 127.0.0.1:0).",
+        default="",
+        help="Gateway bind address (default: auto, prefer settings-derived host with ephemeral port).",
     )
     parser.add_argument(
         "--rust-log",
@@ -78,8 +84,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--health-url",
-        default="http://127.0.0.1:3002/health",
-        help="MCP health endpoint checked before stress (empty to disable).",
+        default=_default_health_url(),
+        help="MCP health endpoint checked before stress (default: resolved from settings).",
     )
     parser.add_argument(
         "--strict-health-check",

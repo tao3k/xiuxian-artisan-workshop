@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Knowledge and LinkGraph Search: Why "Project Progress" Was Missing and What We Improved"
 category: "developer"
 tags:
@@ -6,6 +7,8 @@ tags:
   - knowledge
 saliency_base: 6.3
 decay_rate: 0.04
+metadata:
+  title: "Knowledge and LinkGraph Search: Why "Project Progress" Was Missing and What We Improved"
 ---
 
 # Knowledge and LinkGraph Search: Why "Project Progress" Was Missing and What We Improved
@@ -26,7 +29,7 @@ The actual project progress content exists in `docs/index.md`, `docs/milestones/
 
 ### 1. Vector store (`knowledge_chunks`) has no docs content
 
-- **`omni sync knowledge`** only indexes paths listed in **`knowledge_dirs`** in references.yaml (system default: **`packages/conf/references.yaml`**; user override: `$PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml`).
+- **`omni sync knowledge`** only indexes paths listed in **`knowledge_dirs`** in references.yaml (system default: **`packages/conf/references.yaml`**; user override: `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml`).
 - Only **`assets/knowledge`** was active; **`docs/`** was commented out. So `docs/milestones`, `docs/plan`, `docs/reference` were never ingested.
 - Result: `knowledge.recall` and the vector leg of `link_graph_hybrid_search` return nothing for doc-based queries.
 

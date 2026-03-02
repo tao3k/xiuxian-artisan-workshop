@@ -13,10 +13,23 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+
+def _unwrap_command_text(result: object) -> str:
+    if isinstance(result, str):
+        return result
+    assert isinstance(result, dict)
+    assert result.get("isError") is False
+    content = result.get("content")
+    assert isinstance(content, list)
+    assert content
+    first = content[0]
+    assert isinstance(first, dict)
+    text = first.get("text", "")
+    assert isinstance(text, str)
+    return text
 
 
 class TestCodeSearchCommand:
@@ -47,12 +60,9 @@ class TestCodeSearchCommand:
         """Test that code_search returns XML-formatted output."""
         code_search = skill_loader.commands["code.code_search"]
         result = await code_search("def test_function")
+        text = _unwrap_command_text(result)
 
-        # Result should be a string
-        assert isinstance(result, str)
-
-        # Result should contain XML-like tags
-        assert "<" in result and ">" in result
+        assert "<" in text and ">" in text
 
     @pytest.mark.asyncio
     async def test_code_search_class_query(self, skill_loader):
@@ -61,8 +71,7 @@ class TestCodeSearchCommand:
 
         # Test with a simple class query
         result = await code_search("class TestClass")
-        assert isinstance(result, str)
-        assert len(result) > 0
+        assert len(_unwrap_command_text(result)) > 0
 
     @pytest.mark.asyncio
     async def test_code_search_function_query(self, skill_loader):
@@ -71,8 +80,7 @@ class TestCodeSearchCommand:
 
         # Test with a function query
         result = await code_search("def hello_world")
-        assert isinstance(result, str)
-        assert len(result) > 0
+        assert len(_unwrap_command_text(result)) > 0
 
     @pytest.mark.asyncio
     async def test_code_search_with_session_id(self, skill_loader):
@@ -80,7 +88,7 @@ class TestCodeSearchCommand:
         code_search = skill_loader.commands["code.code_search"]
 
         result = await code_search("def test", session_id="test_session_123")
-        assert isinstance(result, str)
+        assert len(_unwrap_command_text(result)) > 0
 
     @pytest.mark.asyncio
     async def test_code_search_empty_query(self, skill_loader):
@@ -88,7 +96,7 @@ class TestCodeSearchCommand:
         code_search = skill_loader.commands["code.code_search"]
 
         result = await code_search("")
-        assert isinstance(result, str)
+        assert len(_unwrap_command_text(result)) > 0
 
     def test_code_search_has_skill_config(self, skill_loader):
         """Test that code_search has proper skill config."""
@@ -131,8 +139,8 @@ class TestSearchEngines:
         result = extract_ast_pattern("Find the class User")
         assert result == "class User"
 
-    def test_extract_ast_pattern_class(self):
-        """Test AST pattern extraction for class."""
+    def test_extract_ast_pattern_find_class(self):
+        """Test AST pattern extraction for find-class query."""
         from code.scripts.search.nodes.engines import extract_ast_pattern
 
         result = extract_ast_pattern("Find class User")

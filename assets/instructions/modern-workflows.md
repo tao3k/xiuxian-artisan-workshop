@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Modern Engineering Workflows (SOP)"
+---
+
 # Modern Engineering Workflows (SOP)
 
 This document defines the **Standard Operating Procedures (SOP)** for utilizing the Omni-Agent modern toolchain. You MUST adhere to these workflows to ensure efficiency, safety, and code quality.

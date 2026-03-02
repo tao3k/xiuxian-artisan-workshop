@@ -333,8 +333,8 @@ def test_build_report_includes_machine_readable_link_graph_index_refresh_signals
     monitor.record_phase(
         "link_graph.index.delta.plan",
         1.0,
-        strategy="full",
-        reason="threshold_exceeded",
+        strategy="delta",
+        reason="threshold_exceeded_incremental",
         changed_count=300,
         force_full=False,
         threshold=256,
@@ -343,7 +343,7 @@ def test_build_report_includes_machine_readable_link_graph_index_refresh_signals
         "link_graph.index.rebuild.full",
         55.0,
         success=True,
-        reason="threshold_exceeded",
+        reason="delta_failed_fallback",
         changed_count=300,
     )
 
@@ -354,13 +354,41 @@ def test_build_report_includes_machine_readable_link_graph_index_refresh_signals
     index = signals["index_refresh"]
     assert index["observed"]["total"] == 4
     assert index["plan"]["count"] == 2
-    assert index["plan"]["strategies"]["delta"] == 1
-    assert index["plan"]["strategies"]["full"] == 1
+    assert index["plan"]["strategies"]["delta"] == 2
+    assert "full" not in index["plan"]["strategies"]
+    assert index["plan"]["reasons"]["threshold_exceeded_incremental"] == 1
     assert index["delta_apply"]["success"] == 1
     assert index["delta_apply"]["failed"] == 0
     assert index["full_rebuild"]["count"] == 1
     assert index["full_rebuild"]["success"] == 1
-    assert index["full_rebuild"]["reasons"]["threshold_exceeded"] == 1
+    assert index["full_rebuild"]["reasons"]["delta_failed_fallback"] == 1
+
+
+def test_build_report_normalizes_legacy_threshold_exceeded_full_plan() -> None:
+    """Legacy threshold-exceeded full strategy should be normalized to delta strategy."""
+    monitor = SkillsMonitor("knowledge.recall")
+    monitor.samples = [Sample(elapsed_s=0.0, rss_mb=100.0, rss_peak_mb=120.0, cpu_percent=None)]
+
+    monitor.record_phase(
+        "link_graph.index.delta.plan",
+        1.0,
+        strategy="full",
+        reason="threshold_exceeded",
+        changed_count=320,
+        force_full=False,
+        threshold=256,
+    )
+
+    report = monitor.build_report()
+    payload = report.to_dict()
+    signals = payload["link_graph_signals"]
+    assert isinstance(signals, dict)
+    index = signals["index_refresh"]
+    assert index["plan"]["strategies"]["delta"] == 1
+    assert "full" not in index["plan"]["strategies"]
+    assert index["plan"]["reasons"]["threshold_exceeded_incremental"] == 1
+    assert index["plan"]["latest"]["strategy"] == "delta"
+    assert index["plan"]["latest"]["reason"] == "threshold_exceeded_incremental"
 
 
 def test_summary_reporter_emits_dashboard_sections() -> None:

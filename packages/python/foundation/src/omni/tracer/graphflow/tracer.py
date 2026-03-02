@@ -11,8 +11,8 @@ from omni.foundation.config.prj import PRJ_CACHE
 from .types import ExecutionStep, ExecutionTrace, StepType
 
 
-class LangGraphTracer:
-    """Traces LangGraph execution with UltraRAG conventions."""
+class GraphflowTracer:
+    """Traces workflow execution with UltraRAG conventions."""
 
     def __init__(self, trace_id: str, thread_id: str, scenario: str):
         self.trace = ExecutionTrace(
@@ -93,10 +93,7 @@ class LangGraphTracer:
     def write_memory_output(self, output_dir: str | None = None) -> str:
         """Persist full memory pool snapshot to JSON for offline analysis."""
         # Use PRJ_CACHE if no explicit output_dir provided
-        if output_dir is None:
-            output_path = PRJ_CACHE("ultrarag")
-        else:
-            output_path = Path(output_dir)
+        output_path = PRJ_CACHE("ultrarag") if output_dir is None else Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         payload = {
             "trace_id": self.trace.trace_id,
@@ -115,4 +112,4 @@ class LangGraphTracer:
         self.trace.status = "completed"
 
 
-__all__ = ["LangGraphTracer"]
+__all__ = ["GraphflowTracer"]

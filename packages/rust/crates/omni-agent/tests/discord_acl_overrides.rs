@@ -1,128 +1,76 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Discord ACL override loading and policy projection tests.
 
 use std::path::PathBuf;
 
 use omni_agent::{
-    Channel, DiscordChannel, DiscordControlCommandPolicy, build_discord_acl_overrides,
-    load_runtime_settings_from_paths,
+    Channel, DiscordAclOverrides, DiscordChannel, DiscordControlCommandPolicy,
+    build_discord_acl_overrides, load_runtime_settings_from_paths,
 };
 use tempfile::TempDir;
 
+const STRUCTURED_DISCORD_ACL_TOML: &str = r#"
+[discord.acl.role_aliases]
+maintainers = "987654321012345678"
+auditors = "<@&123456789012345678>"
+
+[discord.acl.allow]
+users = ["owner"]
+roles = ["maintainers"]
+guilds = ["3001", "3002"]
+
+[discord.acl.admin]
+users = ["owner"]
+roles = ["maintainers"]
+
+[discord.acl.control.allow_from]
+roles = ["maintainers"]
+
+[[discord.acl.control.rules]]
+commands = ["/session partition"]
+
+[discord.acl.control.rules.allow]
+roles = ["maintainers"]
+
+[[discord.acl.control.rules]]
+commands = ["/reset", "/clear"]
+
+[discord.acl.control.rules.allow]
+users = ["owner"]
+
+[discord.acl.slash.global]
+roles = ["maintainers"]
+
+[discord.acl.slash.session_status]
+roles = ["auditors"]
+
+[discord.acl.slash.session_budget]
+roles = ["auditors"]
+
+[discord.acl.slash.session_memory]
+users = ["owner"]
+
+[discord.acl.slash.job_status]
+roles = ["maintainers"]
+
+[discord.acl.slash.jobs_summary]
+roles = ["maintainers"]
+
+[discord.acl.slash.background_submit]
+roles = ["maintainers"]
+"#;
+
 fn write_file(path: PathBuf, content: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).expect("create parent dir");
+    if let Some(parent) = path.parent()
+        && let Err(error) = std::fs::create_dir_all(parent)
+    {
+        panic!("create parent dir: {error}");
     }
-    std::fs::write(path, content).expect("write yaml");
+    if let Err(error) = std::fs::write(path, content) {
+        panic!("write toml: {error}");
+    }
 }
 
-#[test]
-fn discord_acl_overrides_build_from_structured_acl() {
-    let tmp = TempDir::new().expect("tempdir");
-    let system = tmp.path().join("packages/conf/settings.yaml");
-    let user = tmp.path().join(".config/omni-dev-fusion/settings.yaml");
-
-    write_file(
-        system.clone(),
-        r#"
-discord:
-  acl:
-    role_aliases:
-      maintainers: "987654321012345678"
-      auditors: "<@&123456789012345678>"
-    allow:
-      users: ["owner"]
-      roles: ["maintainers"]
-      guilds: ["3001", "3002"]
-    admin:
-      users: ["owner"]
-      roles: ["maintainers"]
-    control:
-      allow_from:
-        roles: ["maintainers"]
-      rules:
-        - commands: ["/session partition"]
-          allow:
-            roles: ["maintainers"]
-        - commands: ["/reset", "/clear"]
-          allow:
-            users: ["owner"]
-    slash:
-      global:
-        roles: ["maintainers"]
-      session_status:
-        roles: ["auditors"]
-      session_budget:
-        roles: ["auditors"]
-      session_memory:
-        users: ["owner"]
-      job_status:
-        roles: ["maintainers"]
-      jobs_summary:
-        roles: ["maintainers"]
-      background_submit:
-        roles: ["maintainers"]
-"#,
-    );
-    write_file(user.clone(), "");
-
-    let settings = load_runtime_settings_from_paths(&system, &user);
-    let overrides = build_discord_acl_overrides(&settings).expect("discord acl overrides");
-
-    assert_eq!(
-        overrides.allowed_users,
-        vec!["owner".to_string(), "role:987654321012345678".to_string()]
-    );
-    assert_eq!(
-        overrides.allowed_guilds,
-        vec!["3001".to_string(), "3002".to_string()]
-    );
-    assert_eq!(
-        overrides.admin_users,
-        Some(vec![
-            "owner".to_string(),
-            "role:987654321012345678".to_string()
-        ])
-    );
-    assert_eq!(
-        overrides.control_command_allow_from,
-        Some(vec!["role:987654321012345678".to_string()])
-    );
+fn assert_discord_control_rule_projection(overrides: &DiscordAclOverrides) {
     assert_eq!(overrides.control_command_rules.len(), 2);
     let channel = DiscordChannel::new_with_control_command_policy(
         "fake-token".to_string(),
@@ -133,8 +81,7 @@ discord:
             None,
             overrides.control_command_rules.clone(),
         ),
-    )
-    .expect("typed control rules should compile");
+    );
     assert!(
         channel.is_authorized_for_control_command("role:987654321012345678", "/session partition")
     );
@@ -143,6 +90,9 @@ discord:
         !channel.is_authorized_for_control_command("ops", "/session partition"),
         "matched command-scoped rule should override admin fallback",
     );
+}
+
+fn assert_discord_slash_acl_projection(overrides: &DiscordAclOverrides) {
     assert_eq!(
         overrides.slash_command_allow_from,
         Some(vec!["role:987654321012345678".to_string()])
@@ -174,35 +124,87 @@ discord:
 }
 
 #[test]
+fn discord_acl_overrides_build_from_structured_acl() {
+    let tmp = match TempDir::new() {
+        Ok(tmp) => tmp,
+        Err(error) => panic!("tempdir: {error}"),
+    };
+    let system = tmp
+        .path()
+        .join("packages/rust/crates/omni-agent/resources/config/xiuxian.toml");
+    let user = tmp
+        .path()
+        .join(".config/xiuxian-artisan-workshop/xiuxian.toml");
+
+    write_file(system.clone(), STRUCTURED_DISCORD_ACL_TOML);
+    write_file(user.clone(), "");
+
+    let settings = load_runtime_settings_from_paths(&system, &user);
+    let overrides = match build_discord_acl_overrides(&settings) {
+        Ok(overrides) => overrides,
+        Err(error) => panic!("discord acl overrides: {error}"),
+    };
+
+    assert_eq!(
+        overrides.allowed_users,
+        vec!["owner".to_string(), "role:987654321012345678".to_string()]
+    );
+    assert_eq!(
+        overrides.allowed_guilds,
+        vec!["3001".to_string(), "3002".to_string()]
+    );
+    assert_eq!(
+        overrides.admin_users,
+        Some(vec![
+            "owner".to_string(),
+            "role:987654321012345678".to_string()
+        ])
+    );
+    assert_eq!(
+        overrides.control_command_allow_from,
+        Some(vec!["role:987654321012345678".to_string()])
+    );
+    assert_discord_control_rule_projection(&overrides);
+    assert_discord_slash_acl_projection(&overrides);
+}
+
+#[test]
 fn discord_acl_overrides_use_merged_role_aliases_from_user_settings() {
-    let tmp = TempDir::new().expect("tempdir");
-    let system = tmp.path().join("packages/conf/settings.yaml");
-    let user = tmp.path().join(".config/omni-dev-fusion/settings.yaml");
+    let tmp = match TempDir::new() {
+        Ok(tmp) => tmp,
+        Err(error) => panic!("tempdir: {error}"),
+    };
+    let system = tmp
+        .path()
+        .join("packages/rust/crates/omni-agent/resources/config/xiuxian.toml");
+    let user = tmp
+        .path()
+        .join(".config/xiuxian-artisan-workshop/xiuxian.toml");
 
     write_file(
         system.clone(),
         r#"
-discord:
-  acl:
-    role_aliases:
-      maintainers: "111111111111111111"
-      observers: "222222222222222222"
-    allow:
-      roles: ["maintainers"]
+[discord.acl.role_aliases]
+maintainers = "111111111111111111"
+observers = "222222222222222222"
+
+[discord.acl.allow]
+roles = ["maintainers"]
 "#,
     );
     write_file(
         user.clone(),
         r#"
-discord:
-  acl:
-    role_aliases:
-      maintainers: "999999999999999999"
+[discord.acl.role_aliases]
+maintainers = "999999999999999999"
 "#,
     );
 
     let settings = load_runtime_settings_from_paths(&system, &user);
-    let overrides = build_discord_acl_overrides(&settings).expect("discord acl overrides");
+    let overrides = match build_discord_acl_overrides(&settings) {
+        Ok(overrides) => overrides,
+        Err(error) => panic!("discord acl overrides: {error}"),
+    };
 
     assert_eq!(
         overrides.allowed_users,
@@ -213,30 +215,37 @@ discord:
 
 #[test]
 fn discord_acl_overrides_reject_invalid_control_rule_with_field_path() {
-    let tmp = TempDir::new().expect("tempdir");
-    let system = tmp.path().join("packages/conf/settings.yaml");
-    let user = tmp.path().join(".config/omni-dev-fusion/settings.yaml");
+    let tmp = match TempDir::new() {
+        Ok(tmp) => tmp,
+        Err(error) => panic!("tempdir: {error}"),
+    };
+    let system = tmp
+        .path()
+        .join("packages/rust/crates/omni-agent/resources/config/xiuxian.toml");
+    let user = tmp
+        .path()
+        .join(".config/xiuxian-artisan-workshop/xiuxian.toml");
 
     write_file(
         system.clone(),
         r#"
-discord:
-  acl:
-    control:
-      rules:
-        - commands: ["session*"]
-          allow:
-            users: ["owner"]
+[[discord.acl.control.rules]]
+commands = ["session*"]
+
+[discord.acl.control.rules.allow]
+users = ["owner"]
 "#,
     );
     write_file(user, "");
 
     let settings = load_runtime_settings_from_paths(
         &system,
-        &tmp.path().join(".config/omni-dev-fusion/settings.yaml"),
+        &tmp.path()
+            .join(".config/xiuxian-artisan-workshop/xiuxian.toml"),
     );
-    let error =
-        build_discord_acl_overrides(&settings).expect_err("invalid command selector should fail");
+    let Err(error) = build_discord_acl_overrides(&settings) else {
+        panic!("invalid command selector should fail");
+    };
     assert!(
         error
             .to_string()

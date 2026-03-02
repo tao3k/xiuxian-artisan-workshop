@@ -1,0 +1,79 @@
+name = "Memory_Promotion_Pipeline"
+
+[[nodes]]
+id = "ReAct_Evidence_Gatherer"
+task_type = "command"
+weight = 1.0
+params = { cmd = "echo 'milimeter-level alignment audit trail traceability and architectural consistency validate repeated workaround success.'", output_key = "raw_facts", stop_on_empty_stdout = true, empty_reason = "missing_react_evidence" }
+
+[[nodes]]
+id = "Graph_Structure_Validator"
+task_type = "knowledge"
+weight = 1.0
+params = {}
+
+[[nodes]]
+id = "Promotion_Annotator"
+task_type = "annotation"
+weight = 1.0
+params = {}
+[nodes.qianhuan]
+persona_id = "artisan-engineer"
+template_target = "draft_reflection.md"
+
+[[nodes]]
+id = "Omega_Arbiter"
+task_type = "router"
+weight = 1.0
+params = { branches = [["Promote", 0.8], ["Retain", 0.15], ["Obsolete", 0.05]] }
+
+[[nodes]]
+id = "Wendao_Ingester"
+task_type = "wendao_ingester"
+weight = 1.0
+params = { output_key = "promotion_entity", graph_scope = "qianji:memory_promotion", graph_dimension = 1024, persist = true, persist_best_effort = true }
+
+[[nodes]]
+id = "Retain_Memory"
+task_type = "command"
+weight = 1.0
+params = { cmd = "echo retain", output_key = "promotion_decision" }
+
+[[nodes]]
+id = "Mark_Obsolete"
+task_type = "command"
+weight = 1.0
+params = { cmd = "echo obsolete", output_key = "promotion_decision" }
+
+[[edges]]
+from = "ReAct_Evidence_Gatherer"
+to = "Promotion_Annotator"
+weight = 1.0
+
+[[edges]]
+from = "Promotion_Annotator"
+to = "Graph_Structure_Validator"
+weight = 1.0
+
+[[edges]]
+from = "Graph_Structure_Validator"
+to = "Omega_Arbiter"
+weight = 1.0
+
+[[edges]]
+from = "Omega_Arbiter"
+to = "Wendao_Ingester"
+label = "Promote"
+weight = 1.0
+
+[[edges]]
+from = "Omega_Arbiter"
+to = "Retain_Memory"
+label = "Retain"
+weight = 1.0
+
+[[edges]]
+from = "Omega_Arbiter"
+to = "Mark_Obsolete"
+label = "Obsolete"
+weight = 1.0

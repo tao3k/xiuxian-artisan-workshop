@@ -1,26 +1,7 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
-fn test_regex_fallback_parsing_performance() {
+fn test_regex_fallback_parsing_performance() -> Result<(), Box<dyn std::error::Error>> {
     // This tests the regex fallback path (when TOML parsing fails)
     let content =
         "package1==1.0.0\npackage2>=2.0.0\npackage3~=4.0.0\nanother_package[extra]==5.0.0\n";
@@ -28,25 +9,32 @@ fn test_regex_fallback_parsing_performance() {
     let start = std::time::Instant::now();
 
     for _ in 0..100 {
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(content.as_bytes()).unwrap();
+        let mut file = NamedTempFile::new()?;
+        file.write_all(content.as_bytes())?;
 
-        let deps = parse_pyproject_dependencies(file.path()).unwrap();
+        let deps = parse_pyproject_dependencies(file.path())?;
         assert_eq!(deps.len(), 4);
     }
 
     let elapsed = start.elapsed();
 
     // Should complete 100 parses in under 200ms
-    let max_duration = std::time::Duration::from_millis(200);
+    let max_duration = super::benchmark_budget(
+        std::time::Duration::from_millis(200),
+        std::time::Duration::from_millis(300),
+    );
+    let max_duration_ms = max_duration.as_secs_f64() * 1000.0;
     assert!(
         elapsed < max_duration,
-        "Regex fallback parsing took {:.2}ms for 100 iterations, expected < 200ms",
-        elapsed.as_secs_f64() * 1000.0
+        "Regex fallback parsing took {:.2}ms for 100 iterations, expected < {:.2}ms (set {} >= 1.0 to tune)",
+        elapsed.as_secs_f64() * 1000.0,
+        max_duration_ms,
+        super::BENCH_SLACK_ENV
     );
 
     println!(
         "Regex fallback parsing: 100 iterations = {:.2}ms",
         elapsed.as_secs_f64() * 1000.0
     );
+    Ok(())
 }

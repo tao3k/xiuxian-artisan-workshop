@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Router File Discovery Intent Report"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - router
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Router File Discovery Intent Report"
 ---
 
 # Router File Discovery Intent Report
@@ -37,7 +40,7 @@ Primary code path:
 
 - Rust search path: `packages/rust/crates/omni-vector/src/skill/ops_impl.rs`
 - Fusion: `packages/rust/crates/omni-vector/src/keyword/fusion.rs`
-- Scanner source for decorator metadata: `packages/rust/crates/omni-scanner/src/skills/tools.rs`
+- Scanner source for decorator metadata: `packages/rust/crates/xiuxian-skills/src/skills/tools.rs`
 
 ## Ranking Pipeline (Current)
 

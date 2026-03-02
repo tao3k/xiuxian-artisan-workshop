@@ -9,10 +9,12 @@ use super::super::channel::{DiscordChannel, DiscordControlCommandPolicy};
 use super::DiscordRuntimeConfig;
 use super::foreground::build_foreground_runtime;
 use super::ingress::{
-    DiscordIngressApp, build_discord_ingress_app_with_partition_and_control_command_policy,
+    DiscordIngressApp, DiscordIngressBuildRequest,
+    build_discord_ingress_app_with_partition_and_control_command_policy,
 };
 use super::telemetry::snapshot_interval_from_env;
 use crate::agent::Agent;
+use crate::channels::managed_runtime::ForegroundQueueMode;
 use crate::channels::traits::{Channel, ChannelMessage};
 
 mod loop_control;
@@ -61,19 +63,22 @@ pub async fn run_discord_ingress(
         inbound_queue_capacity,
         turn_timeout_secs,
         foreground_max_in_flight_messages,
+        foreground_queue_mode,
     } = runtime_config;
 
     let (tx, mut inbound_rx) = mpsc::channel::<ChannelMessage>(inbound_queue_capacity);
     let inbound_snapshot_tx = tx.clone();
     let ingress = build_discord_ingress_app_with_partition_and_control_command_policy(
-        bot_token,
-        allowed_users,
-        allowed_guilds,
-        control_command_policy,
-        &ingress_path,
-        secret_token,
-        session_partition,
-        tx,
+        DiscordIngressBuildRequest {
+            bot_token,
+            allowed_users,
+            allowed_guilds,
+            control_command_policy,
+            ingress_path,
+            secret_token,
+            session_partition,
+            tx,
+        },
     )?;
     let DiscordIngressApp { app, channel, path } = ingress;
     let channel_for_send: Arc<dyn Channel> = channel.clone();
@@ -82,6 +87,7 @@ pub async fn run_discord_ingress(
         channel_for_send,
         turn_timeout_secs,
         foreground_max_in_flight_messages,
+        foreground_queue_mode,
     );
     let mut snapshot_tick = build_snapshot_tick().await;
     let listener = TcpListener::bind(&bind_addr).await?;
@@ -102,6 +108,7 @@ pub async fn run_discord_ingress(
         inbound_queue_capacity,
         foreground_max_in_flight_messages,
         turn_timeout_secs,
+        foreground_queue_mode,
     );
 
     drive_ingress_runtime_loop(
@@ -140,14 +147,15 @@ fn print_ingress_banner(
     inbound_queue_capacity: usize,
     foreground_max_in_flight_messages: usize,
     turn_timeout_secs: u64,
+    foreground_queue_mode: ForegroundQueueMode,
 ) {
     println!("Discord ingress listening on {bind_addr}{path} (Ctrl+C to stop)");
     println!("Discord session partition: {}", channel.session_partition());
     println!(
-        "Discord foreground config: inbound_queue={inbound_queue_capacity} max_in_flight={foreground_max_in_flight_messages} timeout={turn_timeout_secs}s"
+        "Discord foreground config: inbound_queue={inbound_queue_capacity} max_in_flight={foreground_max_in_flight_messages} timeout={turn_timeout_secs}s queue_mode={foreground_queue_mode}"
     );
     println!("Background commands: /bg <prompt>, /job <id> [json], /jobs [json]");
     println!(
-        "Session commands: /help [json], /session [json], /session budget [json], /session memory [json], /session feedback up|down [json], /session partition [mode|on|off] [json], /session admin [list|set|add|remove|clear] [json], /session inject [status|clear|<qa>...</qa>] [json], /feedback up|down [json], /reset, /clear, /resume, /resume drop, /stop"
+        "Session commands: /help [json], /session [json], /session budget [json], /session memory [json], /session feedback up|down [json], /session partition|scope [mode|on|off] [json], /session admin [list|set|add|remove|clear] [json], /session inject [status|clear|<qa>...</qa>] [json], /feedback up|down [json], /reset, /clear, /resume, /resume drop, /stop"
     );
 }

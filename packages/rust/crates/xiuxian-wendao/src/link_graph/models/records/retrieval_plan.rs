@@ -136,36 +136,49 @@ pub struct LinkGraphRetrievalPlanRecord {
     pub budget: LinkGraphRetrievalBudget,
 }
 
+/// Construction payload for [`LinkGraphRetrievalPlanRecord`].
+#[derive(Debug, Clone)]
+pub struct LinkGraphRetrievalPlanInput {
+    /// Retrieval mode requested by caller/runtime policy.
+    pub requested_mode: LinkGraphRetrievalMode,
+    /// Retrieval mode selected after policy evaluation.
+    pub selected_mode: LinkGraphRetrievalMode,
+    /// Canonical policy reason string.
+    pub reason: String,
+    /// Backend identifier emitting this plan record.
+    pub backend_name: String,
+    /// Total graph hits considered by policy.
+    pub graph_hit_count: usize,
+    /// Distinct source hints extracted from graph hits.
+    pub source_hint_count: usize,
+    /// Graph confidence score in [0, 1].
+    pub graph_confidence_score: f64,
+    /// Confidence bucket for the score.
+    pub graph_confidence_level: LinkGraphConfidenceLevel,
+    /// Bounded retrieval budget derived by runtime policy.
+    pub budget: LinkGraphRetrievalBudget,
+}
+
 impl LinkGraphRetrievalPlanRecord {
     /// Build a schema-aligned retrieval plan record with bounded score.
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        requested_mode: LinkGraphRetrievalMode,
-        selected_mode: LinkGraphRetrievalMode,
-        reason: String,
-        backend_name: String,
-        graph_hit_count: usize,
-        source_hint_count: usize,
-        graph_confidence_score: f64,
-        graph_confidence_level: LinkGraphConfidenceLevel,
-        budget: LinkGraphRetrievalBudget,
-    ) -> Self {
+    pub fn new(input: LinkGraphRetrievalPlanInput) -> Self {
         debug_assert!(
-            LINK_GRAPH_POLICY_REASON_VOCAB.contains(&reason.as_str()),
-            "link_graph retrieval plan reason `{reason}` is not in policy vocab"
+            LINK_GRAPH_POLICY_REASON_VOCAB.contains(&input.reason.as_str()),
+            "link_graph retrieval plan reason `{}` is not in policy vocab",
+            input.reason
         );
         Self {
             schema: LINK_GRAPH_RETRIEVAL_PLAN_SCHEMA_VERSION.to_string(),
-            requested_mode,
-            selected_mode,
-            reason,
-            backend_name,
-            graph_hit_count,
-            source_hint_count,
-            graph_confidence_score: graph_confidence_score.clamp(0.0, 1.0),
-            graph_confidence_level,
-            budget,
+            requested_mode: input.requested_mode,
+            selected_mode: input.selected_mode,
+            reason: input.reason,
+            backend_name: input.backend_name,
+            graph_hit_count: input.graph_hit_count,
+            source_hint_count: input.source_hint_count,
+            graph_confidence_score: input.graph_confidence_score.clamp(0.0, 1.0),
+            graph_confidence_level: input.graph_confidence_level,
+            budget: input.budget,
         }
     }
 }

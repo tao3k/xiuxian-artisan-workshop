@@ -5,13 +5,18 @@ use super::admin_rules::TelegramCommandAdminRule;
 /// Authorization inputs for privileged Telegram control commands.
 #[derive(Debug, Clone, Default)]
 pub struct TelegramControlCommandPolicy {
+    /// Fallback admin identities for control/slash authorization.
     pub admin_users: Vec<String>,
+    /// Optional global control-command allow list.
     pub control_command_allow_from: Option<Vec<String>>,
+    /// Command-scoped control command rules.
     pub control_command_rules: Vec<TelegramCommandAdminRule>,
+    /// Slash-command ACL policy.
     pub slash_command_policy: TelegramSlashCommandPolicy,
 }
 
 impl TelegramControlCommandPolicy {
+    /// Build control policy from admin identities and command rules.
     #[must_use]
     pub fn new(
         admin_users: Vec<String>,
@@ -26,6 +31,7 @@ impl TelegramControlCommandPolicy {
         }
     }
 
+    /// Attach slash-command ACL policy to this control policy.
     #[must_use]
     pub fn with_slash_command_policy(
         mut self,
@@ -39,20 +45,27 @@ impl TelegramControlCommandPolicy {
 /// User-friendly ACL fields for non-privileged Telegram slash commands.
 ///
 /// Priority order:
-/// 1) `slash_command_allow_from` (global override for all listed slash scopes)
-/// 2) command-specific allowlists (`*_allow_from`)
+/// 1) `global` (global override for all listed slash scopes)
+/// 2) command-specific allowlists
 /// 3) fallback `admin_users` from [`TelegramControlCommandPolicy`]
 #[derive(Debug, Clone, Default)]
-#[allow(clippy::struct_field_names)]
 pub struct TelegramSlashCommandPolicy {
-    pub slash_command_allow_from: Option<Vec<String>>,
-    pub session_status_allow_from: Option<Vec<String>>,
-    pub session_budget_allow_from: Option<Vec<String>>,
-    pub session_memory_allow_from: Option<Vec<String>>,
-    pub session_feedback_allow_from: Option<Vec<String>>,
-    pub job_status_allow_from: Option<Vec<String>>,
-    pub jobs_summary_allow_from: Option<Vec<String>>,
-    pub background_submit_allow_from: Option<Vec<String>>,
+    /// Global slash-command allow list fallback.
+    pub global: Option<Vec<String>>,
+    /// Allow list for `session.status`.
+    pub session_status: Option<Vec<String>>,
+    /// Allow list for `session.budget`.
+    pub session_budget: Option<Vec<String>>,
+    /// Allow list for `session.memory`.
+    pub session_memory: Option<Vec<String>>,
+    /// Allow list for `session.feedback`.
+    pub session_feedback: Option<Vec<String>>,
+    /// Allow list for `job.status`.
+    pub job_status: Option<Vec<String>>,
+    /// Allow list for `jobs.summary`.
+    pub jobs_summary: Option<Vec<String>>,
+    /// Allow list for `background.submit`.
+    pub background_submit: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Advanced Search Skill"
+---
+
 # Advanced Search Skill
 
 High-performance code search using ripgrep with structured results.

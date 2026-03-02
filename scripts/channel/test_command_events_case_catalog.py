@@ -30,6 +30,10 @@ def test_build_cases_includes_memory_session_scope_placeholder() -> None:
     assert (
         "json_session_scope=__target_session_scope__" in by_case["session_memory_json"].extra_args
     )
+    assert "agenda_view_markdown" in by_case
+    assert by_case["agenda_view_markdown"].max_wait_secs == 120
+    assert by_case["agenda_view_markdown"].max_idle_secs == 60
+    assert ("--expect-bot-regex", r"(?i)agenda") == by_case["agenda_view_markdown"].extra_args
 
 
 def test_select_cases_raises_on_unknown_case() -> None:

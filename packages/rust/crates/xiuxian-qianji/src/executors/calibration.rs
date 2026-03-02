@@ -15,12 +15,7 @@ pub struct SynapseCalibrator {
 #[async_trait]
 impl QianjiMechanism for SynapseCalibrator {
     async fn execute(&self, context: &serde_json::Value) -> Result<QianjiOutput, String> {
-        let drift_score = to_f32(
-            context
-                .get("drift_score")
-                .and_then(serde_json::Value::as_f64)
-                .unwrap_or(0.0),
-        );
+        let drift_score = context_f32(context, "drift_score", 0.0);
 
         if drift_score > self.drift_threshold {
             Ok(QianjiOutput {
@@ -40,7 +35,10 @@ impl QianjiMechanism for SynapseCalibrator {
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
-fn to_f32(value: f64) -> f32 {
-    value as f32
+fn context_f32(context: &serde_json::Value, key: &str, default: f32) -> f32 {
+    context
+        .get(key)
+        .cloned()
+        .and_then(|value| serde_json::from_value::<f32>(value).ok())
+        .unwrap_or(default)
 }

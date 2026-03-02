@@ -4,7 +4,17 @@
 from __future__ import annotations
 
 import sys
+import time
 from typing import Any
+
+
+def _is_retryable_webhook_error(status: int, body: str) -> bool:
+    if status == 0:
+        return True
+    if status in (502, 503, 504):
+        return True
+    lowered = body.lower()
+    return "connection refused" in lowered or "timed out" in lowered
 
 
 def handle_webhook_post(
@@ -26,11 +36,20 @@ def handle_webhook_post(
         thread_id=cfg.thread_id,
     )
 
-    status, body = post_webhook_update_fn(cfg.webhook_url, payload, cfg.secret_token)
-    if status == 200:
-        return None
+    attempts = 6
+    status = 0
+    body = ""
+    for attempt in range(1, attempts + 1):
+        status, body = post_webhook_update_fn(cfg.webhook_url, payload, cfg.secret_token)
+        if status == 200:
+            return None
+        if attempt >= attempts or not _is_retryable_webhook_error(status, body):
+            break
+        time.sleep(min(0.25 * attempt, 1.0))
 
     print(f"Error: webhook POST failed (HTTP {status}).", file=sys.stderr)
+    if attempts > 1:
+        print(f"Attempts: {attempt}", file=sys.stderr)
     print(f"Webhook URL: {cfg.webhook_url}", file=sys.stderr)
     print("Response body:", file=sys.stderr)
     for line in body.splitlines():

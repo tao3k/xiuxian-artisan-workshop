@@ -88,7 +88,7 @@ class TestTUIConfig:
         assert config.connect_timeout == 5.0
         assert config.theme == "dark"
         # UUID-based socket path
-        assert config.socket_path.startswith("/tmp/omni_tui_")
+        assert config.socket_path.startswith("/tmp/xiuxian_tui_")
 
     def test_custom_values(self):
         """Custom config overrides defaults."""
@@ -255,7 +255,7 @@ class TestTUIManagerLifecycle:
             # Verify subprocess was called with correct args
             mock_popen.assert_called_once()
             args = mock_popen.call_args[0][0]
-            assert "omni-tui" in args[0]
+            assert "xiuxian-tui" in args[0]
             assert "--socket" in args
             assert "/tmp/test.sock" in args
             assert "--role" in args

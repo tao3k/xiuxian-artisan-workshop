@@ -70,13 +70,13 @@ class ConfigPaths:
 
     @property
     def settings_file(self) -> Path:
-        """Main general settings file: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml"""
-        return PRJ_CONFIG("omni-dev-fusion", "settings.yaml")
+        """Main general settings file: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml"""
+        return PRJ_CONFIG("xiuxian-artisan-workshop", "settings.yaml")
 
     @property
     def wendao_settings_file(self) -> Path:
-        """LinkGraph/Wendao settings file: $PRJ_CONFIG_HOME/omni-dev-fusion/wendao.yaml"""
-        return PRJ_CONFIG("omni-dev-fusion", "wendao.yaml")
+        """LinkGraph/Wendao settings file: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/wendao.yaml"""
+        return PRJ_CONFIG("xiuxian-artisan-workshop", "wendao.yaml")
 
     # =============================================================================
     # Vendor Specific (Anthropic / OpenAI / etc)
@@ -87,7 +87,7 @@ class ConfigPaths:
         Get Anthropic settings path from configuration.
 
         Strategy:
-        1. Read `api.anthropic_settings` from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml)
+        1. Read `api.anthropic_settings` from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml)
         2. Resolve relative path against project root
         """
         from .settings import get_setting
@@ -102,7 +102,7 @@ class ConfigPaths:
         Get API base URL.
 
         Priority:
-        1. From settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml) -> inference.base_url
+        1. From settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml) -> inference.base_url
         2. Environment variable ANTHROPIC_BASE_URL
         3. None (uses default Anthropic API)
         """

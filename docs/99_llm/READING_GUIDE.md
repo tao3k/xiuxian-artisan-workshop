@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "LLM Reading Guide: Project Context Index (2026)"
+---
+
 # LLM Reading Guide: Project Context Index (2026)
 
 > **Role:** Bootstrapping Entry Point for AI Agents.

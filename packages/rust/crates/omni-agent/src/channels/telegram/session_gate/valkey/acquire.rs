@@ -26,7 +26,8 @@ impl ValkeySessionGateBackend {
                 .filter(|value| *value > 0)
                 .map(Duration::from_secs),
             retry_interval: Duration::from_millis(DEFAULT_GATE_RETRY_INTERVAL_MS),
-            connection: Arc::new(tokio::sync::Mutex::new(None)),
+            connection: Arc::new(tokio::sync::RwLock::new(None)),
+            reconnect_lock: Arc::new(tokio::sync::Mutex::new(())),
         })
     }
 

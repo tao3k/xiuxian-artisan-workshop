@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::channels::traits::Channel;
-
-use super::json_summary::{
+use crate::channels::managed_runtime::observability::json_summary::{
     optional_bool_token, optional_u64_token, optional_usize_token, summarize_json_reply,
 };
+use crate::channels::traits::Channel;
+
 use super::preview::log_preview;
 use super::render::render_telegram_command_payload;
 
@@ -40,6 +40,7 @@ pub(in crate::channels::telegram::runtime::jobs) async fn send_with_observabilit
                         json_kind = json_summary.kind.as_deref().unwrap_or(""),
                         json_available = optional_bool_token(json_summary.available),
                         json_status = json_summary.status.as_deref().unwrap_or(""),
+                        json_audit_error = json_summary.audit_error.as_deref().unwrap_or(""),
                         json_found = optional_bool_token(json_summary.found),
                         json_decision = json_summary.decision.as_deref().unwrap_or(""),
                         json_session_scope = json_summary.session_scope.as_deref().unwrap_or(""),

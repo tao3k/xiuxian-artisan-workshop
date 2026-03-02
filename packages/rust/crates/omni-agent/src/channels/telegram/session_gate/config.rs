@@ -1,6 +1,8 @@
 use anyhow::{Context, Result, bail};
+use xiuxian_macros::env_non_empty;
 
 use crate::config::load_runtime_settings;
+use crate::env_parse::resolve_valkey_url_env;
 
 pub(super) const DEFAULT_GATE_KEY_PREFIX: &str = "omni-agent:session-gate";
 pub(super) const DEFAULT_GATE_LEASE_TTL_SECS: u64 = 30;
@@ -30,7 +32,7 @@ impl SessionGateRuntimeConfig {
         let valkey_url = session
             .valkey_url
             .clone()
-            .or_else(|| non_empty_env("VALKEY_URL"))
+            .or_else(resolve_valkey_url_env)
             .and_then(|value| non_empty_string(&value));
 
         let backend_mode = match non_empty_env("OMNI_AGENT_TELEGRAM_SESSION_GATE_BACKEND")
@@ -88,9 +90,7 @@ fn parse_backend_mode(raw: &str) -> Result<SessionGateBackendMode> {
 }
 
 fn non_empty_env(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .and_then(|value| non_empty_string(&value))
+    env_non_empty!(name)
 }
 
 fn non_empty_string(value: &str) -> Option<String> {

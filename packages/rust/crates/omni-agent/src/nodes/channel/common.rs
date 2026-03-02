@@ -1,5 +1,4 @@
-#[allow(clippy::ref_option)]
-pub(super) fn log_control_command_allow_override(provider: &str, entries: &Option<Vec<String>>) {
+pub(super) fn log_control_command_allow_override(provider: &str, entries: Option<&[String]>) {
     if let Some(entries) = entries {
         if entries.is_empty() {
             tracing::warn!(
@@ -16,8 +15,7 @@ pub(super) fn log_control_command_allow_override(provider: &str, entries: &Optio
     }
 }
 
-#[allow(clippy::ref_option)]
-pub(super) fn log_slash_command_allow_override(provider: &str, entries: &Option<Vec<String>>) {
+pub(super) fn log_slash_command_allow_override(provider: &str, entries: Option<&[String]>) {
     if let Some(entries) = entries {
         if entries.is_empty() {
             tracing::warn!(

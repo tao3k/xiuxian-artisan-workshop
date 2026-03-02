@@ -1,3 +1,4 @@
+import importlib
 import shutil
 import sys
 import types
@@ -9,29 +10,35 @@ from omni.test_kit.decorators import omni_skill
 from omni.foundation.api.mcp_schema import parse_result_payload
 
 
+def _load_search_module():
+    scripts_dir = Path(__file__).parent.parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    # Avoid cross-skill module collision (other skills also expose `search`).
+    sys.modules.pop("search", None)
+    return importlib.import_module("search")
+
+
 class TestAdvancedToolsPatternMode:
     """Unit tests for literal-vs-regex mode selection."""
 
     def test_fixed_strings_enabled_for_literal_pattern(self):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _should_use_fixed_strings
+        module = _load_search_module()
+        _should_use_fixed_strings = module._should_use_fixed_strings
 
         assert _should_use_fixed_strings("Hard Constraints") is True
         assert _should_use_fixed_strings("README.md") is False
 
     def test_fixed_strings_disabled_for_regex_pattern(self):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _should_use_fixed_strings
+        module = _load_search_module()
+        _should_use_fixed_strings = module._should_use_fixed_strings
 
         assert _should_use_fixed_strings(r"Hard\\s+Constraints") is False
         assert _should_use_fixed_strings("foo(bar)") is False
 
     def test_resolve_search_root_supports_relative_path(self, tmp_path: Path):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _resolve_search_root
+        module = _load_search_module()
+        _resolve_search_root = module._resolve_search_root
 
         fixture_dir = tmp_path / "fixtures"
         fixture_dir.mkdir(parents=True, exist_ok=True)
@@ -40,17 +47,16 @@ class TestAdvancedToolsPatternMode:
         assert resolved == str(fixture_dir.resolve())
 
     def test_resolve_search_root_rejects_missing_path(self, tmp_path: Path):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _resolve_search_root
+        module = _load_search_module()
+        _resolve_search_root = module._resolve_search_root
 
         with pytest.raises(ValueError):
             _resolve_search_root(str(tmp_path), "missing")
 
     def test_resolve_exec_uses_cached_which_results(self, monkeypatch: pytest.MonkeyPatch):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _resolve_exec, _which_cached
+        module = _load_search_module()
+        _resolve_exec = module._resolve_exec
+        _which_cached = module._which_cached
 
         _which_cached.cache_clear()
         calls: list[str] = []
@@ -61,7 +67,7 @@ class TestAdvancedToolsPatternMode:
                 return "/usr/bin/fd"
             return None
 
-        monkeypatch.setattr("search.shutil.which", _fake_which)
+        monkeypatch.setattr(module.shutil, "which", _fake_which)
 
         first = _resolve_exec("fd", "fdfind")
         second = _resolve_exec("fd", "fdfind")
@@ -71,9 +77,8 @@ class TestAdvancedToolsPatternMode:
         assert calls == ["fd"]
 
     def test_parse_vimgrep_line_returns_normalized_match(self):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _parse_vimgrep_line
+        module = _load_search_module()
+        _parse_vimgrep_line = module._parse_vimgrep_line
 
         line = "docs/guide.md:42:7:Hard Constraints section"
         parsed = _parse_vimgrep_line(line)
@@ -84,16 +89,14 @@ class TestAdvancedToolsPatternMode:
         assert parsed["content"] == "Hard Constraints section"
 
     def test_parse_vimgrep_line_rejects_invalid_payload(self):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _parse_vimgrep_line
+        module = _load_search_module()
+        _parse_vimgrep_line = module._parse_vimgrep_line
 
         assert _parse_vimgrep_line("not-a-vimgrep-line") is None
 
     def test_can_use_python_filename_fast_path_requires_scoped_literal_query(self):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _can_use_python_filename_fast_path
+        module = _load_search_module()
+        _can_use_python_filename_fast_path = module._can_use_python_filename_fast_path
 
         assert _can_use_python_filename_fast_path(
             pattern="benchmark_note",
@@ -117,9 +120,8 @@ class TestAdvancedToolsPatternMode:
         )
 
     def test_python_fast_find_files_filters_hidden_and_extension(self, tmp_path: Path):
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import _python_fast_find_files
+        module = _load_search_module()
+        _python_fast_find_files = module._python_fast_find_files
 
         docs_dir = tmp_path / "docs"
         hidden_dir = docs_dir / ".private"
@@ -145,9 +147,9 @@ class TestAdvancedToolsPatternMode:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        scripts_dir = Path(__file__).parent.parent / "scripts"
-        sys.path.insert(0, str(scripts_dir))
-        from search import clear_smart_search_cache, smart_search
+        module = _load_search_module()
+        clear_smart_search_cache = module.clear_smart_search_cache
+        smart_search = module.smart_search
 
         calls = {"count": 0}
 
@@ -156,7 +158,7 @@ class TestAdvancedToolsPatternMode:
             calls["count"] += 1
             return "docs/guide.md:42:7:Hard Constraints section\n", "", 0
 
-        monkeypatch.setattr("search._run_rg_with_retry", _fake_run_rg_with_retry)
+        monkeypatch.setattr(module, "_run_rg_with_retry", _fake_run_rg_with_retry)
 
         clear_smart_search_cache()
         try:

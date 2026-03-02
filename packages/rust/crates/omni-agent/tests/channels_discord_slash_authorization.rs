@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Discord slash-command authorization tests for scope and role policies.
 
 use omni_agent::{
     Channel, DiscordChannel, DiscordControlCommandPolicy, DiscordSessionPartition,
@@ -77,8 +41,7 @@ fn discord_slash_authorization_falls_back_to_admin_users() {
         vec![],
         DiscordControlCommandPolicy::new(vec!["ops".to_string()], None, Vec::new()),
         DiscordSessionPartition::GuildChannelUser,
-    )
-    .expect("policy should compile");
+    );
 
     assert!(channel.is_authorized_for_slash_command("ops", SCOPE_SESSION_STATUS));
     assert!(!channel.is_authorized_for_slash_command("alice", SCOPE_SESSION_STATUS));
@@ -87,8 +50,8 @@ fn discord_slash_authorization_falls_back_to_admin_users() {
 #[test]
 fn discord_slash_authorization_global_override_takes_precedence() {
     let slash_policy = DiscordSlashCommandPolicy {
-        slash_command_allow_from: Some(vec!["owner".to_string()]),
-        session_status_allow_from: Some(vec!["alice".to_string()]),
+        global: Some(vec!["owner".to_string()]),
+        session_status: Some(vec!["alice".to_string()]),
         ..DiscordSlashCommandPolicy::default()
     };
     let channel = DiscordChannel::new_with_partition_and_control_command_policy(
@@ -98,8 +61,7 @@ fn discord_slash_authorization_global_override_takes_precedence() {
         DiscordControlCommandPolicy::new(vec!["ops".to_string()], None, Vec::new())
             .with_slash_command_policy(slash_policy),
         DiscordSessionPartition::GuildChannelUser,
-    )
-    .expect("policy should compile");
+    );
 
     assert!(channel.is_authorized_for_slash_command("owner", SCOPE_SESSION_STATUS));
     assert!(
@@ -115,7 +77,7 @@ fn discord_slash_authorization_global_override_takes_precedence() {
 #[test]
 fn discord_slash_authorization_command_scope_rules_are_partial() {
     let slash_policy = DiscordSlashCommandPolicy {
-        session_memory_allow_from: Some(vec!["alice".to_string()]),
+        session_memory: Some(vec!["alice".to_string()]),
         ..DiscordSlashCommandPolicy::default()
     };
     let channel = DiscordChannel::new_with_partition_and_control_command_policy(
@@ -125,8 +87,7 @@ fn discord_slash_authorization_command_scope_rules_are_partial() {
         DiscordControlCommandPolicy::new(vec!["ops".to_string()], None, Vec::new())
             .with_slash_command_policy(slash_policy),
         DiscordSessionPartition::GuildChannelUser,
-    )
-    .expect("policy should compile");
+    );
 
     assert!(channel.is_authorized_for_slash_command("alice", SCOPE_SESSION_MEMORY));
     assert!(channel.is_authorized_for_slash_command("ops", SCOPE_SESSION_MEMORY));
@@ -145,17 +106,16 @@ fn discord_control_authorization_recipient_override_fallback() {
         vec![],
         DiscordControlCommandPolicy::new(vec!["ops".to_string()], None, Vec::new()),
         DiscordSessionPartition::GuildChannelUser,
-    )
-    .expect("policy should compile");
+    );
 
     assert!(!channel.is_authorized_for_control_command_for_recipient("alice", "/reset", "2001"));
 
-    channel
-        .mutate_recipient_command_admin_users(
-            "2001",
-            omni_agent::RecipientCommandAdminUsersMutation::Set(vec!["alice".to_string()]),
-        )
-        .expect("recipient override update should succeed");
+    if let Err(error) = channel.mutate_recipient_command_admin_users(
+        "2001",
+        omni_agent::RecipientCommandAdminUsersMutation::Set(vec!["alice".to_string()]),
+    ) {
+        panic!("recipient override update should succeed: {error}");
+    }
 
     assert!(channel.is_authorized_for_control_command_for_recipient("alice", "/reset", "2001"));
 }
@@ -168,8 +128,7 @@ fn discord_slash_authorization_recipient_override_fallback() {
         vec![],
         DiscordControlCommandPolicy::new(vec!["ops".to_string()], None, Vec::new()),
         DiscordSessionPartition::GuildChannelUser,
-    )
-    .expect("policy should compile");
+    );
 
     assert!(!channel.is_authorized_for_slash_command_for_recipient(
         "alice",
@@ -177,12 +136,12 @@ fn discord_slash_authorization_recipient_override_fallback() {
         "2001"
     ));
 
-    channel
-        .mutate_recipient_command_admin_users(
-            "2001",
-            omni_agent::RecipientCommandAdminUsersMutation::Set(vec!["alice".to_string()]),
-        )
-        .expect("recipient override update should succeed");
+    if let Err(error) = channel.mutate_recipient_command_admin_users(
+        "2001",
+        omni_agent::RecipientCommandAdminUsersMutation::Set(vec!["alice".to_string()]),
+    ) {
+        panic!("recipient override update should succeed: {error}");
+    }
 
     assert!(channel.is_authorized_for_slash_command_for_recipient(
         "alice",
@@ -199,8 +158,7 @@ fn discord_control_authorization_supports_role_principals_per_recipient() {
         vec![],
         DiscordControlCommandPolicy::new(vec!["role:9001".to_string()], None, Vec::new()),
         DiscordSessionPartition::GuildChannelUser,
-    )
-    .expect("policy should compile");
+    );
 
     let _ = channel.parse_gateway_message(&discord_message_event(
         "1",
@@ -226,8 +184,7 @@ fn discord_slash_authorization_supports_cached_username_alias_per_recipient() {
         vec![],
         DiscordControlCommandPolicy::new(vec!["owner".to_string()], None, Vec::new()),
         DiscordSessionPartition::GuildChannelUser,
-    )
-    .expect("policy should compile");
+    );
 
     let _ = channel.parse_gateway_message(&discord_message_event(
         "1",

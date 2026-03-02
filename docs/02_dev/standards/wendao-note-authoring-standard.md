@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Wendao Note Authoring Standard"
 category: "standards"
 tags:
@@ -8,6 +9,8 @@ tags:
   - templates
 saliency_base: 7.2
 decay_rate: 0.03
+metadata:
+  title: "Wendao Note Authoring Standard"
 ---
 
 # Wendao Note Authoring Standard

@@ -47,9 +47,9 @@ pub trait ZhixingLlmInterface: Send + Sync {
     /// Returns an error if the LLM cannot be reached or fails to parse.
     fn select_action(&self, prompt_context: &str) -> Result<SecureAction>;
 
-    /// Given raw journal text, the LLM alchemizes it into structured metadata and insights.
+    /// Given raw journal text, the LLM compiles it into structured metadata and insights.
     ///
     /// # Errors
     /// Returns an error if the LLM cannot be reached or fails to parse.
-    fn alchemize_reflection(&self, raw_text: &str) -> Result<String>;
+    fn compile_reflection(&self, raw_text: &str) -> Result<String>;
 }

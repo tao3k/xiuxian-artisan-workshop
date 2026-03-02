@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
+//! MCP pool utility function tests.
 
 use std::time::Duration;
 
@@ -57,9 +45,11 @@ fn call_slow_warn_threshold_scales_for_long_running_tools() {
 
 #[test]
 fn hit_rate_pct_two_decimals_behaves_as_expected() {
-    assert_eq!(hit_rate_pct_two_decimals(0, 0), 0.0);
-    assert_eq!(hit_rate_pct_two_decimals(1, 3), 33.33);
-    assert_eq!(hit_rate_pct_two_decimals(10, 10), 100.0);
+    const EPSILON: f64 = 0.005;
+
+    assert!((hit_rate_pct_two_decimals(0, 0) - 0.0).abs() < EPSILON);
+    assert!((hit_rate_pct_two_decimals(1, 3) - 33.33).abs() < EPSILON);
+    assert!((hit_rate_pct_two_decimals(10, 10) - 100.0).abs() < EPSILON);
 }
 
 #[test]

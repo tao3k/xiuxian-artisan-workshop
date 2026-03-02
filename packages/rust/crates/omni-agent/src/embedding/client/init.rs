@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::Semaphore;
+use xiuxian_macros::env_non_empty;
 
 use super::super::backend::resolve_backend_settings;
 use super::super::cache::EmbeddingCache;
@@ -16,18 +17,21 @@ use super::{
 };
 
 impl EmbeddingClient {
+    /// Construct a client with default backend resolution and optional MCP fallback URL.
     #[must_use]
     pub fn new(base_url: &str, timeout_secs: u64) -> Self {
         let mcp_url = resolve_mcp_embed_url();
         Self::new_with_mcp_url_and_backend(base_url, timeout_secs, mcp_url, None)
     }
 
+    /// Construct a client with explicit backend hint and optional MCP fallback URL.
     #[must_use]
     pub fn new_with_backend(base_url: &str, timeout_secs: u64, backend_hint: Option<&str>) -> Self {
         let mcp_url = resolve_mcp_embed_url();
         Self::new_with_mcp_url_and_backend(base_url, timeout_secs, mcp_url, backend_hint)
     }
 
+    /// Construct a client with explicit backend hint and batch tuning overrides.
     #[must_use]
     pub fn new_with_backend_and_tuning(
         base_url: &str,
@@ -47,6 +51,7 @@ impl EmbeddingClient {
         )
     }
 
+    /// Construct a client with explicit MCP fallback URL.
     #[must_use]
     pub fn new_with_mcp_url(base_url: &str, timeout_secs: u64, mcp_url: Option<String>) -> Self {
         Self::new_with_mcp_url_and_backend_and_tuning(
@@ -59,6 +64,7 @@ impl EmbeddingClient {
         )
     }
 
+    /// Construct a client with explicit MCP fallback URL and backend hint.
     #[must_use]
     pub fn new_with_mcp_url_and_backend(
         base_url: &str,
@@ -76,6 +82,7 @@ impl EmbeddingClient {
         )
     }
 
+    /// Construct a client with full override control for backend and batch tuning.
     #[must_use]
     pub fn new_with_mcp_url_and_backend_and_tuning(
         base_url: &str,
@@ -126,8 +133,17 @@ impl EmbeddingClient {
             .max_in_flight
             .map(|limit| Arc::new(Semaphore::new(limit)));
         let normalized_base_url = base_url.trim_end_matches('/').to_string();
+        let display_base_url =
+            if backend_settings.mode == super::super::backend::EmbeddingBackendMode::MistralSdk {
+                "inproc://mistral-sdk".to_string()
+            } else {
+                normalized_base_url.clone()
+            };
         let mcp_fallback_url = mcp_url.as_deref().unwrap_or("");
         let default_model = backend_settings.default_model.clone();
+        let mistral_sdk_hf_cache_path = backend_settings.mistral_sdk_hf_cache_path.clone();
+        let mistral_sdk_hf_revision = backend_settings.mistral_sdk_hf_revision.clone();
+        let mistral_sdk_max_num_seqs = backend_settings.mistral_sdk_max_num_seqs;
         #[cfg(feature = "agent-provider-litellm")]
         let litellm_api_key = resolve_litellm_embed_api_key();
         #[cfg(feature = "agent-provider-litellm")]
@@ -141,10 +157,15 @@ impl EmbeddingClient {
             embed_max_in_flight = backend_settings.max_in_flight,
             embed_batch_max_size = batch_max_size,
             embed_batch_max_concurrency = batch_max_concurrency,
-            embed_base_url = normalized_base_url.as_str(),
+            embed_base_url = display_base_url.as_str(),
             embed_mcp_url = mcp_fallback_url,
             embed_default_model = default_model.as_deref().unwrap_or(""),
             has_default_model = default_model.is_some(),
+            mistral_sdk_hf_cache_path = mistral_sdk_hf_cache_path.as_deref().unwrap_or(""),
+            has_mistral_sdk_hf_cache_path = mistral_sdk_hf_cache_path.is_some(),
+            mistral_sdk_hf_revision = mistral_sdk_hf_revision.as_deref().unwrap_or(""),
+            has_mistral_sdk_hf_revision = mistral_sdk_hf_revision.is_some(),
+            mistral_sdk_max_num_seqs = mistral_sdk_max_num_seqs,
             embed_api_key_source,
             "embedding backend selected"
         );
@@ -162,6 +183,9 @@ impl EmbeddingClient {
             batch_max_size,
             batch_max_concurrency,
             default_model,
+            mistral_sdk_hf_cache_path,
+            mistral_sdk_hf_revision,
+            mistral_sdk_max_num_seqs,
             #[cfg(feature = "agent-provider-litellm")]
             litellm_api_key: litellm_api_key.api_key,
         }
@@ -169,8 +193,5 @@ impl EmbeddingClient {
 }
 
 fn resolve_mcp_embed_url() -> Option<String> {
-    std::env::var("OMNI_MCP_EMBED_URL")
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
+    env_non_empty!("OMNI_MCP_EMBED_URL")
 }

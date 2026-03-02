@@ -11,6 +11,9 @@ impl TelegramSettings {
         Self {
             acl: self.acl.merge(overlay.acl),
             session_admin_persist: overlay.session_admin_persist.or(self.session_admin_persist),
+            session_partition_persist: overlay
+                .session_partition_persist
+                .or(self.session_partition_persist),
             group_policy: overlay.group_policy.or(self.group_policy),
             group_allow_from: overlay.group_allow_from.or(self.group_allow_from),
             require_mention: overlay.require_mention.or(self.require_mention),
@@ -39,6 +42,7 @@ impl TelegramSettings {
             foreground_turn_timeout_secs: overlay
                 .foreground_turn_timeout_secs
                 .or(self.foreground_turn_timeout_secs),
+            foreground_queue_mode: overlay.foreground_queue_mode.or(self.foreground_queue_mode),
             foreground_session_gate_backend: overlay
                 .foreground_session_gate_backend
                 .or(self.foreground_session_gate_backend),
@@ -79,8 +83,7 @@ impl TelegramAclAllowSettings {
 }
 
 impl TelegramAclPrincipalSettings {
-    #[allow(clippy::unused_self)]
-    fn merge(self, overlay: Self) -> Self {
+    fn merge(_base: Self, overlay: Self) -> Self {
         overlay
     }
 }
@@ -153,9 +156,10 @@ fn merge_option_telegram_principal_settings(
     match (base, overlay) {
         (None, None) => None,
         (Some(settings), None) | (None, Some(settings)) => Some(settings),
-        (Some(base_settings), Some(overlay_settings)) => {
-            Some(base_settings.merge(overlay_settings))
-        }
+        (Some(base_settings), Some(overlay_settings)) => Some(TelegramAclPrincipalSettings::merge(
+            base_settings,
+            overlay_settings,
+        )),
     }
 }
 

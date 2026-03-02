@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Omni-Agent Memory Self-Evolution and Self-Repair"
 category: "references"
 tags:
@@ -6,6 +7,8 @@ tags:
   - omni
 saliency_base: 5.5
 decay_rate: 0.05
+metadata:
+  title: "Omni-Agent Memory Self-Evolution and Self-Repair"
 ---
 
 # Omni-Agent Memory Self-Evolution and Self-Repair

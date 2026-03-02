@@ -41,20 +41,26 @@ impl KnowledgeStorage {
         format!("{}:entries", self.resolve_key_prefix())
     }
 
-    #[allow(clippy::unused_self)]
-    pub(super) fn redis_client(&self) -> Result<redis::Client, Box<dyn std::error::Error>> {
+    pub(super) fn redis_client() -> Result<redis::Client, Box<dyn std::error::Error>> {
         let url = Self::resolve_valkey_url()?;
         Ok(redis::Client::open(url.as_str())?)
     }
 
-    pub(super) fn load_all_entries(
+    pub(super) async fn redis_connection(
+        &self,
+    ) -> Result<redis::aio::MultiplexedConnection, Box<dyn std::error::Error>> {
+        let client = Self::redis_client()?;
+        Ok(client.get_multiplexed_async_connection().await?)
+    }
+
+    pub(super) async fn load_all_entries(
         &self,
     ) -> Result<Vec<KnowledgeEntry>, Box<dyn std::error::Error>> {
-        let client = self.redis_client()?;
-        let mut conn = client.get_connection()?;
+        let mut conn = self.redis_connection().await?;
         let raw_entries: Vec<String> = redis::cmd("HVALS")
             .arg(self.entries_key())
-            .query(&mut conn)?;
+            .query_async(&mut conn)
+            .await?;
         raw_entries
             .into_iter()
             .map(|raw| {

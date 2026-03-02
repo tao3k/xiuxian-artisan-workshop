@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "problem-solving"
+---
+
 Problem Solving Guide
 
 > Learn from debugging sessions. Document patterns to avoid repeated mistakes.

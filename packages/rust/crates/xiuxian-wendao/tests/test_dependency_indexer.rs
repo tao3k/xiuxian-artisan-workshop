@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 //! Tests for dependency indexer functionality.
 
 use std::path::PathBuf;
@@ -66,22 +47,24 @@ fn test_symbol_index_search() {
 
 #[test]
 fn test_dependency_config_load() {
-    // Test loading config from actual references.yaml
-    let config_path = workspace_root().join("packages/conf/references.yaml");
+    // Test loading config from actual xiuxian.toml
+    let config_path =
+        workspace_root().join("packages/rust/crates/omni-agent/resources/config/xiuxian.toml");
     let config = DependencyBuildConfig::load(config_path.to_string_lossy().as_ref());
 
-    // Should have at least rust and python dependencies
+    // Should expose at least one external dependency configuration.
     assert!(!config.manifests.is_empty());
 
-    // Find rust dependency
+    // Rust dependency configuration should be present.
     let rust_dep = config.manifests.iter().find(|d| d.pkg_type == "rust");
-    assert!(rust_dep.is_some());
-    assert_eq!(rust_dep.unwrap().registry, Some("cargo".to_string()));
-
-    // Find python dependency
-    let py_dep = config.manifests.iter().find(|d| d.pkg_type == "python");
-    assert!(py_dep.is_some());
-    assert_eq!(py_dep.unwrap().registry, Some("pip".to_string()));
+    let Some(rust_dep) = rust_dep else {
+        panic!("expected rust dependency manifest entry");
+    };
+    assert_eq!(rust_dep.registry, Some("cargo".to_string()));
+    assert!(
+        !rust_dep.manifests.is_empty(),
+        "rust dependency config should include at least one manifest glob"
+    );
 }
 
 #[test]

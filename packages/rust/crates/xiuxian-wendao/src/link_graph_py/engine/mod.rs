@@ -133,8 +133,8 @@ impl PyLinkGraphEngine {
     }
 
     /// Generate GRAG narrative hard-prompt from hits JSON.
-    #[allow(clippy::unused_self)]
-    fn narrate_hits_json(&self, hits_json: &str) -> PyResult<String> {
+    #[staticmethod]
+    fn narrate_hits_json(hits_json: &str) -> PyResult<String> {
         Self::narrate_hits_json_impl(hits_json)
     }
 }

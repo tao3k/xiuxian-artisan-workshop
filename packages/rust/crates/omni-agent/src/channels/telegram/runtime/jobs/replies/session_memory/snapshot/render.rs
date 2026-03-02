@@ -90,15 +90,14 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
     lines.join("\n")
 }
 
-#[allow(clippy::needless_pass_by_value)]
 pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapshot_telegram(
-    snapshot: crate::agent::SessionMemoryRecallSnapshot,
-    metrics: crate::agent::MemoryRecallMetricsSnapshot,
-    runtime_status: crate::agent::MemoryRuntimeStatusSnapshot,
-    admission_status: crate::agent::DownstreamAdmissionRuntimeSnapshot,
+    snapshot: &crate::agent::SessionMemoryRecallSnapshot,
+    metrics: &crate::agent::MemoryRecallMetricsSnapshot,
+    runtime_status: &crate::agent::MemoryRuntimeStatusSnapshot,
+    admission_status: &crate::agent::DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
-    let backend_ready = memory_backend_ready(&runtime_status);
+    let backend_ready = memory_backend_ready(runtime_status);
     [
         "## Session Memory".to_string(),
         format!("Captured at unix ms: `{}`", snapshot.created_at_unix_ms),
@@ -140,7 +139,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
             format_optional_str(runtime_status.active_backend),
             format_optional_string(runtime_status.configured_backend.clone())
         ),
-        format_memory_gate_policy_compact_line(&runtime_status),
+        format_memory_gate_policy_compact_line(runtime_status),
         format_downstream_admission_compact_line(admission_status),
         String::new(),
         "### Adaptive Metrics".to_string(),
@@ -164,7 +163,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
 pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapshot_json(
     snapshot: crate::agent::SessionMemoryRecallSnapshot,
     metrics: crate::agent::MemoryRecallMetricsSnapshot,
-    runtime_status: crate::agent::MemoryRuntimeStatusSnapshot,
+    runtime_status: &crate::agent::MemoryRuntimeStatusSnapshot,
     admission_status: crate::agent::DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
@@ -201,7 +200,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_snapsho
             "weakest_score": snapshot.weakest_score,
         },
         "runtime": format_memory_runtime_status_json(runtime_status),
-        "admission": format_downstream_admission_status_json(admission_status),
+        "admission": format_downstream_admission_status_json(&admission_status),
         "metrics": format_memory_recall_metrics_json(metrics),
     })
     .to_string()

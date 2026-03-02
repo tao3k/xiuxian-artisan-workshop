@@ -1,7 +1,6 @@
-#[allow(clippy::doc_markdown)]
 impl VectorStore {
-    /// Infer (skill_name, tool_name) from canonical id (e.g. "knowledge.ingest_document" -> ("knowledge", "ingest_document")).
-    /// Ensures list_all_tools output always has valid skill_name/tool_name for discovery.
+    /// Infer (`skill_name`, `tool_name`) from canonical id (e.g. "`knowledge.ingest_document`" -> ("knowledge", "`ingest_document`")).
+    /// Ensures `list_all_tools` output always has valid `skill_name/tool_name` for discovery.
     fn infer_skill_tool_from_id(id: &str) -> (String, String) {
         let id = id.trim();
         if id.is_empty() {
@@ -25,7 +24,7 @@ impl VectorStore {
 
     /// List all tools in a specific table.
     /// When `source_filter` is set (e.g. "2601.03192.pdf"), applies predicate pushdown:
-    /// `metadata LIKE '%{source}%'` so only matching rows are scanned (reduces I/O ~98% for full_document).
+    /// `metadata LIKE '%{source}%'` so only matching rows are scanned (reduces I/O ~98% for `full_document`).
     /// Multiple source filters can be provided by joining terms with `||`.
     /// When `row_limit` is set, applies scanner limit to cap returned rows.
     ///

@@ -18,3 +18,5 @@ pub(in crate::channels::telegram::runtime::jobs::command_handlers) const EVENT_T
     "telegram.command.slash_help.replied";
 pub(in crate::channels::telegram::runtime::jobs::command_handlers) const EVENT_TELEGRAM_COMMAND_SLASH_HELP_JSON_REPLIED: &str =
     "telegram.command.slash_help_json.replied";
+pub(in crate::channels::telegram::runtime::jobs::command_handlers) const EVENT_TELEGRAM_COMMAND_AGENDA_REPLIED: &str =
+    "telegram.command.agenda.replied";

@@ -1,0 +1,17 @@
+[package]
+name = "xiuxian-macros"
+version = "0.1.0"
+edition = "2021"
+description = "Common macros for xiuxian Rust crates"
+
+[lints]
+workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
+proc-macro2 = "1.0"
+uuid = { version = "1.0", features = ["v4"] }

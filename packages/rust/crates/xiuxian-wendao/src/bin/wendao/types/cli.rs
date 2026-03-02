@@ -20,7 +20,7 @@ pub(crate) struct Cli {
     )]
     pub root: PathBuf,
 
-    /// Explicit wendao config file path (for example: `.config/omni-dev-fusion/wendao.yaml`).
+    /// Explicit wendao config file path (for example: `.config/xiuxian-artisan-workshop/wendao.yaml`).
     ///
     /// This overrides the default user settings path resolution.
     #[arg(long = "conf", short = 'c', value_name = "FILE", global = true)]

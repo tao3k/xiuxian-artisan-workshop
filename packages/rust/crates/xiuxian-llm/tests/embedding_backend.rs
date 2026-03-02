@@ -1,16 +1,4 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
+//! Embedding backend parsing tests.
 
 use xiuxian_llm::embedding::backend::{EmbeddingBackendKind, parse_embedding_backend_kind};
 
@@ -27,26 +15,18 @@ fn parse_backend_kind_supports_legacy_http_aliases() {
 }
 
 #[test]
-fn parse_backend_kind_supports_openai_and_mistral_aliases() {
+fn parse_backend_kind_supports_openai_and_mistral_sdk_aliases() {
     assert_eq!(
         parse_embedding_backend_kind(Some("openai_http")),
         Some(EmbeddingBackendKind::OpenAiHttp)
     );
     assert_eq!(
-        parse_embedding_backend_kind(Some("mistral_rs")),
-        Some(EmbeddingBackendKind::MistralLocal)
+        parse_embedding_backend_kind(Some("mistral_sdk")),
+        Some(EmbeddingBackendKind::MistralSdk)
     );
     assert_eq!(
-        parse_embedding_backend_kind(Some("mistral-http")),
-        Some(EmbeddingBackendKind::MistralLocal)
-    );
-    assert_eq!(
-        parse_embedding_backend_kind(Some("mistral_server")),
-        Some(EmbeddingBackendKind::MistralLocal)
-    );
-    assert_eq!(
-        parse_embedding_backend_kind(Some("mistral_local")),
-        Some(EmbeddingBackendKind::MistralLocal)
+        parse_embedding_backend_kind(Some("mistral-inproc")),
+        Some(EmbeddingBackendKind::MistralSdk)
     );
 }
 

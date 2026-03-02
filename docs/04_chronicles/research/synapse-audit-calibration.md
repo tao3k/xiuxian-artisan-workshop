@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Note: Synapse-Audit Calibration Algorithm (2025)"
+---
+
 # Note: Synapse-Audit Calibration Algorithm (2025)
 
 - **ID:** `20260222-SYNAPSE-CALIBRATION`

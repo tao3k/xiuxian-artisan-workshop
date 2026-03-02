@@ -1,17 +1,17 @@
 //! Tests for RRF Fusion algorithms
 //!
-//! Tests for apply_rrf, apply_weighted_rrf, and apply_adaptive_rrf
+//! Tests for `apply_rrf`, `apply_weighted_rrf`, and `apply_adaptive_rrf`
 
 use omni_vector::ToolSearchResult;
 use omni_vector::keyword::{
     KEYWORD_WEIGHT, RRF_K, SEMANTIC_WEIGHT, apply_adaptive_rrf, apply_rrf, apply_weighted_rrf,
 };
 
-/// Helper to create a ToolSearchResult for testing
+/// Helper to create a `ToolSearchResult` for testing.
 fn make_tool_result(name: &str, score: f32) -> ToolSearchResult {
     ToolSearchResult {
         name: name.to_string(),
-        description: format!("Description of {}", name),
+        description: format!("Description of {name}"),
         input_schema: serde_json::json!({}),
         score,
         vector_score: None,
@@ -127,7 +127,7 @@ fn test_weighted_rrf_pure_vector_search() {
 
     assert!(!results.is_empty());
     assert_eq!(results[0].tool_name, "git_commit");
-    assert_eq!(results[0].keyword_score, 0.0);
+    assert!((results[0].keyword_score - 0.0).abs() < f32::EPSILON);
     // Vector score should be preserved
     assert!((results[0].vector_score - 0.90).abs() < 0.001);
 }
@@ -152,10 +152,12 @@ fn test_weighted_rrf_field_boosting_in_fallback() {
     );
 
     // git_commit should get name token boost
-    let commit_result = results
-        .iter()
-        .find(|r| r.tool_name == "git_commit")
-        .unwrap();
+    let commit_result = results.iter().find(|r| r.tool_name == "git_commit");
+    assert!(
+        commit_result.is_some(),
+        "Expected git_commit in fusion results"
+    );
+    let commit_result = commit_result.unwrap_or(&results[0]);
     assert!(commit_result.rrf_score > 0.8); // Boost applied
 }
 
@@ -202,11 +204,13 @@ fn test_weighted_rrf_fallback_bonus_computation() {
         "fn process",
     );
 
-    let high = results
-        .iter()
-        .find(|r| r.tool_name == "high_score")
-        .unwrap();
-    let low = results.iter().find(|r| r.tool_name == "low_score").unwrap();
+    let high = results.iter().find(|r| r.tool_name == "high_score");
+    assert!(high.is_some(), "Expected high_score in fusion results");
+    let high = high.unwrap_or(&results[0]);
+
+    let low = results.iter().find(|r| r.tool_name == "low_score");
+    assert!(low.is_some(), "Expected low_score in fusion results");
+    let low = low.unwrap_or(&results[0]);
 
     // High score should have significantly higher RRF due to fallback bonus
     assert!(high.rrf_score > low.rrf_score);
@@ -236,7 +240,7 @@ fn test_weighted_rrf_empty_vector_results() {
     // Should still return keyword-only results
     assert_eq!(results.len(), 2);
     assert_eq!(results[0].tool_name, "git_commit");
-    assert_eq!(results[0].vector_score, 0.0);
+    assert!((results[0].vector_score - 0.0).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -387,10 +391,12 @@ fn test_adaptive_rrf_field_boosting() {
     );
 
     // git_commit should get name token boost
-    let commit_result = results
-        .iter()
-        .find(|r| r.tool_name == "git_commit")
-        .unwrap();
+    let commit_result = results.iter().find(|r| r.tool_name == "git_commit");
+    assert!(
+        commit_result.is_some(),
+        "Expected git_commit in adaptive results"
+    );
+    let commit_result = commit_result.unwrap_or(&results[0]);
     assert!(commit_result.rrf_score > 0.7); // Token boost applied
 }
 
@@ -410,11 +416,13 @@ fn test_adaptive_rrf_keyword_only_penalty() {
     );
 
     // keyword_only_tool should be ranked lower due to penalty
-    let keyword_only = results
-        .iter()
-        .find(|r| r.tool_name == "keyword_only_tool")
-        .unwrap();
-    assert_eq!(keyword_only.vector_score, 0.0);
+    let keyword_only = results.iter().find(|r| r.tool_name == "keyword_only_tool");
+    assert!(
+        keyword_only.is_some(),
+        "Expected keyword_only_tool in adaptive results"
+    );
+    let keyword_only = keyword_only.unwrap_or(&results[0]);
+    assert!((keyword_only.vector_score - 0.0).abs() < f32::EPSILON);
     // The score should be penalized (0.5 multiplier for vector-miss)
 }
 
@@ -425,14 +433,14 @@ fn test_adaptive_rrf_confidence_calculation() {
 
     // 5+ results -> confidence = 1.0
     let kw_5plus: Vec<ToolSearchResult> = (0..5)
-        .map(|i| make_tool_result(&format!("t{}", i), 1.0))
+        .map(|i| make_tool_result(&format!("t{i}"), 1.0))
         .collect();
     let r5plus = apply_adaptive_rrf(vector_results.clone(), kw_5plus, RRF_K, 1.0, 1.5, "test");
     assert!(r5plus[0].rrf_score > 0.05); // Normal scoring
 
     // 3 results -> confidence = 0.6
     let kw_3: Vec<ToolSearchResult> = (0..3)
-        .map(|i| make_tool_result(&format!("t{}", i), 1.0))
+        .map(|i| make_tool_result(&format!("t{i}"), 1.0))
         .collect();
     let _r3 = apply_adaptive_rrf(vector_results.clone(), kw_3, RRF_K, 1.0, 1.5, "test");
 

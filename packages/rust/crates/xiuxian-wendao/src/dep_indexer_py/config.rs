@@ -73,7 +73,7 @@ impl PyDependencyConfig {
             .collect()
     }
 
-    /// Load config from a YAML file path.
+    /// Load config from a TOML file path.
     #[staticmethod]
     #[pyo3(signature = (path))]
     fn load(path: &str) -> Self {

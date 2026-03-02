@@ -10,9 +10,19 @@ impl KnowledgeGraph {
     ///
     /// # Errors
     ///
-    /// This currently never returns an error and is modeled as `Result` for API compatibility.
-    #[allow(clippy::unnecessary_wraps)]
+    /// Returns [`GraphError::InvalidEntity`] when required entity fields are empty.
     pub fn add_entity(&self, entity: Entity) -> Result<bool, GraphError> {
+        if entity.id.trim().is_empty() {
+            return Err(GraphError::InvalidEntity(
+                "entity id must not be empty".to_string(),
+            ));
+        }
+        if entity.name.trim().is_empty() {
+            return Err(GraphError::InvalidEntity(
+                "entity name must not be empty".to_string(),
+            ));
+        }
+
         let mut entities = write_lock(&self.entities);
         let mut entities_by_name = write_lock(&self.entities_by_name);
         let mut entities_by_type = write_lock(&self.entities_by_type);
@@ -26,6 +36,7 @@ impl KnowledgeGraph {
             existing.aliases = entity.aliases;
             existing.confidence = entity.confidence;
             existing.updated_at = entity.updated_at;
+            existing.metadata.extend(entity.metadata);
             info!("Updated entity: {}", entity.name);
             return Ok(false);
         }

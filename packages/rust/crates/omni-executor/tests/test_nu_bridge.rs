@@ -1,9 +1,24 @@
 //! Integration tests for Nushell system bridge.
 
 use omni_executor::{ActionType, NuConfig, NuSystemBridge};
+use std::fmt::Display;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+fn must_ok<T, E: Display>(result: Result<T, E>, context: &str) -> T {
+    match result {
+        Ok(value) => value,
+        Err(error) => panic!("{context}: {error}"),
+    }
+}
+
+fn must_some<T>(value: Option<T>, context: &str) -> T {
+    match value {
+        Some(inner) => inner,
+        None => panic!("{context}"),
+    }
+}
 
 fn create_temp_dir(prefix: &str) -> PathBuf {
     let nanos = SystemTime::now()
@@ -11,7 +26,7 @@ fn create_temp_dir(prefix: &str) -> PathBuf {
         .map(|d| d.as_nanos())
         .unwrap_or(0);
     let dir = std::env::temp_dir().join(format!("{prefix}_{}_{}", std::process::id(), nanos));
-    fs::create_dir_all(&dir).expect("failed to create temp dir");
+    must_ok(fs::create_dir_all(&dir), "failed to create temp dir");
     dir
 }
 
@@ -178,14 +193,20 @@ fn test_execute_observe_ls_fast_path_works_without_nu_binary() {
 
     let result = bridge.execute_with_action("ls .", ActionType::Observe, true);
     assert!(result.is_ok());
-    assert!(result.expect("ls fast-path should succeed").is_array());
+    assert!(must_ok(result, "ls fast-path should succeed").is_array());
 }
 
 #[test]
 fn test_execute_observe_ls_fast_path_hides_dotfiles_by_default() {
     let temp_dir = create_temp_dir("omni_executor_ls_default");
-    fs::write(temp_dir.join("visible.txt"), b"visible").expect("failed to create visible file");
-    fs::write(temp_dir.join(".hidden.txt"), b"hidden").expect("failed to create hidden file");
+    must_ok(
+        fs::write(temp_dir.join("visible.txt"), b"visible"),
+        "failed to create visible file",
+    );
+    must_ok(
+        fs::write(temp_dir.join(".hidden.txt"), b"hidden"),
+        "failed to create hidden file",
+    );
 
     let bridge = NuSystemBridge::with_config(NuConfig {
         nu_path: "/path/that/does/not/exist/nu".to_string(),
@@ -193,12 +214,14 @@ fn test_execute_observe_ls_fast_path_hides_dotfiles_by_default() {
         ..Default::default()
     });
     let command = format!("ls {}", temp_dir.display());
-    let rows = bridge
-        .execute_with_action(&command, ActionType::Observe, true)
-        .expect("ls fast-path should succeed")
-        .as_array()
-        .cloned()
-        .expect("ls fast-path should return array");
+    let response = must_ok(
+        bridge.execute_with_action(&command, ActionType::Observe, true),
+        "ls fast-path should succeed",
+    );
+    let rows = must_some(
+        response.as_array().cloned(),
+        "ls fast-path should return array",
+    );
 
     let names: Vec<String> = rows
         .iter()
@@ -217,8 +240,14 @@ fn test_execute_observe_ls_fast_path_hides_dotfiles_by_default() {
 #[test]
 fn test_execute_observe_ls_fast_path_can_include_dotfiles() {
     let temp_dir = create_temp_dir("omni_executor_ls_all");
-    fs::write(temp_dir.join("visible.txt"), b"visible").expect("failed to create visible file");
-    fs::write(temp_dir.join(".hidden.txt"), b"hidden").expect("failed to create hidden file");
+    must_ok(
+        fs::write(temp_dir.join("visible.txt"), b"visible"),
+        "failed to create visible file",
+    );
+    must_ok(
+        fs::write(temp_dir.join(".hidden.txt"), b"hidden"),
+        "failed to create hidden file",
+    );
 
     let bridge = NuSystemBridge::with_config(NuConfig {
         nu_path: "/path/that/does/not/exist/nu".to_string(),
@@ -226,12 +255,14 @@ fn test_execute_observe_ls_fast_path_can_include_dotfiles() {
         ..Default::default()
     });
     let command = format!("ls -a {}", temp_dir.display());
-    let rows = bridge
-        .execute_with_action(&command, ActionType::Observe, true)
-        .expect("ls fast-path should succeed")
-        .as_array()
-        .cloned()
-        .expect("ls fast-path should return array");
+    let response = must_ok(
+        bridge.execute_with_action(&command, ActionType::Observe, true),
+        "ls fast-path should succeed",
+    );
+    let rows = must_some(
+        response.as_array().cloned(),
+        "ls fast-path should return array",
+    );
 
     let names: Vec<String> = rows
         .iter()

@@ -11,8 +11,8 @@ use super::super::command_handlers::session_commands::{
     try_handle_session_partition_command,
 };
 use super::super::command_handlers::session_control::{
-    try_handle_help_command, try_handle_reset_context_command, try_handle_resume_context_command,
-    try_handle_stop_command,
+    try_handle_agenda_command, try_handle_help_command, try_handle_reset_context_command,
+    try_handle_resume_context_command, try_handle_stop_command,
 };
 
 pub(super) async fn try_handle(
@@ -23,6 +23,9 @@ pub(super) async fn try_handle(
     session_id: &str,
 ) -> bool {
     if try_handle_help_command(msg, channel).await {
+        return true;
+    }
+    if try_handle_agenda_command(msg, channel, agent).await {
         return true;
     }
     if try_handle_reset_context_command(msg, channel, agent, session_id).await {

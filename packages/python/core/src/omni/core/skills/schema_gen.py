@@ -33,7 +33,7 @@ def _get_tool_schema_path() -> Path:
 
     return resolve_schema_file_path(
         "tool.schema.yaml",
-        preferred_crates=("omni-scanner",),
+        preferred_crates=("xiuxian-skills",),
     )
 
 

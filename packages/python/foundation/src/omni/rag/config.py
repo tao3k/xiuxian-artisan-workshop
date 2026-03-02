@@ -258,7 +258,7 @@ _rag_config: RAGConfig | None = None
 def get_rag_config() -> RAGConfig:
     """Get the RAG configuration singleton.
 
-    Loads configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml) if available,
+    Loads configuration from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml) if available,
     otherwise returns default configuration.
 
     Returns:

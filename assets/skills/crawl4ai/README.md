@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "crawl4ai"
+---
+
 # crawl4ai
 
 High-performance web crawler with intelligent chunking for Omni-Dev-Fusion.

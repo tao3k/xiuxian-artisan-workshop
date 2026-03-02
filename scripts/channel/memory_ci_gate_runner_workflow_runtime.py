@@ -6,6 +6,13 @@ from __future__ import annotations
 import sys
 from typing import Any
 
+from resolve_mcp_endpoint import resolve_mcp_endpoint
+
+
+def _local_host() -> str:
+    """Resolve local host used by runtime webhook/mock endpoints."""
+    return str(resolve_mcp_endpoint()["host"])
+
 
 def build_agent_command(cfg: Any) -> list[str]:
     """Build omni-agent runtime command for CI gate."""
@@ -18,7 +25,7 @@ def build_agent_command(cfg: Any) -> list[str]:
             "--mode",
             "webhook",
             "--webhook-bind",
-            f"127.0.0.1:{cfg.webhook_port}",
+            f"{_local_host()}:{cfg.webhook_port}",
             "--webhook-secret-token",
             cfg.webhook_secret,
             "--verbose",
@@ -35,7 +42,7 @@ def build_agent_command(cfg: Any) -> list[str]:
         "--mode",
         "webhook",
         "--webhook-bind",
-        f"127.0.0.1:{cfg.webhook_port}",
+        f"{_local_host()}:{cfg.webhook_port}",
         "--webhook-secret-token",
         cfg.webhook_secret,
         "--verbose",
@@ -74,7 +81,7 @@ def start_runtime_stack(
             sys.executable,
             str(script_paths["mock_server"]),
             "--host",
-            "127.0.0.1",
+            _local_host(),
             "--port",
             str(cfg.telegram_api_port),
         ],
@@ -83,7 +90,7 @@ def start_runtime_stack(
         log_file=cfg.mock_log_file,
         title="Start mock Telegram API",
     )
-    wait_for_mock_health_fn("127.0.0.1", cfg.telegram_api_port)
+    wait_for_mock_health_fn(_local_host(), cfg.telegram_api_port)
 
     agent_cmd = build_agent_command(cfg)
     agent_process, agent_handle = start_background_process_fn(

@@ -1,0 +1,56 @@
+schema: omni.agent.mcp_tools_list_snapshot.v1
+updated_at_utc: "2026-02-25T23:05:36.857282+00:00"
+benchmark:
+  total_per_point: 1000
+  concurrency_values:
+    - 40
+    - 80
+    - 120
+    - 160
+    - 200
+  p95_slo_ms: 400.0
+  p99_slo_ms: 800.0
+defaults:
+  regression_factor: 2.0
+  min_regression_delta_ms: 40.0
+targets:
+  http://127.0.0.1:3302:
+    recommended_concurrency: 80
+    knee_concurrency: null
+    mean_rps: 661.6
+    points:
+      "40":
+        baseline_p95_ms: 173.84
+        baseline_p99_ms: 275.24
+        last_p95_ms: 173.84
+        last_p99_ms: 275.24
+        last_rps: 694.31
+        last_errors: 0
+      "80":
+        baseline_p95_ms: 272.89
+        baseline_p99_ms: 464.55
+        last_p95_ms: 272.89
+        last_p99_ms: 464.55
+        last_rps: 760.11
+        last_errors: 0
+      "120":
+        baseline_p95_ms: 492.05
+        baseline_p99_ms: 679.0
+        last_p95_ms: 492.05
+        last_p99_ms: 679.0
+        last_rps: 647.16
+        last_errors: 0
+      "160":
+        baseline_p95_ms: 702.48
+        baseline_p99_ms: 990.31
+        last_p95_ms: 702.48
+        last_p99_ms: 990.31
+        last_rps: 627.8
+        last_errors: 0
+      "200":
+        baseline_p95_ms: 888.64
+        baseline_p99_ms: 1406.66
+        last_p95_ms: 888.64
+        last_p99_ms: 1406.66
+        last_rps: 578.62
+        last_errors: 0

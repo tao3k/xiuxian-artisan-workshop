@@ -60,17 +60,8 @@ fn graph_snapshot_key(graph_scope: &str) -> String {
 }
 
 impl KnowledgeGraph {
-    /// Save graph snapshot to Valkey.
-    ///
-    /// `graph_scope` is a logical namespace key; same scope overwrites the same snapshot.
-    /// `dimension` is persisted for compatibility and diagnostics.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`GraphError`] when required environment variables are missing, Valkey cannot be
-    /// reached, or snapshot serialization fails.
-    #[allow(clippy::unused_async)]
-    pub async fn save_to_valkey(
+    /// Save graph snapshot to Valkey using blocking I/O.
+    pub(crate) fn save_to_valkey_sync(
         &self,
         graph_scope: &str,
         dimension: usize,
@@ -119,16 +110,21 @@ impl KnowledgeGraph {
         Ok(())
     }
 
-    /// Load graph snapshot from Valkey.
+    /// Save graph snapshot to Valkey.
     ///
-    /// Replaces in-memory graph with stored snapshot if present.
+    /// `graph_scope` is a logical namespace key; same scope overwrites the same snapshot.
+    /// `dimension` is persisted for compatibility and diagnostics.
     ///
     /// # Errors
     ///
-    /// Returns [`GraphError`] when required environment variables are missing, Valkey operations
-    /// fail, snapshot parsing fails, or restored graph entities/relations are invalid.
-    #[allow(clippy::unused_async)]
-    pub async fn load_from_valkey(&mut self, graph_scope: &str) -> Result<(), GraphError> {
+    /// Returns [`GraphError`] when required environment variables are missing, Valkey cannot be
+    /// reached, or snapshot serialization fails.
+    pub fn save_to_valkey(&self, graph_scope: &str, dimension: usize) -> Result<(), GraphError> {
+        self.save_to_valkey_sync(graph_scope, dimension)
+    }
+
+    /// Load graph snapshot from Valkey using blocking I/O.
+    pub(crate) fn load_from_valkey_sync(&mut self, graph_scope: &str) -> Result<(), GraphError> {
         let valkey_url = resolve_graph_valkey_url()?;
         let snapshot_key = graph_snapshot_key(graph_scope);
 
@@ -157,7 +153,7 @@ impl KnowledgeGraph {
             self.add_entity(entity)?;
         }
         for relation in snapshot.relations {
-            self.add_relation(relation)?;
+            self.add_relation(&relation)?;
         }
 
         let stats = self.get_stats();
@@ -167,5 +163,17 @@ impl KnowledgeGraph {
         );
 
         Ok(())
+    }
+
+    /// Load graph snapshot from Valkey.
+    ///
+    /// Replaces in-memory graph with stored snapshot if present.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GraphError`] when required environment variables are missing, Valkey operations
+    /// fail, snapshot parsing fails, or restored graph entities/relations are invalid.
+    pub fn load_from_valkey(&mut self, graph_scope: &str) -> Result<(), GraphError> {
+        self.load_from_valkey_sync(graph_scope)
     }
 }

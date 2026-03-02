@@ -1,5 +1,5 @@
 """
-paper_workflow.py - LangGraph workflow to read any long ingested content in chunks.
+paper_workflow.py - Native workflow to read any long ingested content in chunks.
 
 Applies to papers, manuals, long docs, or any vector-stored content. Flow:
   1. Preview: recall(query, preview=True, limit=N) → titles/snippets to verify accuracy.
@@ -17,12 +17,12 @@ from typing import Any, TypedDict
 
 from omni.foundation.api.mcp_schema import parse_result_payload
 from omni.foundation.config.logging import get_logger
+from omni.foundation.context_delivery.chunked_workflows import run_chunked_auto_complete
 from omni.foundation.runtime.skill_optimization import (
     build_preview_rows,
     normalize_chunk_window,
     split_into_batches,
 )
-from omni.langgraph.chunked import run_chunked_auto_complete
 from omni.rag.retrieval.response import build_recall_chunked_response
 
 logger = get_logger("knowledge.paper_workflow")

@@ -4,8 +4,9 @@ use reqwest::Client;
 
 use super::types::EmbedBatchResponse;
 
-const EMBED_HTTP_RETRY_DELAY_MS: u64 = 40;
-const EMBED_HTTP_MAX_ATTEMPTS: usize = 2;
+const EMBED_HTTP_RETRY_BASE_DELAY_MS: u64 = 80;
+const EMBED_HTTP_RETRY_MAX_DELAY_MS: u64 = 1_000;
+const EMBED_HTTP_MAX_ATTEMPTS: usize = 8;
 
 pub(crate) async fn embed_http(
     client: &Client,
@@ -29,16 +30,18 @@ pub(crate) async fn embed_http(
                 let should_retry =
                     attempt < EMBED_HTTP_MAX_ATTEMPTS && should_retry_http_request_error(&error);
                 if should_retry {
+                    let retry_delay = retry_delay_for_attempt(attempt);
                     tracing::debug!(
                         event = "agent.embedding.http.request_retry",
                         url,
                         attempt,
                         max_attempts = EMBED_HTTP_MAX_ATTEMPTS,
+                        retry_delay_ms = retry_delay.as_millis(),
                         elapsed_ms = started.elapsed().as_millis(),
                         error = %error,
                         "embedding http request failed; retrying"
                     );
-                    tokio::time::sleep(Duration::from_millis(EMBED_HTTP_RETRY_DELAY_MS)).await;
+                    tokio::time::sleep(retry_delay).await;
                     continue;
                 }
                 tracing::debug!(
@@ -56,15 +59,17 @@ pub(crate) async fn embed_http(
         if !resp.status().is_success() {
             let should_retry = attempt < EMBED_HTTP_MAX_ATTEMPTS && resp.status().is_server_error();
             if should_retry {
+                let retry_delay = retry_delay_for_attempt(attempt);
                 tracing::debug!(
                     event = "agent.embedding.http.retry_on_server_error",
                     status = %resp.status(),
                     attempt,
                     max_attempts = EMBED_HTTP_MAX_ATTEMPTS,
+                    retry_delay_ms = retry_delay.as_millis(),
                     elapsed_ms = started.elapsed().as_millis(),
                     "embedding http returned server error; retrying"
                 );
-                tokio::time::sleep(Duration::from_millis(EMBED_HTTP_RETRY_DELAY_MS)).await;
+                tokio::time::sleep(retry_delay).await;
                 continue;
             }
             tracing::debug!(
@@ -109,4 +114,12 @@ fn should_retry_http_request_error(error: &reqwest::Error) -> bool {
     error.is_connect()
         || error.is_timeout()
         || error.to_string().contains("error sending request for url")
+}
+
+fn retry_delay_for_attempt(attempt: usize) -> Duration {
+    let attempt_index = attempt.saturating_sub(1);
+    let shift = u32::try_from(attempt_index.min(6)).unwrap_or(6);
+    let factor = 1_u64.checked_shl(shift).unwrap_or(u64::MAX);
+    let delay_ms = EMBED_HTTP_RETRY_BASE_DELAY_MS.saturating_mul(factor);
+    Duration::from_millis(delay_ms.min(EMBED_HTTP_RETRY_MAX_DELAY_MS))
 }

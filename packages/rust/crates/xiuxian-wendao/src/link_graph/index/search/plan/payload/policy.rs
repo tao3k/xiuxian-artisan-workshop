@@ -3,7 +3,8 @@ use crate::link_graph::{
     LINK_GRAPH_REASON_GRAPH_INSUFFICIENT, LINK_GRAPH_REASON_GRAPH_ONLY_REQUESTED,
     LINK_GRAPH_REASON_GRAPH_ONLY_REQUESTED_EMPTY, LINK_GRAPH_REASON_GRAPH_SUFFICIENT,
     LINK_GRAPH_REASON_VECTOR_ONLY_REQUESTED, LinkGraphConfidenceLevel, LinkGraphHit,
-    LinkGraphRetrievalBudget, LinkGraphRetrievalMode, LinkGraphRetrievalPlanRecord,
+    LinkGraphRetrievalBudget, LinkGraphRetrievalMode, LinkGraphRetrievalPlanInput,
+    LinkGraphRetrievalPlanRecord,
 };
 use std::collections::HashSet;
 
@@ -136,17 +137,17 @@ pub(super) fn evaluate_link_graph_policy(
         max_sources: runtime.max_sources.max(1),
         rows_per_source: runtime.graph_rows_per_source.max(1),
     };
-    let retrieval_plan = LinkGraphRetrievalPlanRecord::new(
+    let retrieval_plan = LinkGraphRetrievalPlanRecord::new(LinkGraphRetrievalPlanInput {
         requested_mode,
         selected_mode,
-        reason.clone(),
-        "wendao".to_string(),
+        reason: reason.clone(),
+        backend_name: "wendao".to_string(),
         graph_hit_count,
         source_hint_count,
         graph_confidence_score,
         graph_confidence_level,
         budget,
-    );
+    });
 
     LinkGraphPolicyDecision {
         requested_mode,

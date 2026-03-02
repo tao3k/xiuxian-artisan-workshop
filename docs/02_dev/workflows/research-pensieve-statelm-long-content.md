@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Pensieve / StateLM vs Omni Long Content: Research & Integration"
 category: "workflows"
 tags:
@@ -6,6 +7,8 @@ tags:
   - research
 saliency_base: 6.0
 decay_rate: 0.05
+metadata:
+  title: "Pensieve / StateLM vs Omni Long Content: Research & Integration"
 ---
 
 # Pensieve / StateLM vs Omni Long Content: Research & Integration

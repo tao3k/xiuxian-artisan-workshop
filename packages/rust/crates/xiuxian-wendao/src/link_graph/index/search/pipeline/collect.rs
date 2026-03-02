@@ -1,42 +1,19 @@
-use super::super::super::{
-    LinkGraphIndex, LinkGraphScope, LinkGraphSearchOptions, ScoredSearchRow,
-};
-use super::super::context::SearchExecutionContext;
+use super::super::super::{LinkGraphIndex, LinkGraphSearchOptions, ScoredSearchRow};
+use super::super::context::{SearchExecutionContext, SearchRuntimePolicy};
 use std::collections::HashSet;
 
 impl LinkGraphIndex {
-    #[allow(clippy::too_many_arguments)]
     pub(in crate::link_graph::index::search) fn collect_search_rows(
         &self,
         options: &LinkGraphSearchOptions,
         context: &SearchExecutionContext,
         graph_candidates: Option<&HashSet<String>>,
-        scope: LinkGraphScope,
-        structural_edges_enabled: bool,
-        semantic_edges_enabled: bool,
-        collapse_to_doc: bool,
-        per_doc_section_cap: usize,
-        min_section_words: usize,
-        max_heading_level: usize,
-        max_tree_hops: Option<usize>,
+        runtime_policy: &SearchRuntimePolicy,
     ) -> Vec<ScoredSearchRow> {
         self.docs_by_id
             .values()
             .flat_map(|doc| {
-                self.evaluate_doc_rows(
-                    doc,
-                    options,
-                    context,
-                    graph_candidates,
-                    scope,
-                    structural_edges_enabled,
-                    semantic_edges_enabled,
-                    collapse_to_doc,
-                    per_doc_section_cap,
-                    min_section_words,
-                    max_heading_level,
-                    max_tree_hops,
-                )
+                self.evaluate_doc_rows(doc, options, context, graph_candidates, runtime_policy)
             })
             .collect()
     }

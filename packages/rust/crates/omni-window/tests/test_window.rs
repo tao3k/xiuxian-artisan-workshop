@@ -1,4 +1,4 @@
-//! Integration tests for SessionWindow.
+//! Integration tests for `SessionWindow`.
 
 use omni_window::SessionWindow;
 

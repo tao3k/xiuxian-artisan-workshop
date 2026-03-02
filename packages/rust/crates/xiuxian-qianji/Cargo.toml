@@ -21,19 +21,26 @@ async-trait = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 redis = { workspace = true, features = ["tokio-comp"] }
 log = { workspace = true }
-futures = "0.3"
-rand = "0.8"
+futures = { workspace = true }
+rand = { workspace = true }
+md5 = { workspace = true }
+include_dir = { workspace = true }
 xiuxian-wendao = { path = "../xiuxian-wendao" }
 xiuxian-qianhuan = { path = "../xiuxian-qianhuan" }
 omni-ast = { path = "../omni-ast" }
+xiuxian-macros = { path = "../xiuxian-macros" }
+xiuxian-zhenfa = { path = "../xiuxian-zhenfa" }
 xiuxian-llm = { path = "../xiuxian-llm", optional = true }
+omni-window = { path = "../omni-window" }
 pyo3 = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+xiuxian-zhixing = { path = "../xiuxian-zhixing" }
 
 [lints]
 workspace = true

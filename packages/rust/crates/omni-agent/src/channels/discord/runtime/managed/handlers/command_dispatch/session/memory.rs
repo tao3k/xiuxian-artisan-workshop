@@ -39,7 +39,7 @@ pub(in super::super) async fn handle_session_memory(
         Some(snapshot) if format.is_json() => format_memory_recall_snapshot_json(
             snapshot,
             metrics,
-            runtime_status,
+            &runtime_status,
             admission_status,
             session_id,
         ),
@@ -52,7 +52,7 @@ pub(in super::super) async fn handle_session_memory(
         ),
         None if format.is_json() => format_memory_recall_not_found_json(
             metrics,
-            runtime_status,
+            &runtime_status,
             admission_status,
             session_id,
         ),

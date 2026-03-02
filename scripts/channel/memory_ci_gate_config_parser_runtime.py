@@ -30,7 +30,7 @@ def add_runtime_args(parser: Any) -> None:
     parser.add_argument(
         "--valkey-url",
         default="",
-        help="Optional explicit Valkey URL (default: redis://127.0.0.1:<valkey-port>/0).",
+        help="Optional explicit Valkey URL (default: redis://<resolved-host>:<valkey-port>/<db>).",
     )
     parser.add_argument(
         "--valkey-prefix",

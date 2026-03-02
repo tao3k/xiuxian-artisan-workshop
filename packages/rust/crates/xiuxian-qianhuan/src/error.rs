@@ -1,47 +1,41 @@
-use std::fmt::{Display, Formatter};
+use thiserror::Error;
 
-/// Parse and validation errors for prompt injection payloads.
-#[derive(Debug, Clone, PartialEq)]
+/// Error during prompt context injection.
+#[derive(Debug, Error, PartialEq)]
 pub enum InjectionError {
-    /// Input XML payload is empty after trimming.
-    EmptyPayload,
-    /// Payload does not contain any parseable `<qa>` blocks.
-    MissingQaBlock,
-    /// A `<qa>` block is missing `<q>`.
-    MissingQuestion,
-    /// A `<qa>` block is missing `<a>`.
-    MissingAnswer,
-    /// Detected potential prompt injection or context drift.
-    ContextDrift(String),
-    /// XML structure validation failed (unbalanced tags or illegal nesting).
-    XmlValidationError(String),
-    /// Context is insufficient to ground the persona (CCS too low).
-    /// Carries a description of what is missing.
+    /// The requested template name was not found in the template registry.
+    #[error("Template not found: {0}")]
+    TemplateNotFound(String),
+    /// Template rendering failed due to invalid context or rendering runtime error.
+    #[error("Render failed: {0}")]
+    RenderFailed(String),
+    /// Internal unexpected failure.
+    #[error("Internal error: {0}")]
+    Internal(String),
+    /// Context quality is below minimum threshold.
+    #[error("Context insufficient: CCS={ccs}. Missing: {missing_info}")]
     ContextInsufficient {
-        /// Context Confidence Score for grounding quality.
+        /// Computed context confidence score.
         ccs: f64,
-        /// Human-readable explanation of missing grounding context.
+        /// Human-readable missing context summary.
         missing_info: String,
     },
+    /// XML payload or intermediate XML validation failed.
+    #[error("XML validation error: {0}")]
+    XmlValidationError(String),
+    /// Input payload is empty.
+    #[error("Empty payload")]
+    EmptyPayload,
+    /// Required QA block is missing.
+    #[error("Missing QA block")]
+    MissingQaBlock,
+    /// Required question field is missing.
+    #[error("Missing question")]
+    MissingQuestion,
+    /// Required answer field is missing.
+    #[error("Missing answer")]
+    MissingAnswer,
 }
 
-impl Display for InjectionError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::EmptyPayload => write!(f, "injection payload is empty"),
-            Self::MissingQaBlock => write!(f, "injection payload must contain at least one <qa>"),
-            Self::MissingQuestion => write!(f, "<qa> block missing required <q>"),
-            Self::MissingAnswer => write!(f, "<qa> block missing required <a>"),
-            Self::ContextDrift(msg) => write!(f, "context drift: {msg}"),
-            Self::XmlValidationError(msg) => write!(f, "XML validation: {msg}"),
-            Self::ContextInsufficient { ccs, missing_info } => {
-                write!(
-                    f,
-                    "insufficient context (CCS: {ccs:.2}). Missing: {missing_info}"
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for InjectionError {}
+/// Convenience result alias for manifestation operations.
+pub type Result<T> = std::result::Result<T, InjectionError>;

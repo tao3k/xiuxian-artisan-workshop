@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -49,15 +30,14 @@ fn test_query_tool_relevance_finds_tools_by_keyword() {
             routing_keywords: vec!["status".to_string(), "git".to_string()],
         },
     ];
-    graph.register_skill_entities(&docs).unwrap();
+    assert!(graph.register_skill_entities(&docs).is_ok());
 
     let results = graph.query_tool_relevance(&["commit".to_string()], 2, 10);
 
     let tool_names: Vec<&str> = results.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
         tool_names.contains(&"git.commit"),
-        "Expected git.commit in results, got: {:?}",
-        tool_names
+        "Expected git.commit in results, got: {tool_names:?}",
     );
 
     let commit_score = results
@@ -71,9 +51,7 @@ fn test_query_tool_relevance_finds_tools_by_keyword() {
     if let (Some(cs), Some(ss)) = (commit_score, status_score) {
         assert!(
             cs > ss,
-            "git.commit ({}) should score higher than git.status ({})",
-            cs,
-            ss,
+            "git.commit ({cs}) should score higher than git.status ({ss})",
         );
     }
 }
@@ -123,19 +101,17 @@ fn test_query_tool_relevance_multi_term() {
             routing_keywords: vec!["search".to_string(), "web".to_string()],
         },
     ];
-    graph.register_skill_entities(&docs).unwrap();
+    assert!(graph.register_skill_entities(&docs).is_ok());
 
     let results = graph.query_tool_relevance(&["search".to_string(), "recall".to_string()], 2, 10);
 
     let tool_names: Vec<&str> = results.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
         tool_names.contains(&"knowledge.recall"),
-        "Expected knowledge.recall, got: {:?}",
-        tool_names,
+        "Expected knowledge.recall, got: {tool_names:?}",
     );
     assert!(
         tool_names.contains(&"researcher.search"),
-        "Expected researcher.search, got: {:?}",
-        tool_names,
+        "Expected researcher.search, got: {tool_names:?}",
     );
 }

@@ -3,7 +3,7 @@ use serde_json::json;
 
 use crate::graph::{QueryIntent, extract_intent};
 
-/// Python wrapper for QueryIntent.
+/// Python wrapper for `QueryIntent`.
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct PyQueryIntent {
@@ -56,7 +56,7 @@ impl PyQueryIntent {
 
 /// Extract structured query intent from a natural-language query string.
 ///
-/// Returns a PyQueryIntent with action, target, context, and keywords.
+/// Returns a `PyQueryIntent` with action, target, context, and keywords.
 #[pyfunction]
 #[must_use]
 pub fn extract_query_intent(query: &str) -> PyQueryIntent {

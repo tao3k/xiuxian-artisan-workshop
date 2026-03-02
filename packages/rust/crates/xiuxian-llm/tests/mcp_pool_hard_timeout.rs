@@ -1,16 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::manual_async_fn,
-    clippy::async_yields_async,
-    clippy::no_effect_underscore_binding
-)]
 //! MCP pool hard-timeout behavior tests.
 //!
 //! These tests validate that a hanging MCP request is force-aborted by the pool
@@ -19,6 +6,7 @@
 use std::future::pending;
 use std::time::{Duration, Instant};
 
+use anyhow::{Result, anyhow};
 use axum::Router;
 use rmcp::ServerHandler;
 use rmcp::model::{
@@ -41,24 +29,24 @@ impl ServerHandler for HangingMcpServer {
         }
     }
 
-    fn list_tools(
+    async fn list_tools(
         &self,
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListToolsResult, ErrorData>> + Send + '_ {
-        async move { pending::<Result<ListToolsResult, ErrorData>>().await }
+    ) -> Result<ListToolsResult, ErrorData> {
+        pending::<Result<ListToolsResult, ErrorData>>().await
     }
 
-    fn call_tool(
+    async fn call_tool(
         &self,
         _request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<CallToolResult, ErrorData>> + Send + '_ {
-        async move { pending::<Result<CallToolResult, ErrorData>>().await }
+    ) -> Result<CallToolResult, ErrorData> {
+        pending::<Result<CallToolResult, ErrorData>>().await
     }
 }
 
-async fn spawn_hanging_server(addr: std::net::SocketAddr) -> tokio::task::JoinHandle<()> {
+async fn spawn_hanging_server(addr: std::net::SocketAddr) -> Result<tokio::task::JoinHandle<()>> {
     let service: StreamableHttpService<HangingMcpServer, LocalSessionManager> =
         StreamableHttpService::new(
             || Ok(HangingMcpServer),
@@ -70,21 +58,17 @@ async fn spawn_hanging_server(addr: std::net::SocketAddr) -> tokio::task::JoinHa
             },
         );
     let router = Router::new().nest_service("/sse", service);
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind hanging mcp listener");
-    tokio::spawn(async move {
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    Ok(tokio::spawn(async move {
         let _ = axum::serve(listener, router).await;
-    })
+    }))
 }
 
-async fn reserve_local_addr() -> std::net::SocketAddr {
-    let probe = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("reserve local addr");
-    let addr = probe.local_addr().expect("read reserved local addr");
+async fn reserve_local_addr() -> Result<std::net::SocketAddr> {
+    let probe = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let addr = probe.local_addr()?;
     drop(probe);
-    addr
+    Ok(addr)
 }
 
 fn hard_timeout_test_config() -> McpPoolConnectConfig {
@@ -110,19 +94,16 @@ fn long_tool_timeout_test_config() -> McpPoolConnectConfig {
 }
 
 #[tokio::test]
-async fn mcp_pool_list_tools_hard_timeout_returns_promptly() {
-    let addr = reserve_local_addr().await;
-    let server = spawn_hanging_server(addr).await;
+async fn mcp_pool_list_tools_hard_timeout_returns_promptly() -> Result<()> {
+    let addr = reserve_local_addr().await?;
+    let server = spawn_hanging_server(addr).await?;
     let url = format!("http://{addr}/sse");
-    let pool = connect_pool(&url, hard_timeout_test_config(), None)
-        .await
-        .expect("connect pool");
+    let pool = connect_pool(&url, hard_timeout_test_config(), None).await?;
 
     let started = Instant::now();
-    let error = pool
-        .list_tools(None)
-        .await
-        .expect_err("list_tools should timeout");
+    let Err(error) = pool.list_tools(None).await else {
+        return Err(anyhow!("list_tools should timeout"));
+    };
     let elapsed = started.elapsed();
     let message = format!("{error:#}");
 
@@ -136,26 +117,31 @@ async fn mcp_pool_list_tools_hard_timeout_returns_promptly() {
     );
 
     server.abort();
-    let _ = server.await;
+    if let Err(error) = server.await
+        && !error.is_cancelled()
+    {
+        return Err(anyhow!("server task join failed: {error}"));
+    }
+    Ok(())
 }
 
 #[tokio::test]
-async fn mcp_pool_call_tool_hard_timeout_returns_promptly() {
-    let addr = reserve_local_addr().await;
-    let server = spawn_hanging_server(addr).await;
+async fn mcp_pool_call_tool_hard_timeout_returns_promptly() -> Result<()> {
+    let addr = reserve_local_addr().await?;
+    let server = spawn_hanging_server(addr).await?;
     let url = format!("http://{addr}/sse");
-    let pool = connect_pool(&url, hard_timeout_test_config(), None)
-        .await
-        .expect("connect pool");
+    let pool = connect_pool(&url, hard_timeout_test_config(), None).await?;
 
     let started = Instant::now();
-    let error = pool
+    let result = pool
         .call_tool(
             "mock_echo".to_string(),
             Some(serde_json::json!({ "message": "hello" })),
         )
-        .await
-        .expect_err("call_tool should timeout");
+        .await;
+    let Err(error) = result else {
+        return Err(anyhow!("call_tool should timeout"));
+    };
     let elapsed = started.elapsed();
     let message = format!("{error:#}");
 
@@ -169,26 +155,31 @@ async fn mcp_pool_call_tool_hard_timeout_returns_promptly() {
     );
 
     server.abort();
-    let _ = server.await;
+    if let Err(error) = server.await
+        && !error.is_cancelled()
+    {
+        return Err(anyhow!("server task join failed: {error}"));
+    }
+    Ok(())
 }
 
 #[tokio::test]
-async fn mcp_pool_memory_save_tool_uses_shorter_timeout_budget() {
-    let addr = reserve_local_addr().await;
-    let server = spawn_hanging_server(addr).await;
+async fn mcp_pool_memory_save_tool_uses_shorter_timeout_budget() -> Result<()> {
+    let addr = reserve_local_addr().await?;
+    let server = spawn_hanging_server(addr).await?;
     let url = format!("http://{addr}/sse");
-    let pool = connect_pool(&url, long_tool_timeout_test_config(), None)
-        .await
-        .expect("connect pool");
+    let pool = connect_pool(&url, long_tool_timeout_test_config(), None).await?;
 
     let started = Instant::now();
-    let error = pool
+    let result = pool
         .call_tool(
             "memory.save_memory".to_string(),
             Some(serde_json::json!({ "content": "hello" })),
         )
-        .await
-        .expect_err("memory.save_memory should timeout");
+        .await;
+    let Err(error) = result else {
+        return Err(anyhow!("memory.save_memory should timeout"));
+    };
     let elapsed = started.elapsed();
     let message = format!("{error:#}");
 
@@ -202,5 +193,10 @@ async fn mcp_pool_memory_save_tool_uses_shorter_timeout_budget() {
     );
 
     server.abort();
-    let _ = server.await;
+    if let Err(error) = server.await
+        && !error.is_cancelled()
+    {
+        return Err(anyhow!("server task join failed: {error}"));
+    }
+    Ok(())
 }

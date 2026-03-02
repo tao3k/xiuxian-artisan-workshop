@@ -1,5 +1,5 @@
 """
-node_factory.py - Pluggable node factory for pipeline-generated LangGraph nodes.
+node_factory.py - Pluggable node factory for pipeline-generated workflow nodes.
 
 Provides a ToolInvoker protocol so pipeline nodes can execute tools via:
 - built-in no-op execution (default)
@@ -10,10 +10,12 @@ Provides a ToolInvoker protocol so pipeline nodes can execute tools via:
 from __future__ import annotations
 
 import inspect
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from .engine import ExecutionTracer
 from .interfaces import StepType
+
+if TYPE_CHECKING:
+    from .engine import ExecutionTracer
 
 
 class ToolInvoker(Protocol):
@@ -80,7 +82,7 @@ def create_pipeline_node(
     tool_invoker: ToolInvoker | None = None,
     tracer: ExecutionTracer | None = None,
 ) -> Any:
-    """Create a LangGraph node function with pluggable tool invocation."""
+    """Create a workflow node function with pluggable tool invocation."""
     invoker = tool_invoker or NoOpToolInvoker()
 
     async def node_function(state: dict[str, Any]) -> dict[str, Any]:

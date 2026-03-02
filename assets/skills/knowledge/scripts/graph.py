@@ -235,13 +235,13 @@ async def extract_entities(
         from omni.rag.config import get_rag_config
 
         if not get_rag_config().knowledge_graph.enabled:
-            return "Knowledge graph is disabled. Enable in settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml) to use entity extraction."
+            return "Knowledge graph is disabled. Enable in settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml) to use entity extraction."
 
         # Get LLM provider
         provider = get_llm_provider()
 
         if not provider.is_available():
-            return "LLM not configured. Enable inference settings in settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml)."
+            return "LLM not configured. Enable inference settings in settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml)."
 
         # Create extractor with LLM provider
         from omni.rag.graph import KnowledgeGraphExtractor

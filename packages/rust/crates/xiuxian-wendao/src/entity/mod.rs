@@ -9,6 +9,3 @@ mod types;
 pub use query::{EntitySearchQuery, MultiHopOptions};
 pub use records::{Entity, GraphStats, Relation};
 pub use types::{EntityType, RelationType};
-
-#[cfg(test)]
-mod tests;

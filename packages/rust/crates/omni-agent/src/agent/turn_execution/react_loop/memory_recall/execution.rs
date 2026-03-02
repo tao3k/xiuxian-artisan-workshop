@@ -1,25 +1,32 @@
-use super::super::types::{
-    MemoryRecallExecutionContext, MemoryRecallPlanContext, MemoryRecallResultStats,
-    MemoryRecallTuning,
-};
-#[allow(clippy::wildcard_imports)]
-use super::super::*;
+use crate::agent::Agent;
+use crate::session::ChatMessage;
 
+use super::super::types::{
+    MemoryRecallExecutionContext, MemoryRecallOutcome, MemoryRecallPlanContext,
+    MemoryRecallResultStats, MemoryRecallTuning,
+};
+
+use crate::agent::memory::select_recall_credit_candidates;
+use crate::agent::memory_recall::{
+    MEMORY_RECALL_MESSAGE_NAME, build_memory_context_message, filter_recalled_episodes,
+};
 use omni_memory::Episode;
 
 impl Agent {
-    pub(in super::super) async fn apply_memory_recall_if_enabled(
+    pub(in super::super) async fn run_memory_recall_if_enabled(
         &self,
         session_id: &str,
         user_message: &str,
-        messages: &mut Vec<ChatMessage>,
+        messages: &[ChatMessage],
         summary_segment_count: usize,
-    ) -> Vec<RecalledEpisodeCandidate> {
-        let mut recall_credit_candidates: Vec<RecalledEpisodeCandidate> = Vec::new();
+    ) -> MemoryRecallOutcome {
         let (Some(store), Some(mem_cfg)) =
             (self.memory_store.as_ref(), self.config.memory.as_ref())
         else {
-            return recall_credit_candidates;
+            return MemoryRecallOutcome {
+                system_message: None,
+                recall_credit_candidates: Vec::new(),
+            };
         };
 
         let recall_tuning = MemoryRecallTuning {
@@ -27,15 +34,13 @@ impl Agent {
             k2: mem_cfg.recall_k2,
             lambda: mem_cfg.recall_lambda,
         };
-        let recall_ctx = self
-            .build_memory_recall_plan_context(
-                session_id,
-                user_message,
-                messages,
-                summary_segment_count,
-                recall_tuning,
-            )
-            .await;
+        let recall_ctx = self.build_memory_recall_plan_context(
+            session_id,
+            user_message,
+            messages,
+            summary_segment_count,
+            recall_tuning,
+        );
         self.record_memory_recall_plan_metrics().await;
 
         match self
@@ -57,13 +62,8 @@ impl Agent {
                     recall_credit_enabled: mem_cfg.recall_credit_enabled,
                     recall_credit_max_candidates: mem_cfg.recall_credit_max_candidates,
                 };
-                recall_credit_candidates = self
-                    .handle_memory_recall_embedding_success(
-                        messages,
-                        &recall_ctx,
-                        &execution_ctx,
-                        recalled,
-                    )
+                return self
+                    .handle_memory_recall_embedding_success(&recall_ctx, &execution_ctx, recalled)
                     .await;
             }
             Err(error_kind) => {
@@ -77,16 +77,18 @@ impl Agent {
             }
         }
 
-        recall_credit_candidates
+        MemoryRecallOutcome {
+            system_message: None,
+            recall_credit_candidates: Vec::new(),
+        }
     }
 
     async fn handle_memory_recall_embedding_success(
         &self,
-        messages: &mut Vec<ChatMessage>,
         recall_ctx: &MemoryRecallPlanContext,
         execution_ctx: &MemoryRecallExecutionContext<'_>,
         recalled: Vec<(Episode, f32)>,
-    ) -> Vec<RecalledEpisodeCandidate> {
+    ) -> MemoryRecallOutcome {
         let recalled_count = recalled.len();
         let recalled = filter_recalled_episodes(recalled, &recall_ctx.recall_plan);
 
@@ -108,17 +110,6 @@ impl Agent {
             let best_score = recalled.first().map(|(_, score)| *score);
             let weakest_score = recalled.last().map(|(_, score)| *score);
 
-            messages.insert(
-                0,
-                ChatMessage {
-                    role: "system".to_string(),
-                    content: Some(system_content),
-                    tool_calls: None,
-                    tool_call_id: None,
-                    name: Some(MEMORY_RECALL_MESSAGE_NAME.to_string()),
-                },
-            );
-
             let stats = MemoryRecallResultStats {
                 recalled_count,
                 selected_count: recalled.len(),
@@ -130,7 +121,16 @@ impl Agent {
             };
             self.record_injected_memory_recall(recall_ctx, execution_ctx, stats)
                 .await;
-            return recall_credit_candidates;
+            return MemoryRecallOutcome {
+                system_message: Some(ChatMessage {
+                    role: "system".to_string(),
+                    content: Some(system_content),
+                    tool_calls: None,
+                    tool_call_id: None,
+                    name: Some(MEMORY_RECALL_MESSAGE_NAME.to_string()),
+                }),
+                recall_credit_candidates,
+            };
         }
 
         let pipeline_duration_ms =
@@ -146,6 +146,9 @@ impl Agent {
         };
         self.record_skipped_memory_recall(recall_ctx, execution_ctx, stats)
             .await;
-        Vec::new()
+        MemoryRecallOutcome {
+            system_message: None,
+            recall_credit_candidates: Vec::new(),
+        }
     }
 }

@@ -5,20 +5,45 @@ use crate::config::{
 
 use super::channel::{TelegramCommandAdminRule, build_telegram_command_admin_rule};
 
+type TelegramSlashAclOverrides = (
+    Option<Vec<String>>,
+    Option<Vec<String>>,
+    Option<Vec<String>>,
+    Option<Vec<String>>,
+    Option<Vec<String>>,
+    Option<Vec<String>>,
+    Option<Vec<String>>,
+    Option<Vec<String>>,
+);
+
+/// Runtime ACL override bundle resolved for Telegram channel execution.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TelegramAclOverrides {
+    /// Resolved allowlist users.
     pub allowed_users: Vec<String>,
+    /// Resolved allowlist groups.
     pub allowed_groups: Vec<String>,
+    /// Resolved admin users.
     pub admin_users: Vec<String>,
+    /// Optional global control-command allow identities.
     pub control_command_allow_from: Option<Vec<String>>,
+    /// Parsed command-scoped control ACL rules.
     pub control_command_rules: Vec<TelegramCommandAdminRule>,
+    /// Optional global slash-command allow identities.
     pub slash_command_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for session status.
     pub slash_session_status_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for session budget.
     pub slash_session_budget_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for session memory.
     pub slash_session_memory_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for session feedback.
     pub slash_session_feedback_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for job status.
     pub slash_job_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for jobs summary.
     pub slash_jobs_allow_from: Option<Vec<String>>,
+    /// Optional slash allow identities for background submit.
     pub slash_bg_allow_from: Option<Vec<String>>,
 }
 
@@ -147,19 +172,7 @@ fn control_rules(
     Ok(parsed_rules)
 }
 
-#[allow(clippy::type_complexity)]
-fn slash_overrides(
-    slash: Option<&TelegramAclSlashSettings>,
-) -> (
-    Option<Vec<String>>,
-    Option<Vec<String>>,
-    Option<Vec<String>>,
-    Option<Vec<String>>,
-    Option<Vec<String>>,
-    Option<Vec<String>>,
-    Option<Vec<String>>,
-    Option<Vec<String>>,
-) {
+fn slash_overrides(slash: Option<&TelegramAclSlashSettings>) -> TelegramSlashAclOverrides {
     let Some(slash) = slash else {
         return (None, None, None, None, None, None, None, None);
     };

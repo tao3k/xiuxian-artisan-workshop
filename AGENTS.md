@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Repository Guidelines"
+---
+
 # Repository Guidelines
 
 ## Language & Documentation
@@ -12,7 +18,7 @@
 
 ## Project Structure & Module Organization
 
-- `packages/rust/crates/*`: Rust core crates (for example `omni-vector`, `omni-scanner`, `xiuxian-wendao`).
+- `packages/rust/crates/*`: Rust core crates (for example `omni-vector`, `xiuxian-skills`, `xiuxian-wendao`).
 - `packages/rust/bindings/python`: PyO3 bridge crate (`omni-core-rs`) used by Python services.
 - `packages/python/agent`, `packages/python/core`, `packages/python/foundation`, `packages/python/mcp-server`: main Python runtime and APIs.
 - `assets/skills/*`: skill implementations (`scripts/`), skill tests, and metadata-driven command surface.
@@ -23,20 +29,20 @@
 
 **Use these directories for all project-local paths.** Do not hardcode `.data`, `.cache`, etc.; use the env vars or the Python API so overrides (e.g. `--conf`, direnv) are respected.
 
-| Environment variable | Default (relative to project root) | Purpose                                                                                      |
-| -------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------- |
-| `PRJ_ROOT`           | (git toplevel or explicit set)     | Project root; all other PRJ\_\* paths are under this.                                        |
-| `PRJ_CONFIG_HOME`    | `.config`                          | User and override config (e.g. `settings.yaml`, `references.yaml` under `omni-dev-fusion/`). |
-| `PRJ_CACHE_HOME`     | `.cache`                           | Cache and ephemeral build artifacts (vector index, repomix, memory cache).                   |
-| `PRJ_DATA_HOME`      | `.data`                            | Persistent project data (downloaded PDFs, knowledge sessions, traces).                       |
-| `PRJ_PATH`           | `.bin`                             | Project-local executables.                                                                   |
-| `PRJ_RUNTIME_DIR`    | `.run`                             | Runtime state (logs, PID files, sockets).                                                    |
+| Environment variable | Default (relative to project root) | Purpose                                                                                               |
+| -------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `PRJ_ROOT`           | (git toplevel or explicit set)     | Project root; all other PRJ\_\* paths are under this.                                                 |
+| `PRJ_CONFIG_HOME`    | `.config`                          | User and override config (e.g. `settings.yaml`, `references.yaml` under `xiuxian-artisan-workshop/`). |
+| `PRJ_CACHE_HOME`     | `.cache`                           | Cache and ephemeral build artifacts (vector index, repomix, memory cache).                            |
+| `PRJ_DATA_HOME`      | `.data`                            | Persistent project data (downloaded PDFs, knowledge sessions, traces).                                |
+| `PRJ_PATH`           | `.bin`                             | Project-local executables.                                                                            |
+| `PRJ_RUNTIME_DIR`    | `.run`                             | Runtime state (logs, PID files, sockets).                                                             |
 
 **Python API** (from `omni.foundation.config.prj` or `omni.foundation.config.dirs`):
 
 - `PRJ_DATA("knowledge", "downloads")` → `$PRJ_DATA_HOME/knowledge/downloads`
 - `PRJ_CACHE("omni-vector")` → `$PRJ_CACHE_HOME/omni-vector`
-- `PRJ_CONFIG("omni-dev-fusion", "settings.yaml")` → `$PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml`
+- `PRJ_CONFIG("xiuxian-artisan-workshop", "settings.yaml")` → `$PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml`
 - `PRJ_RUNTIME("logs")` → `$PRJ_RUNTIME_DIR/logs`
 - `PRJ_PATH()` → `$PRJ_PATH`
 - Project root: `get_project_root()` from `omni.foundation.runtime.gitops` (uses `PRJ_ROOT` or git toplevel).
@@ -48,7 +54,8 @@
 - `just setup && omni sync`: initial bootstrap.
 - `uv sync`: install/update Python workspace dependencies.
 - `uv sync --reinstall-package omni-core-rs`: rebuild and reinstall Rust Python bindings after Rust bridge changes.
-- `cargo test -p omni-vector`: run targeted Rust tests (use crate-specific runs during development).
+- **Rust Testing (`cargo nextest`)**: Always use `cargo nextest run` instead of the native `cargo test` for running Rust test suites. It is significantly faster and provides better output. Example: `cargo nextest run -p omni-vector`. Use crate-specific runs during development.
+- **Regression Scope Gate (speed-first default)**: Default to direct, targeted validation for touched crates/modules only. If a task requires cross-crate or full-workspace regression (high time/cost impact), ask the user for explicit confirmation before running it.
 - `uv run pytest packages/python/core/tests/ -q`: run Python tests by package.
 - `devenv test`: repository-level validation suite.
 - `just agent-fmt`: run formatting hooks quickly.
@@ -76,19 +83,21 @@
 ## Testing Guidelines
 
 - **Tests follow code**: Whenever you add, update, or remove a feature, you **must** add or update the corresponding unit (or integration) tests so that the change is verified. New behavior needs new or updated tests; removed behavior should have its tests removed or adjusted. This is a mandatory standard for all contributors and agents.
+- **Default scope strategy**: Prioritize minimal targeted tests first to keep iteration latency low. Expand to broader regression only when required by risk or explicitly requested by the user.
 - Pytest config is strict and parallelized (`-n auto`, capped workers, timeout defaults).
 - Run narrow tests before full suite, then validate cross-layer changes (Rust + Python).
 - For routing/vector changes, test both data contracts and CLI behavior.
 - Use focused commands, for example:
   - `uv run pytest packages/python/agent/tests/unit/cli/test_route_command.py -q`
-  - `cargo test -p omni-vector --test test_rust_cortex`
+  - `cargo nextest run -p omni-vector -E 'test(test_rust_cortex)'`
 
 ## Rust Clippy Validation Policy
 
+- **ABSOLUTE PROHIBITION ON GLOBAL LINT SUPPRESSION**: LLM Agents are STRICTLY FORBIDDEN from inserting `#![allow(missing_docs, unused_imports, dead_code)]` or any other `#![allow(...)]` attributes at the file or module level to silence the compiler. This practice is disastrous for modern Rust engineering standards. You MUST fix the underlying code (e.g., write the actual documentation, remove unused imports, or delete the dead code) rather than hiding the warnings.
 - **Mandatory for touched Rust crates**: run `cargo clippy -p <crate> -- -W clippy::too_many_lines` for every Rust crate changed in a task.
 - **No suppression-first fixes**: do not solve warnings by adding broad `#[allow(...)]` at file/module scope. Prefer structural fixes (split modules, extract helpers, improve signatures/docs).
 - **`missing_errors_doc` hard rule**: for public `Result` APIs, add explicit `# Errors` docs instead of suppressing `clippy::missing_errors_doc`.
-- **Exception handling**: when an allow is truly unavoidable, keep it as narrow as possible (smallest scope), add a short reason, and include a removal condition.
+- **Exception handling**: when an allow is truly unavoidable (e.g., in a generated macro file), keep it as narrow as possible (smallest scope like a single function), add a short reason, and include a removal condition.
 - **Evidence required**: include exact clippy commands and outcomes in the corresponding progress/knowledge record (for example files under `assets/knowledge/omni-rust-engineering-quality-plan/`).
 
 ## Commit & Pull Request Guidelines

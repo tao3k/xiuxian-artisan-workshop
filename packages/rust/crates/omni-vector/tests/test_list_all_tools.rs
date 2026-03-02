@@ -1,19 +1,29 @@
-//! Tests for list_all_tools - verifies correct reading of dictionary-encoded columns.
+//! Tests for `list_all_tools` and dictionary-encoded metadata behavior.
 
-use omni_scanner::skills::{ToolAnnotations, ToolRecord};
+use anyhow::Result;
 use omni_vector::VectorStore;
+use xiuxian_skills::skills::{ToolAnnotations, ToolRecord};
 
-/// Test that list_all_tools correctly reads tool records from a table
-/// with dictionary-encoded columns (skill_name, category, tool_name, etc).
+async fn create_store(
+    path_name: &str,
+    dimension: usize,
+) -> Result<(tempfile::TempDir, VectorStore)> {
+    let temp_dir = tempfile::tempdir()?;
+    let db_path = temp_dir.path().join(path_name);
+    let db_path_str = db_path.to_string_lossy().into_owned();
+    let store = VectorStore::new(db_path_str.as_str(), Some(dimension)).await?;
+    Ok((temp_dir, store))
+}
+
+fn parse_rows(result: &str) -> Result<Vec<serde_json::Value>> {
+    Ok(serde_json::from_str(result)?)
+}
+
+/// Test that `list_all_tools` correctly reads tool records from a table
+/// with dictionary-encoded columns (`skill_name`, `category`, `tool_name`, etc).
 #[tokio::test]
-async fn test_list_all_tools_with_dictionary_columns() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let db_path = temp_dir.path().join("test_list_tools");
-
-    // Create vector store with dimension 1024 (like Qwen3-Embedding)
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1024))
-        .await
-        .unwrap();
+async fn test_list_all_tools_with_dictionary_columns() -> Result<()> {
+    let (_temp_dir, store) = create_store("test_list_tools", 1024).await?;
 
     // Create sample tool records (using the correct ToolRecord structure)
     let tools = vec![
@@ -76,20 +86,17 @@ async fn test_list_all_tools_with_dictionary_columns() {
     ];
 
     // Add tools to table (this uses dictionary encoding for skill_name, category, tool_name)
-    store.add("test_tools", tools).await.unwrap();
+    store.add("test_tools", tools).await?;
 
     // Verify count
-    let count = store.count("test_tools").await.unwrap();
+    let count = store.count("test_tools").await?;
     assert_eq!(count, 3, "Should have 3 tools");
 
     // CRITICAL TEST: list_all_tools should correctly read dictionary-encoded columns
-    let result = store
-        .list_all_tools("test_tools", None, None)
-        .await
-        .unwrap();
+    let result = store.list_all_tools("test_tools", None, None).await?;
 
     // Parse the JSON result
-    let tools_list: Vec<serde_json::Value> = serde_json::from_str(&result).unwrap();
+    let tools_list = parse_rows(&result)?;
     assert_eq!(tools_list.len(), 3, "Should return 3 tools");
 
     // Verify each tool has correct skill_name (this is where the bug manifested!)
@@ -122,36 +129,25 @@ async fn test_list_all_tools_with_dictionary_columns() {
     assert!(tool_names.contains(&"commit".to_string()));
     assert!(tool_names.contains(&"push".to_string()));
     assert!(tool_names.contains(&"save".to_string()));
+    Ok(())
 }
 
-/// Test that list_all_tools handles empty table gracefully
+/// Test that `list_all_tools` handles an empty table gracefully.
 #[tokio::test]
-async fn test_list_all_tools_empty_table() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let db_path = temp_dir.path().join("test_empty");
-
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1024))
-        .await
-        .unwrap();
+async fn test_list_all_tools_empty_table() -> Result<()> {
+    let (_temp_dir, store) = create_store("test_empty", 1024).await?;
 
     // Query non-existent table - should return empty array
-    let result = store
-        .list_all_tools("non_existent", None, None)
-        .await
-        .unwrap();
-    let tools_list: Vec<serde_json::Value> = serde_json::from_str(&result).unwrap();
+    let result = store.list_all_tools("non_existent", None, None).await?;
+    let tools_list = parse_rows(&result)?;
     assert!(tools_list.is_empty());
+    Ok(())
 }
 
-/// Test that list_all_tools returns correct content field (which comes from description)
+/// Test that `list_all_tools` returns the correct `content` field (from description).
 #[tokio::test]
-async fn test_list_all_tools_content_field() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let db_path = temp_dir.path().join("test_content");
-
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1024))
-        .await
-        .unwrap();
+async fn test_list_all_tools_content_field() -> Result<()> {
+    let (_temp_dir, store) = create_store("test_content", 1024).await?;
 
     let tools = vec![ToolRecord {
         tool_name: "tool".to_string(),
@@ -172,30 +168,23 @@ async fn test_list_all_tools_content_field() {
         resource_uri: String::new(),
     }];
 
-    store.add("content_test", tools).await.unwrap();
+    store.add("content_test", tools).await?;
 
-    let result = store
-        .list_all_tools("content_test", None, None)
-        .await
-        .unwrap();
-    let tools_list: Vec<serde_json::Value> = serde_json::from_str(&result).unwrap();
+    let result = store.list_all_tools("content_test", None, None).await?;
+    let tools_list = parse_rows(&result)?;
 
     // Content is at top level; shape is { id, content, metadata }
     assert_eq!(
         tools_list[0]["content"],
         "This is the description for embedding"
     );
+    Ok(())
 }
 
-/// Test that list_all_tools handles multiple skills with same tool name correctly
+/// Test that `list_all_tools` handles multiple skills with the same tool name.
 #[tokio::test]
-async fn test_list_all_tools_multiple_skills_same_tool_name() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let db_path = temp_dir.path().join("test_multi_skill");
-
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1024))
-        .await
-        .unwrap();
+async fn test_list_all_tools_multiple_skills_same_tool_name() -> Result<()> {
+    let (_temp_dir, store) = create_store("test_multi_skill", 1024).await?;
 
     // Create tools from different skills with same tool name (e.g., "status")
     let tools = vec![
@@ -237,13 +226,10 @@ async fn test_list_all_tools_multiple_skills_same_tool_name() {
         },
     ];
 
-    store.add("multi_skill", tools).await.unwrap();
+    store.add("multi_skill", tools).await?;
 
-    let result = store
-        .list_all_tools("multi_skill", None, None)
-        .await
-        .unwrap();
-    let tools_list: Vec<serde_json::Value> = serde_json::from_str(&result).unwrap();
+    let result = store.list_all_tools("multi_skill", None, None).await?;
+    let tools_list = parse_rows(&result)?;
 
     assert_eq!(tools_list.len(), 2);
 
@@ -260,16 +246,13 @@ async fn test_list_all_tools_multiple_skills_same_tool_name() {
         .collect();
     assert!(skill_names.contains(&"git".to_string()));
     assert!(skill_names.contains(&"database".to_string()));
+    Ok(())
 }
 
-/// Test that row_limit caps returned records for list_all_tools.
+/// Test that `row_limit` caps returned records for `list_all_tools`.
 #[tokio::test]
-async fn test_list_all_tools_row_limit_caps_results() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let db_path = temp_dir.path().join("test_row_limit");
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1024))
-        .await
-        .unwrap();
+async fn test_list_all_tools_row_limit_caps_results() -> Result<()> {
+    let (_temp_dir, store) = create_store("test_row_limit", 1024).await?;
 
     let tools: Vec<ToolRecord> = (0..5)
         .map(|idx| ToolRecord {
@@ -292,25 +275,19 @@ async fn test_list_all_tools_row_limit_caps_results() {
         })
         .collect();
 
-    store.add("row_limit", tools).await.unwrap();
+    store.add("row_limit", tools).await?;
 
-    let result = store
-        .list_all_tools("row_limit", None, Some(2))
-        .await
-        .unwrap();
-    let tools_list: Vec<serde_json::Value> = serde_json::from_str(&result).unwrap();
+    let result = store.list_all_tools("row_limit", None, Some(2)).await?;
+    let tools_list = parse_rows(&result)?;
 
     assert_eq!(tools_list.len(), 2);
+    Ok(())
 }
 
-/// Test that source_filter supports multi-term union via `a||b`.
+/// Test that `source_filter` supports multi-term union via `a||b`.
 #[tokio::test]
-async fn test_list_all_tools_source_filter_supports_multi_terms() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let db_path = temp_dir.path().join("test_source_filter_multi");
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1024))
-        .await
-        .unwrap();
+async fn test_list_all_tools_source_filter_supports_multi_terms() -> Result<()> {
+    let (_temp_dir, store) = create_store("test_source_filter_multi", 1024).await?;
 
     let tools = vec![
         ToolRecord {
@@ -369,13 +346,12 @@ async fn test_list_all_tools_source_filter_supports_multi_terms() {
         },
     ];
 
-    store.add("source_filter_multi", tools).await.unwrap();
+    store.add("source_filter_multi", tools).await?;
 
     let result = store
         .list_all_tools("source_filter_multi", Some("a.md||c.md"), None)
-        .await
-        .unwrap();
-    let tools_list: Vec<serde_json::Value> = serde_json::from_str(&result).unwrap();
+        .await?;
+    let tools_list = parse_rows(&result)?;
 
     assert_eq!(tools_list.len(), 2);
     let mut file_paths: Vec<String> = tools_list
@@ -393,16 +369,13 @@ async fn test_list_all_tools_source_filter_supports_multi_terms() {
         file_paths,
         vec!["docs/a.md".to_string(), "docs/c.md".to_string()]
     );
+    Ok(())
 }
 
-/// Test source_filter still matches when `file_path` column is empty but metadata contains source.
+/// Test `source_filter` matching when `file_path` is empty but metadata contains `source`.
 #[tokio::test]
-async fn test_list_all_tools_source_filter_matches_metadata_when_file_path_empty() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let db_path = temp_dir.path().join("test_source_filter_metadata_only");
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(8))
-        .await
-        .unwrap();
+async fn test_list_all_tools_source_filter_matches_metadata_when_file_path_empty() -> Result<()> {
+    let (_temp_dir, store) = create_store("test_source_filter_metadata_only", 8).await?;
 
     let ids = vec!["doc-a".to_string(), "doc-b".to_string()];
     let vectors = vec![vec![0.1_f32; 8], vec![0.2_f32; 8]];
@@ -430,14 +403,12 @@ async fn test_list_all_tools_source_filter_matches_metadata_when_file_path_empty
             contents,
             metadatas,
         )
-        .await
-        .unwrap();
+        .await?;
 
     let result = store
         .list_all_tools("source_filter_metadata_only", Some("docs/a.md"), None)
-        .await
-        .unwrap();
-    let rows: Vec<serde_json::Value> = serde_json::from_str(&result).unwrap();
+        .await?;
+    let rows = parse_rows(&result)?;
 
     assert_eq!(rows.len(), 1);
     let source = rows[0]
@@ -446,4 +417,5 @@ async fn test_list_all_tools_source_filter_matches_metadata_when_file_path_empty
         .and_then(|v| v.as_str())
         .unwrap_or("");
     assert_eq!(source, "docs/a.md");
+    Ok(())
 }

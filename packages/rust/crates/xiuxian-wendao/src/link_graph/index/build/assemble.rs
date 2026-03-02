@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+use xiuxian_skills::SkillScanner;
 
 struct NormalizedDirectoryFilters {
     include_dirs: Vec<String>,
@@ -28,6 +29,18 @@ struct GraphEdges {
     outgoing: HashMap<String, HashSet<String>>,
     incoming: HashMap<String, HashSet<String>>,
     edge_count: usize,
+}
+
+struct CandidateScan {
+    candidate_paths: Vec<PathBuf>,
+    skill_descriptor_paths: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+struct SkillPromotionMetadata {
+    semantic_name: String,
+    routing_keywords: Vec<String>,
+    intents: Vec<String>,
 }
 
 fn canonicalize_root_dir(root_dir: &Path) -> Result<PathBuf, String> {
@@ -68,8 +81,9 @@ fn collect_candidate_note_paths(
     root: &Path,
     included: &HashSet<String>,
     excluded: &HashSet<String>,
-) -> Vec<PathBuf> {
+) -> CandidateScan {
     let mut candidate_paths: Vec<PathBuf> = Vec::new();
+    let mut skill_descriptor_paths: Vec<PathBuf> = Vec::new();
     for entry in WalkDir::new(root)
         .follow_links(false)
         .into_iter()
@@ -88,9 +102,17 @@ fn collect_candidate_note_paths(
         if !entry.file_type().is_file() || !is_supported_note(path) {
             continue;
         }
+        if is_skill_descriptor_path(path) {
+            skill_descriptor_paths.push(path.to_path_buf());
+        }
         candidate_paths.push(path.to_path_buf());
     }
-    candidate_paths
+    skill_descriptor_paths.sort();
+    skill_descriptor_paths.dedup();
+    CandidateScan {
+        candidate_paths,
+        skill_descriptor_paths,
+    }
 }
 
 fn parse_candidate_notes(root: &Path, candidate_paths: Vec<PathBuf>) -> Vec<ParsedNote> {
@@ -101,6 +123,116 @@ fn parse_candidate_notes(root: &Path, candidate_paths: Vec<PathBuf>) -> Vec<Pars
             parse_note(&path, root, &content)
         })
         .collect()
+}
+
+fn is_skill_descriptor_path(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|value| value.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("SKILL.md") || name == "skill.md")
+}
+
+fn normalize_skill_tag_token(raw: &str) -> Option<String> {
+    let normalized = raw
+        .trim()
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_ascii_lowercase();
+    (!normalized.is_empty()).then_some(normalized)
+}
+
+fn collect_skill_promotions(
+    root: &Path,
+    skill_descriptor_paths: &[PathBuf],
+) -> HashMap<String, SkillPromotionMetadata> {
+    let scanner = SkillScanner::new();
+    let mut promotions = HashMap::new();
+    for skill_doc in skill_descriptor_paths {
+        let Some(skill_root) = skill_doc.parent() else {
+            continue;
+        };
+        let metadata = match scanner.scan_skill(skill_root, None) {
+            Ok(Some(metadata)) => metadata,
+            Ok(None) => continue,
+            Err(error) => {
+                log::warn!(
+                    "skip skill promotion for {} due to semantic validation error: {}",
+                    skill_root.display(),
+                    error
+                );
+                continue;
+            }
+        };
+        let Some(relative) = skill_doc
+            .strip_prefix(root)
+            .ok()
+            .map(|path| path.to_string_lossy().replace('\\', "/"))
+        else {
+            continue;
+        };
+        let semantic_name = metadata.skill_name.trim().to_ascii_lowercase();
+        if semantic_name.is_empty() {
+            continue;
+        }
+        let routing_keywords = metadata
+            .routing_keywords
+            .iter()
+            .filter_map(|keyword| normalize_skill_tag_token(keyword))
+            .collect::<Vec<_>>();
+        let intents = metadata
+            .intents
+            .iter()
+            .filter_map(|intent| normalize_skill_tag_token(intent))
+            .collect::<Vec<_>>();
+        promotions.insert(
+            relative,
+            SkillPromotionMetadata {
+                semantic_name,
+                routing_keywords,
+                intents,
+            },
+        );
+    }
+    promotions
+}
+
+fn apply_skill_promotions(
+    parsed_notes: &mut [ParsedNote],
+    promotions_by_path: &HashMap<String, SkillPromotionMetadata>,
+) {
+    parsed_notes.par_iter_mut().for_each(|parsed| {
+        let Some(metadata) = promotions_by_path.get(parsed.doc.path.as_str()) else {
+            return;
+        };
+        if parsed.doc.doc_type.is_none() {
+            parsed.doc.doc_type = Some("skill".to_string());
+        }
+        let mut tags = parsed.doc.tags.clone();
+        tags.push("skill".to_string());
+        tags.push(format!("skill:{}", metadata.semantic_name));
+        tags.extend(
+            metadata
+                .routing_keywords
+                .iter()
+                .map(|keyword| format!("routing:{keyword}")),
+        );
+        tags.extend(
+            metadata
+                .intents
+                .iter()
+                .map(|intent| format!("intent:{intent}")),
+        );
+        tags.sort();
+        tags.dedup();
+        parsed.doc.tags = tags;
+        parsed.doc.tags_lower = parsed
+            .doc
+            .tags
+            .iter()
+            .map(|tag| tag.to_lowercase())
+            .collect();
+    });
 }
 
 fn build_note_maps(parsed_notes: &[ParsedNote]) -> ParsedNoteMaps {
@@ -122,6 +254,16 @@ fn build_note_maps(parsed_notes: &[ParsedNote]) -> ParsedNoteMaps {
 
         for alias in [&doc.id, &doc.path, &doc.stem] {
             let key = normalize_alias(alias);
+            if key.is_empty() {
+                continue;
+            }
+            alias_to_doc_id.entry(key).or_insert_with(|| doc.id.clone());
+        }
+        for tag in &doc.tags {
+            let Some(skill_alias) = tag.strip_prefix("skill:") else {
+                continue;
+            };
+            let key = normalize_alias(skill_alias);
             if key.is_empty() {
                 continue;
             }
@@ -229,9 +371,12 @@ impl LinkGraphIndex {
     ) -> Result<Self, String> {
         let root = canonicalize_root_dir(root_dir)?;
         let filters = normalize_directory_filters(include_dirs, excluded_dirs);
-        let candidate_paths =
+        let candidate_scan =
             collect_candidate_note_paths(&root, &filters.included, &filters.excluded);
-        let mut parsed_notes = parse_candidate_notes(&root, candidate_paths);
+        let mut parsed_notes = parse_candidate_notes(&root, candidate_scan.candidate_paths);
+        let promotions_by_path =
+            collect_skill_promotions(&root, &candidate_scan.skill_descriptor_paths);
+        apply_skill_promotions(&mut parsed_notes, &promotions_by_path);
 
         parsed_notes.sort_by(|left, right| doc_sort_key(&left.doc).cmp(&doc_sort_key(&right.doc)));
 

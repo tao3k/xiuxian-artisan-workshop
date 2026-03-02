@@ -6,25 +6,36 @@ use crate::observability::SessionEvent;
 use super::RedisSessionBackend;
 
 impl RedisSessionBackend {
-    async fn ensure_connection(
-        &self,
-        connection: &mut Option<redis::aio::MultiplexedConnection>,
-    ) -> Result<()> {
-        if connection.is_some() {
-            return Ok(());
+    async fn acquire_connection(&self) -> Result<redis::aio::MultiplexedConnection> {
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
         }
-        *connection = Some(
-            self.client
-                .get_multiplexed_async_connection()
-                .await
-                .context("failed to open redis connection for session backend")?,
-        );
+
+        let _reconnect_guard = self.reconnect_lock.lock().await;
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
+        }
+
+        let connection = self
+            .client
+            .get_multiplexed_async_connection()
+            .await
+            .context("failed to open redis connection for session backend")?;
+        {
+            let mut guard = self.connection.write().await;
+            *guard = Some(connection.clone());
+        }
         tracing::debug!(
             event = SessionEvent::SessionValkeyConnected.as_str(),
             key_prefix = %self.key_prefix,
             "valkey session backend connected"
         );
-        Ok(())
+        Ok(connection)
+    }
+
+    async fn invalidate_connection(&self) {
+        let mut guard = self.connection.write().await;
+        *guard = None;
     }
 
     pub(super) async fn run_command<T, F>(&self, operation: &'static str, build: F) -> Result<T>
@@ -34,13 +45,9 @@ impl RedisSessionBackend {
     {
         let mut last_err: Option<anyhow::Error> = None;
         for attempt in 0..2 {
-            let mut conn_guard = self.connection.lock().await;
-            self.ensure_connection(&mut conn_guard).await?;
-            let conn = conn_guard
-                .as_mut()
-                .ok_or_else(|| anyhow::anyhow!("redis session backend connection unavailable"))?;
+            let mut conn = self.acquire_connection().await?;
             let cmd = build();
-            let result: redis::RedisResult<T> = cmd.query_async(conn).await;
+            let result: redis::RedisResult<T> = cmd.query_async(&mut conn).await;
             match result {
                 Ok(value) => {
                     if attempt > 0 {
@@ -61,7 +68,7 @@ impl RedisSessionBackend {
                         error = %err,
                         "valkey command attempt failed; reconnecting"
                     );
-                    *conn_guard = None;
+                    self.invalidate_connection().await;
                     last_err = Some(
                         anyhow::anyhow!(err).context("redis command failed for session backend"),
                     );
@@ -83,13 +90,9 @@ impl RedisSessionBackend {
     {
         let mut last_err: Option<anyhow::Error> = None;
         for attempt in 0..2 {
-            let mut conn_guard = self.connection.lock().await;
-            self.ensure_connection(&mut conn_guard).await?;
-            let conn = conn_guard
-                .as_mut()
-                .ok_or_else(|| anyhow::anyhow!("redis session backend connection unavailable"))?;
+            let mut conn = self.acquire_connection().await?;
             let pipe = build();
-            let result: redis::RedisResult<T> = pipe.query_async(conn).await;
+            let result: redis::RedisResult<T> = pipe.query_async(&mut conn).await;
             match result {
                 Ok(value) => {
                     if attempt > 0 {
@@ -110,7 +113,7 @@ impl RedisSessionBackend {
                         error = %err,
                         "valkey pipeline attempt failed; reconnecting"
                     );
-                    *conn_guard = None;
+                    self.invalidate_connection().await;
                     last_err = Some(
                         anyhow::anyhow!(err).context("redis pipeline failed for session backend"),
                     );

@@ -18,4 +18,8 @@ pub use settings::{
     TelegramTopicSettings, load_runtime_settings, load_runtime_settings_from_paths,
     runtime_settings_paths, set_config_home_override,
 };
+pub(crate) use xiuxian::XiuxianConfig;
 pub use xiuxian::load_xiuxian_config;
+
+#[cfg(test)]
+mod tests_xiuxian;

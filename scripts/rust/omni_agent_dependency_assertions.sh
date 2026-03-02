@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cargo_bin="${CARGO_BIN:-${script_dir}/cargo_exec.sh}"
 target_dir="${CARGO_TARGET_DIR:-/tmp/workspace-strict-proof}"
 
 default_tree="$(mktemp)"
 no_default_tree="$(mktemp)"
 trap 'rm -f "${default_tree}" "${no_default_tree}"' EXIT
 
-CARGO_TARGET_DIR="${target_dir}" cargo tree -p omni-agent -e all >"${default_tree}"
-CARGO_TARGET_DIR="${target_dir}" cargo tree -p omni-agent -e all --no-default-features >"${no_default_tree}"
+CARGO_TARGET_DIR="${target_dir}" "${cargo_bin}" tree -p omni-agent -e all >"${default_tree}"
+CARGO_TARGET_DIR="${target_dir}" "${cargo_bin}" tree -p omni-agent -e all --no-default-features >"${no_default_tree}"
 
 if ! rg -q "litellm-rs v" "${default_tree}"; then
   echo "omni-agent default profile must include litellm-rs but it was not found."

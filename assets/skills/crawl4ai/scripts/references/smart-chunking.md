@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Smart Chunking Strategy"
+---
+
 # Smart Chunking Strategy
 
 ## Overview

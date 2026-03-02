@@ -72,13 +72,9 @@ end
     {
         let mut last_err: Option<anyhow::Error> = None;
         for attempt in 0..2 {
-            let mut conn_guard = self.connection.lock().await;
-            self.ensure_connection(&mut conn_guard).await?;
-            let conn = conn_guard
-                .as_mut()
-                .ok_or_else(|| anyhow::anyhow!("session gate valkey connection unavailable"))?;
+            let mut conn = self.acquire_connection().await?;
             let cmd = build();
-            let result: redis::RedisResult<T> = cmd.query_async(conn).await;
+            let result: redis::RedisResult<T> = cmd.query_async(&mut conn).await;
             match result {
                 Ok(value) => {
                     if attempt > 0 {
@@ -99,7 +95,7 @@ end
                         error = %err,
                         "session gate valkey command failed; reconnecting"
                     );
-                    *conn_guard = None;
+                    self.invalidate_connection().await;
                     last_err =
                         Some(anyhow::anyhow!(err).context("session gate valkey command failed"));
                 }
@@ -114,24 +110,35 @@ end
             .unwrap_or_else(|| anyhow::anyhow!("session gate valkey command failed unexpectedly")))
     }
 
-    async fn ensure_connection(
-        &self,
-        connection: &mut Option<redis::aio::MultiplexedConnection>,
-    ) -> Result<()> {
-        if connection.is_some() {
-            return Ok(());
+    async fn acquire_connection(&self) -> Result<redis::aio::MultiplexedConnection> {
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
         }
-        *connection = Some(
-            self.client
-                .get_multiplexed_async_connection()
-                .await
-                .context("failed to open valkey connection for session gate")?,
-        );
+
+        let _reconnect_guard = self.reconnect_lock.lock().await;
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
+        }
+
+        let connection = self
+            .client
+            .get_multiplexed_async_connection()
+            .await
+            .context("failed to open valkey connection for session gate")?;
+        {
+            let mut guard = self.connection.write().await;
+            *guard = Some(connection.clone());
+        }
         tracing::debug!(
             event = SessionEvent::SessionValkeyConnected.as_str(),
             key_prefix = %self.key_prefix,
             "valkey session gate backend connected"
         );
-        Ok(())
+        Ok(connection)
+    }
+
+    async fn invalidate_connection(&self) {
+        let mut guard = self.connection.write().await;
+        *guard = None;
     }
 }

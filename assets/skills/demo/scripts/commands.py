@@ -81,7 +81,7 @@ async def echo(message: str = "Hello!") -> dict[str, object]:
 
 @skill_command(
     name="test_yaml_pipeline",
-    description="Test YAML pipeline compilation and execution with omni.tracer.",
+    description="Test YAML pipeline compilation and execution with omni.tracer native runtime.",
     read_only=True,
     destructive=False,
     idempotent=True,
@@ -106,7 +106,7 @@ async def test_yaml_pipeline(
         ExecutionTracer,
         NoOpToolInvoker,
         console,
-        create_langgraph_from_yaml,
+        create_workflow_from_yaml,
         load_pipeline,
     )
     from omni.tracer.ui import print_header, print_success
@@ -141,14 +141,14 @@ async def test_yaml_pipeline(
             f"retrieval={config.runtime.invoker.include_retrieval}[/green]"
         )
 
-        # Create LangGraph with NoOp tool invoker (no actual LLM calls)
-        # This tests YAML loading, compilation, and graph structure
-        create_langgraph_from_yaml(
+        # Create native workflow app with NoOp tool invoker (no actual LLM calls)
+        # This tests YAML loading, compilation, and graph structure.
+        create_workflow_from_yaml(
             str(yaml_path),
             tracer=tracer,
             tool_invoker=NoOpToolInvoker(),
         )
-        console.print("[green]✓ Compiled LangGraph from YAML[/green]")
+        console.print("[green]✓ Compiled workflow app from YAML[/green]")
 
         # Get trace summary
         memory_summary = tracer.get_memory_summary()

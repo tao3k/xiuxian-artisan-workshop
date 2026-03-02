@@ -15,9 +15,10 @@ pub(super) fn add_entity(graph: &PyKnowledgeGraph, entity: PyEntity) -> PyResult
 }
 
 pub(super) fn add_relation(graph: &PyKnowledgeGraph, relation: PyRelation) -> PyResult<()> {
+    let relation = relation.inner;
     graph
         .inner
-        .add_relation(relation.inner)
+        .add_relation(&relation)
         .map_err(|error| pyo3::exceptions::PyValueError::new_err(error.to_string()))
 }
 

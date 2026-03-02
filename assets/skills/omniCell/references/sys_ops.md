@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "OmniCell System Operations (sys_ops) Reference"
+---
+
 # OmniCell System Operations (sys_ops) Reference
 
 This document details the underlying protocol for the `omni_cell` tool.

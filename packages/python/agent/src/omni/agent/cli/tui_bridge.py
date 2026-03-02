@@ -33,7 +33,7 @@ from omni.foundation.runtime.gitops import get_project_root
 logger = logging.getLogger("omni.agent.cli.tui_bridge")
 
 # Constant for the Rust binary name
-RUST_TUI_BIN = "omni-tui"
+RUST_TUI_BIN = "xiuxian-tui"
 
 
 def get_env_bool(key: str, default: bool = False) -> bool:
@@ -60,7 +60,7 @@ class TUIConfig:
         if not self.socket_path:
             # Use UUID to ensure socket path is unique and collision-free
             socket_id = uuid.uuid4().hex[:8]
-            self.socket_path = f"/tmp/omni_tui_{socket_id}.sock"
+            self.socket_path = f"/tmp/xiuxian_tui_{socket_id}.sock"
 
 
 class TUIBridgeProtocol(Protocol):
@@ -172,17 +172,17 @@ class TUIManager:
         """Find the Rust TUI binary path.
 
         Development Mode (omni-dev-fusion project):
-            1. OMNI_TUI_BIN env var (highest priority)
+            1. XIUXIAN_TUI_BIN env var (highest priority)
             2. Local target/debug or target/release binary
             3. Fall back to system PATH
 
         User Mode (installed package):
-            1. OMNI_TUI_BIN env var
-            2. System PATH (omni-tui installed separately)
+            1. XIUXIAN_TUI_BIN env var
+            2. System PATH (xiuxian-tui installed separately)
         """
         # Priority 1: Environment variable (works in both modes)
-        if env_bin := os.environ.get("OMNI_TUI_BIN"):
-            logger.debug(f"Using TUI binary from OMNI_TUI_BIN: {env_bin}")
+        if env_bin := os.environ.get("XIUXIAN_TUI_BIN"):
+            logger.debug(f"Using TUI binary from XIUXIAN_TUI_BIN: {env_bin}")
             return env_bin
 
         # Development mode: look for local binary
@@ -192,23 +192,23 @@ class TUIManager:
 
             # Prefer debug for faster builds
             for profile in ["debug", "release"]:
-                target_bin = project_root / "target" / profile / "omni-tui"
+                target_bin = project_root / "target" / profile / "xiuxian-tui"
                 if target_bin.exists() and os.access(target_bin, os.X_OK):
-                    # Add target dir to PATH so "omni-tui" can be found
+                    # Add target dir to PATH so "xiuxian-tui" can be found
                     target_dir = str(target_bin.parent)
                     current_path = os.environ.get("PATH", "")
                     if target_dir not in current_path:
                         os.environ["PATH"] = f"{target_dir}:{current_path}"
                     logger.debug(f"Using local TUI binary: {target_bin}")
-                    return "omni-tui"
+                    return "xiuxian-tui"
 
             logger.warning(
-                "omni-dev-fusion project detected but omni-tui binary not found. "
-                "Run: cd packages/rust && cargo build -p omni-tui"
+                "omni-dev-fusion project detected but xiuxian-tui binary not found. "
+                "Run: cd packages/rust && cargo build -p xiuxian-tui"
             )
 
         # User mode or fallback: use system PATH
-        logger.debug("Using system PATH for omni-tui binary")
+        logger.debug("Using system PATH for xiuxian-tui binary")
         return self.config.binary_path
 
     async def _wait_for_connection(self) -> None:

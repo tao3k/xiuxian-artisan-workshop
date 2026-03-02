@@ -1,6 +1,7 @@
 use crate::channels::control_command_authorization::ControlCommandAuthRule;
 use crate::channels::control_command_rule_specs::CommandSelectorAuthRule;
 
+/// Discord control-command rule type alias based on selector auth rules.
 pub type DiscordCommandAdminRule = CommandSelectorAuthRule;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,32 +34,44 @@ impl ControlCommandAuthRule for DiscordSlashCommandRule {
 /// Authorization inputs for privileged Discord control commands.
 #[derive(Debug, Clone, Default)]
 pub struct DiscordControlCommandPolicy {
+    /// Fallback admin identities for control/slash authorization.
     pub admin_users: Vec<String>,
+    /// Optional global control-command allow list.
     pub control_command_allow_from: Option<Vec<String>>,
+    /// Command-scoped control command rules.
     pub control_command_rules: Vec<DiscordCommandAdminRule>,
+    /// Slash-command ACL policy.
     pub slash_command_policy: DiscordSlashCommandPolicy,
 }
 
 /// User-friendly ACL fields for non-privileged Discord slash commands.
 ///
 /// Priority order:
-/// 1) `slash_command_allow_from` (global override for all listed slash scopes)
-/// 2) command-specific allowlists (`*_allow_from`)
+/// 1) `global` (global override for all listed slash scopes)
+/// 2) command-specific allowlists
 /// 3) fallback `admin_users` from [`DiscordControlCommandPolicy`]
 #[derive(Debug, Clone, Default)]
-#[allow(clippy::struct_field_names)]
 pub struct DiscordSlashCommandPolicy {
-    pub slash_command_allow_from: Option<Vec<String>>,
-    pub session_status_allow_from: Option<Vec<String>>,
-    pub session_budget_allow_from: Option<Vec<String>>,
-    pub session_memory_allow_from: Option<Vec<String>>,
-    pub session_feedback_allow_from: Option<Vec<String>>,
-    pub job_status_allow_from: Option<Vec<String>>,
-    pub jobs_summary_allow_from: Option<Vec<String>>,
-    pub background_submit_allow_from: Option<Vec<String>>,
+    /// Global slash-command allow list fallback.
+    pub global: Option<Vec<String>>,
+    /// Allow list for `session.status`.
+    pub session_status: Option<Vec<String>>,
+    /// Allow list for `session.budget`.
+    pub session_budget: Option<Vec<String>>,
+    /// Allow list for `session.memory`.
+    pub session_memory: Option<Vec<String>>,
+    /// Allow list for `session.feedback`.
+    pub session_feedback: Option<Vec<String>>,
+    /// Allow list for `job.status`.
+    pub job_status: Option<Vec<String>>,
+    /// Allow list for `jobs.summary`.
+    pub jobs_summary: Option<Vec<String>>,
+    /// Allow list for `background.submit`.
+    pub background_submit: Option<Vec<String>>,
 }
 
 impl DiscordControlCommandPolicy {
+    /// Build control policy from admin identities and command rules.
     #[must_use]
     pub fn new(
         admin_users: Vec<String>,
@@ -73,6 +86,7 @@ impl DiscordControlCommandPolicy {
         }
     }
 
+    /// Attach slash-command ACL policy to this control policy.
     #[must_use]
     pub fn with_slash_command_policy(
         mut self,

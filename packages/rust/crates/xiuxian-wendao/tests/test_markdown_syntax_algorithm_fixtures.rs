@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 //! Fixture-backed tests for markdown syntax parsing and graph algorithm behavior.
 //!
 //! This suite uses synthetic markdown-only fixtures (no business content) to verify:
@@ -39,7 +20,7 @@ fn fixture_root() -> PathBuf {
 #[test]
 fn test_fixture_corpus_builds_and_has_expected_graph_shape()
 -> Result<(), Box<dyn std::error::Error>> {
-    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.clone())?;
     let stats = index.stats();
     assert_eq!(stats.total_notes, 8);
     assert!(stats.links_in_graph >= 9);
@@ -50,7 +31,7 @@ fn test_fixture_corpus_builds_and_has_expected_graph_shape()
 #[test]
 fn test_fixture_search_hits_frontmatter_and_heading_markers()
 -> Result<(), Box<dyn std::error::Error>> {
-    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.clone())?;
 
     let frontmatter_hits = index
         .search_planned(
@@ -81,7 +62,7 @@ fn test_fixture_search_hits_frontmatter_and_heading_markers()
 
 #[test]
 fn test_fixture_code_fence_links_do_not_create_edges() -> Result<(), Box<dyn std::error::Error>> {
-    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.clone())?;
 
     let neighbors = index.neighbors("code-fence-only", LinkGraphDirection::Both, 1, 10);
     assert!(
@@ -94,7 +75,7 @@ fn test_fixture_code_fence_links_do_not_create_edges() -> Result<(), Box<dyn std
 
 #[test]
 fn test_fixture_attachments_and_embeds_are_ignored() -> Result<(), Box<dyn std::error::Error>> {
-    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.clone())?;
 
     let neighbors = index.neighbors("syntax-attachments-embeds", LinkGraphDirection::Both, 1, 10);
     assert_eq!(neighbors.len(), 1);
@@ -106,7 +87,7 @@ fn test_fixture_attachments_and_embeds_are_ignored() -> Result<(), Box<dyn std::
 #[test]
 fn test_fixture_related_and_neighbors_cover_graph_chain() -> Result<(), Box<dyn std::error::Error>>
 {
-    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.to_string())?;
+    let index = LinkGraphIndex::build(&fixture_root()).map_err(|e| e.clone())?;
 
     let neighbors = index.neighbors("graph-a", LinkGraphDirection::Both, 1, 10);
     assert!(neighbors.iter().any(|row| row.stem == "graph-b"));

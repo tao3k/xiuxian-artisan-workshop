@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Writer Skill"
+---
+
 # Writer Skill
 
 Writing quality enforcement through systematic checks against project standards.

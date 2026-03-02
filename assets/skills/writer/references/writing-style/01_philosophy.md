@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Module 01: The Philosophy of Clarity"
+---
+
 # Module 01: The Philosophy of Clarity
 
 > **"If you can't explain it simply, you don't understand it well enough."** — _Richard Feynman_

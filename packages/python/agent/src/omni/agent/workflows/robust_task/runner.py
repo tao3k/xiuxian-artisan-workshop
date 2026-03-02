@@ -1,5 +1,5 @@
 """
-Robust Task workflow runner: execute LangGraph workflow with HITL and session report.
+Robust Task workflow runner: execute workflow with HITL and session report.
 
 Single responsibility: run the robust task graph (streaming, interrupt handling, metrics).
 CLI and gateway call this module; no orchestration logic in CLI.
@@ -18,7 +18,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
-# Thread config for LangGraph checkpointer (stable for single-session runs)
+# Thread config for workflow state tracking (stable for single-session runs)
 DEFAULT_THREAD_ID = "1"
 
 
@@ -33,18 +33,15 @@ async def run_robust_task(
     Args:
         request: User task description.
         console: Rich console for output; if None, a new Console() is used.
-        thread_id: LangGraph thread_id for checkpointer state.
+        thread_id: Workflow thread_id for state checkpointing.
 
     Returns:
         Session metrics: duration_sec, llm_hits, tool_calls, tool_counts, est_tokens, est_cost.
     """
-    from langgraph.checkpoint.memory import MemorySaver
-
     from .graph import build_graph
 
     out = console if console is not None else Console()
-    checkpointer = MemorySaver()
-    app = build_graph(checkpointer=checkpointer)
+    app = build_graph()
     thread = {"configurable": {"thread_id": thread_id}}
 
     initial_state: dict[str, Any] = {

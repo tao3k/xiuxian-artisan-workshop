@@ -5,7 +5,8 @@ mod command_router;
 pub(crate) mod observability;
 mod replies;
 
-#[allow(unused_imports)]
+#[cfg(test)]
+pub(in crate::channels::telegram::runtime) use api::log_preview;
 pub(in crate::channels::telegram::runtime) use api::{
-    handle_inbound_message_with_interrupt, log_preview, push_background_completion,
+    handle_inbound_message_with_interrupt, push_background_completion,
 };

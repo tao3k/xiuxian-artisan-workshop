@@ -1,0 +1,6 @@
+{
+  "name": "git",
+  "tool_count": 2,
+  "tool_names": ["git.commit", "git.smart_commit"],
+  "version": "1.0.0"
+}

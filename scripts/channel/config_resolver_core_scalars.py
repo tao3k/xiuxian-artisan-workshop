@@ -5,7 +5,7 @@ from __future__ import annotations
 
 
 def strip_inline_comment(value: str) -> str:
-    """Strip trailing inline YAML/env comments while honoring quote context."""
+    """Strip trailing inline config/env comments while honoring quote context."""
     in_single = False
     in_double = False
     out: list[str] = []
@@ -44,8 +44,8 @@ def split_csv_entries(raw: str) -> list[str]:
     return entries
 
 
-def parse_yaml_scalar_list(raw: str) -> list[str]:
-    """Parse inline YAML list or CSV scalar list."""
+def parse_scalar_list(raw: str) -> list[str]:
+    """Parse inline list-like scalar (`[a,b]`) or CSV scalar list."""
     payload = strip_inline_comment(raw).strip()
     if payload in {"", "null", "None", "~"}:
         return []

@@ -166,7 +166,6 @@ pub fn set_cached_hybrid(
 }
 
 /// Clear the search cache (for testing).
-#[allow(dead_code)]
 pub fn clear_cache() {
     if let Ok(mut guard) = get_cache().lock() {
         guard.entries.clear();

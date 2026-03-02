@@ -1,0 +1,12 @@
+name = "Agenda_Override_Mount_Test"
+
+[[nodes]]
+id = "Override_Annotator"
+task_type = "annotation"
+weight = 1.0
+params = {}
+[nodes.qianhuan]
+persona_id = "$wendao://skills/agenda-management/references/steward.md"
+template_target = "$wendao://skills/agenda-management/references/draft_agenda.j2"
+output_key = "annotated_prompt"
+input_keys = ["raw_facts"]

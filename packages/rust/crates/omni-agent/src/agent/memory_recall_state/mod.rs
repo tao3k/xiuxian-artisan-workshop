@@ -13,7 +13,3 @@ pub(crate) use storage::{MEMORY_RECALL_SNAPSHOT_MESSAGE_NAME, snapshot_session_i
 pub(crate) use types::{
     EMBEDDING_SOURCE_EMBEDDING, EMBEDDING_SOURCE_EMBEDDING_REPAIRED, EMBEDDING_SOURCE_UNKNOWN,
 };
-
-#[cfg(test)]
-#[path = "../../../tests/agent/memory_recall_state.rs"]
-mod tests;

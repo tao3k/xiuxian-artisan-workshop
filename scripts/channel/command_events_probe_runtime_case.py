@@ -27,6 +27,12 @@ def run_case(
     """Run one black-box probe case and return exit code."""
     print()
     print(f">>> Probe[{case.case_id}]: prompt='{case.prompt}' expect-event='{case.event_name}'")
+    case_max_wait = getattr(case, "max_wait_secs", None)
+    case_max_idle_secs = getattr(case, "max_idle_secs", None)
+    effective_max_wait = int(case_max_wait) if case_max_wait is not None else max_wait
+    effective_max_idle_secs = (
+        int(case_max_idle_secs) if case_max_idle_secs is not None else max_idle_secs
+    )
     cmd = [
         python_executable,
         str(blackbox_script),
@@ -37,9 +43,9 @@ def run_case(
         "--forbid-log-regex",
         forbidden_log_pattern,
         "--max-wait",
-        str(max_wait),
+        str(effective_max_wait),
         "--max-idle-secs",
-        str(max_idle_secs),
+        str(effective_max_idle_secs),
     ]
     for allowed_chat_id in allow_chat_ids:
         cmd.extend(["--allow-chat-id", allowed_chat_id])

@@ -25,19 +25,31 @@ pub(crate) fn build_session_id(channel: &str, session_key: &str) -> String {
     format!("{channel}:{session_key}")
 }
 
-#[allow(clippy::too_many_arguments)]
+pub(crate) struct ForegroundTurnRequest {
+    pub(crate) agent: Arc<Agent>,
+    pub(crate) session_id: String,
+    pub(crate) content: String,
+    pub(crate) timeout_secs: u64,
+    pub(crate) timeout_reply: String,
+    pub(crate) interrupt_rx: watch::Receiver<u64>,
+    pub(crate) interrupt_generation: u64,
+    pub(crate) interrupted_reply: String,
+}
+
 pub(crate) async fn run_foreground_turn_with_interrupt(
-    agent: Arc<Agent>,
-    session_id: &str,
-    content: &str,
-    timeout_secs: u64,
-    timeout_reply: String,
-    mut interrupt_rx: watch::Receiver<u64>,
-    interrupt_generation: u64,
-    interrupted_reply: String,
+    request: ForegroundTurnRequest,
 ) -> ForegroundTurnOutcome {
-    let session_id = session_id.to_string();
-    let content = content.to_string();
+    let ForegroundTurnRequest {
+        agent,
+        session_id,
+        content,
+        timeout_secs,
+        timeout_reply,
+        mut interrupt_rx,
+        interrupt_generation,
+        interrupted_reply,
+    } = request;
+
     let mut turn_task = tokio::spawn(async move { agent.run_turn(&session_id, &content).await });
     let timeout = tokio::time::sleep(Duration::from_secs(timeout_secs));
     tokio::pin!(timeout);

@@ -4,14 +4,14 @@ test_mcp_invoker.py - Unit tests for MCPToolInvoker.
 Validates:
 - Compatibility with multiple call_tool signatures
 - MCP response normalization
-- Integration with pipeline-generated LangGraph nodes
+- Integration with pipeline-generated workflow nodes
 """
 
 from __future__ import annotations
 
 import pytest
 
-from omni.tracer import MCPToolInvoker, PipelineConfig, create_langgraph_from_pipeline
+from omni.tracer import MCPToolInvoker, PipelineConfig, create_workflow_from_pipeline
 
 
 class _ClientPositional:
@@ -106,7 +106,7 @@ async def test_mcp_invoker_integrates_with_pipeline_graph():
             }
         ],
     )
-    app = create_langgraph_from_pipeline(
+    app = create_workflow_from_pipeline(
         config,
         state_schema=dict,
         tool_invoker=MCPToolInvoker(_ClientPositional()),

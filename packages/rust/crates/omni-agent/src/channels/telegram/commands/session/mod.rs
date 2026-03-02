@@ -86,9 +86,13 @@ pub fn parse_session_context_memory_command(input: &str) -> Option<SessionOutput
 
 /// Parse session partition command:
 /// - `/session partition` (status)
+/// - `/session scope` (status alias)
 /// - `/session partition json`
+/// - `/session scope json`
 /// - `/session partition on|off`
+/// - `/session scope on|off`
 /// - `/session partition chat|chat_user|user|chat_thread_user [json]`
+/// - `/session scope chat|chat_user|user|chat_thread_user [json]`
 pub fn parse_session_partition_command(input: &str) -> Option<SessionPartitionCommand> {
     parse_session_partition_shared(input, parse_session_partition_mode)
 }

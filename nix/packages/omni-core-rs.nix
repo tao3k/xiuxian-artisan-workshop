@@ -72,6 +72,11 @@ python3Packages.buildPythonPackage {
     OPENSSL_DIR = lib.getDev openssl;
     OPENSSL_LIB_DIR = "${lib.getLib openssl}/lib";
     OPENSSL_NO_VENDOR = 1;
+  }
+  // lib.optionalAttrs stdenv.hostPlatform.isDarwin {
+    # In isolated Nix/macOS builders, `xcrun metal` may be unavailable.
+    # Skip build-time precompile and use mistralrs runtime-compilation path.
+    MISTRALRS_METAL_PRECOMPILE = "0";
   };
 
   # Don't run tests during build

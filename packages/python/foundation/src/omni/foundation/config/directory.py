@@ -33,7 +33,7 @@ def get_conf_dir() -> str:
     Returns:
         Configuration directory path
     """
-    return str(PRJ_DIRS.config_home / "omni-dev-fusion")
+    return str(PRJ_DIRS.config_home / "xiuxian-artisan-workshop")
 
 
 __all__ = [

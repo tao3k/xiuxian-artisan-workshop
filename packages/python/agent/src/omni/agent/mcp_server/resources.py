@@ -11,10 +11,12 @@ import json
 import resource
 import sys
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from omni.foundation.config.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger("omni.agent.mcp_server.resources")
 
@@ -63,7 +65,7 @@ async def read_agent_memory(kernel: Any) -> str:
         if not kernel or not kernel.is_ready:
             return json.dumps({"error": "Kernel not ready"}, indent=2)
 
-        # Removed LangGraph dependency; agent memory is now natively managed by Rust MemRL (xiuxian-memory).
+        # External graph runtime was removed; agent memory is now natively managed by Rust MemRL (xiuxian-memory).
         return json.dumps(
             {
                 "status": "managed_by_rust_memrl",
@@ -121,7 +123,7 @@ def read_system_stats(kernel: Any, start_time: float) -> str:
         if rss_mb is not None:
             payload["memory_mb"] = rss_mb
             payload["memory_note"] = (
-                "RSS; expect ~1–2G with minimal embedding + bounded vector cache"
+                "RSS; expect ~1-2G with minimal embedding + bounded vector cache"
             )
 
         return json.dumps(payload, indent=2)

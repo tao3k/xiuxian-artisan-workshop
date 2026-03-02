@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import importlib
 import os
-import subprocess  # noqa: F401  # Exposed for monkeypatch seams in black-box tests.
+import subprocess
 import sys
 from functools import partial
 from pathlib import Path
@@ -64,20 +64,34 @@ parse_args = partial(
 )
 default_report_path = _CONFIG.default_report_path
 infer_session_ids_from_runtime_log = _MODULES.session_ids_from_runtime_log
+normalize_telegram_session_partition_mode = _MODULES.normalize_telegram_session_partition_mode
+session_partition_mode_from_runtime_log = _MODULES.session_partition_mode_from_runtime_log
+telegram_session_partition_mode = _MODULES.telegram_session_partition_mode
+keyword_hit_ratio = _ANALYSIS.keyword_hit_ratio
+select_feedback_direction = _ANALYSIS.select_feedback_direction
+has_event = _SIGNALS.has_event
+strip_ansi = _SIGNALS.strip_ansi
 
-resolve_runtime_partition_mode = partial(
-    _ENTRY_BINDINGS.resolve_runtime_partition_mode,
-    config_module=_CONFIG,
-    normalize_telegram_session_partition_mode_fn=_MODULES.normalize_telegram_session_partition_mode,
-    session_partition_mode_from_runtime_log_fn=_MODULES.session_partition_mode_from_runtime_log,
-    telegram_session_partition_mode_fn=_MODULES.telegram_session_partition_mode,
-)
-build_config = partial(
-    _CONFIG.build_config,
-    config_cls=BenchmarkConfig,
-    infer_session_ids_fn=infer_session_ids_from_runtime_log,
-    resolve_runtime_partition_mode_fn=resolve_runtime_partition_mode,
-)
+
+def resolve_runtime_partition_mode(log_file: Path) -> str | None:
+    return _ENTRY_BINDINGS.resolve_runtime_partition_mode(
+        log_file,
+        config_module=_CONFIG,
+        normalize_telegram_session_partition_mode_fn=normalize_telegram_session_partition_mode,
+        session_partition_mode_from_runtime_log_fn=session_partition_mode_from_runtime_log,
+        telegram_session_partition_mode_fn=telegram_session_partition_mode,
+    )
+
+
+def build_config(args: Any) -> BenchmarkConfig:
+    return _CONFIG.build_config(
+        args,
+        config_cls=BenchmarkConfig,
+        infer_session_ids_fn=infer_session_ids_from_runtime_log,
+        resolve_runtime_partition_mode_fn=resolve_runtime_partition_mode,
+    )
+
+
 load_scenarios = partial(
     _CONFIG.load_scenarios,
     query_spec_cls=QuerySpec,
@@ -98,17 +112,31 @@ def read_new_lines(path: Path, cursor: int) -> tuple[int, list[str]]:
     )
 
 
-run_probe = partial(
-    _ENTRY_BINDINGS.run_probe,
-    runtime_bindings_module=_RUNTIME_BINDINGS,
-    execution_module=_EXECUTION,
-    count_lines_fn=count_lines,
-    read_new_lines_fn=read_new_lines,
-    strip_ansi_fn=_SIGNALS.strip_ansi,
-    has_event_fn=_SIGNALS.has_event,
-    control_admin_required_event=CONTROL_ADMIN_REQUIRED_EVENT,
-    forbidden_log_pattern=FORBIDDEN_LOG_PATTERN,
-)
+def run_probe(
+    config: BenchmarkConfig,
+    *,
+    prompt: str,
+    expect_event: str,
+    allow_no_bot: bool = False,
+) -> list[str]:
+    # Preserve legacy monkeypatch seam: tests patch this module's subprocess.
+    _EXECUTION.subprocess = subprocess
+    return _ENTRY_BINDINGS.run_probe(
+        config,
+        prompt=prompt,
+        expect_event=expect_event,
+        allow_no_bot=allow_no_bot,
+        runtime_bindings_module=_RUNTIME_BINDINGS,
+        execution_module=_EXECUTION,
+        count_lines_fn=count_lines,
+        read_new_lines_fn=read_new_lines,
+        strip_ansi_fn=strip_ansi,
+        has_event_fn=has_event,
+        control_admin_required_event=CONTROL_ADMIN_REQUIRED_EVENT,
+        forbidden_log_pattern=FORBIDDEN_LOG_PATTERN,
+    )
+
+
 parse_turn_signals = partial(
     _ENTRY_BINDINGS.parse_turn_signals,
     runtime_bindings_module=_RUNTIME_BINDINGS,
@@ -157,12 +185,7 @@ def _run_probe_dynamic(
     expect_event: str,
     allow_no_bot: bool = False,
 ) -> list[str]:
-    return run_probe(
-        config,
-        prompt=prompt,
-        expect_event=expect_event,
-        allow_no_bot=allow_no_bot,
-    )
+    return run_probe(config, prompt=prompt, expect_event=expect_event, allow_no_bot=allow_no_bot)
 
 
 run_reset = partial(
@@ -193,7 +216,7 @@ run_mode = partial(
     run_reset_fn=run_reset,
     run_non_command_turn_fn=run_non_command_turn,
     build_turn_result_fn=build_turn_result,
-    select_feedback_direction_fn=_ANALYSIS.select_feedback_direction,
+    select_feedback_direction_fn=select_feedback_direction,
     run_feedback_fn=run_feedback,
 )
 

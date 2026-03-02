@@ -1,10 +1,11 @@
 ---
+type: skill
 name: knowledge
 description: Use when searching documentation, retrieving project standards, capturing durable notes, and managing long-term knowledge base content.
 metadata:
-  author: omni-dev-fusion
+  author: xiuxian-artisan-workshop
   version: "1.1.0"
-  source: "https://github.com/tao3k/omni-dev-fusion/tree/main/assets/skills/knowledge"
+  source: "https://github.com/tao3k/xiuxian-artisan-workshop/tree/main/assets/skills/knowledge"
   routing_keywords:
     - "knowledge"
     - "context"

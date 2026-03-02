@@ -1,23 +1,15 @@
-use super::super::super::{LinkGraphIndex, LinkGraphPprSubgraphMode};
+use super::super::super::LinkGraphIndex;
 use super::super::types::RelatedPprKernelResult;
-use super::RelatedPprKernelTelemetry;
+use super::{RelatedPprKernelConfig, RelatedPprKernelTelemetry};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn run_related_ppr_orchestration(
     index: &LinkGraphIndex,
     seeds: &HashMap<String, f64>,
     graph_nodes: &[String],
-    bounded_distance: usize,
-    alpha: f64,
-    max_iter: usize,
-    tol: f64,
-    subgraph_mode: LinkGraphPprSubgraphMode,
-    restrict_to_horizon: bool,
-    max_partitions: usize,
-    deadline: Option<Instant>,
+    config: &RelatedPprKernelConfig,
 ) -> Option<RelatedPprKernelTelemetry> {
     let mut fused_scores_by_doc_id: HashMap<String, f64> = HashMap::new();
     let mut iteration_count = 0_usize;
@@ -31,12 +23,12 @@ pub(super) fn run_related_ppr_orchestration(
 
     let seed_ids: HashSet<String> = seeds.keys().cloned().collect();
     let mut should_partition = LinkGraphIndex::should_partition_related_ppr(
-        subgraph_mode,
-        restrict_to_horizon,
+        config.subgraph_mode,
+        config.restrict_to_horizon,
         graph_nodes.len(),
         seeds.len(),
     );
-    if should_partition && LinkGraphIndex::deadline_exceeded(deadline) {
+    if should_partition && LinkGraphIndex::deadline_exceeded(config.deadline) {
         timed_out = true;
         should_partition = false;
     }
@@ -45,9 +37,9 @@ pub(super) fn run_related_ppr_orchestration(
         let universe: HashSet<String> = graph_nodes.iter().cloned().collect();
         let partitions = index.build_related_ppr_partitions(
             &seed_ids,
-            bounded_distance,
+            config.bounded_distance,
             &universe,
-            max_partitions,
+            config.max_partitions,
         );
         partition_duration_ms = partition_start.elapsed().as_secs_f64() * 1000.0;
         partition_sizes = partitions.iter().map(Vec::len).collect();
@@ -56,11 +48,18 @@ pub(super) fn run_related_ppr_orchestration(
         let kernels: Vec<RelatedPprKernelResult> = partitions
             .par_iter()
             .filter_map(|partition_nodes| {
-                index.run_related_ppr_kernel(partition_nodes, seeds, alpha, max_iter, tol, deadline)
+                index.run_related_ppr_kernel(
+                    partition_nodes,
+                    seeds,
+                    config.alpha,
+                    config.max_iter,
+                    config.tol,
+                    config.deadline,
+                )
             })
             .collect();
         kernel_duration_ms = kernel_start.elapsed().as_secs_f64() * 1000.0;
-        if LinkGraphIndex::deadline_exceeded(deadline) {
+        if LinkGraphIndex::deadline_exceeded(config.deadline) {
             timed_out = true;
         }
 
@@ -80,8 +79,14 @@ pub(super) fn run_related_ppr_orchestration(
 
     if subgraph_count == 0 {
         let kernel_start = Instant::now();
-        let kernel =
-            index.run_related_ppr_kernel(graph_nodes, seeds, alpha, max_iter, tol, deadline)?;
+        let kernel = index.run_related_ppr_kernel(
+            graph_nodes,
+            seeds,
+            config.alpha,
+            config.max_iter,
+            config.tol,
+            config.deadline,
+        )?;
         kernel_duration_ms = kernel_start.elapsed().as_secs_f64() * 1000.0;
         subgraph_count = 1;
         iteration_count = kernel.iteration_count;

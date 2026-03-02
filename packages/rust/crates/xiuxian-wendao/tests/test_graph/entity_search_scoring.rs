@@ -1,22 +1,3 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
@@ -31,12 +12,12 @@ fn test_search_entities_exact_name_ranks_highest() {
 
     for (name, etype, desc) in &entities {
         let entity = Entity::new(
-            format!("tool:{}", name),
+            format!("tool:{name}"),
             name.to_string(),
             etype.clone(),
             desc.to_string(),
         );
-        graph.add_entity(entity).unwrap();
+        assert!(graph.add_entity(entity).is_ok());
     }
 
     let results = graph.search_entities("git.commit", 10);
@@ -55,7 +36,7 @@ fn test_search_entities_alias_match() {
         "AI coding assistant".to_string(),
     );
     entity.aliases = vec!["claude-dev".to_string(), "cc".to_string()];
-    graph.add_entity(entity).unwrap();
+    assert!(graph.add_entity(entity).is_ok());
 
     let other = Entity::new(
         "concept:devtools".to_string(),
@@ -63,7 +44,7 @@ fn test_search_entities_alias_match() {
         EntityType::Concept,
         "Development tools and utilities".to_string(),
     );
-    graph.add_entity(other).unwrap();
+    assert!(graph.add_entity(other).is_ok());
 
     // Search by alias
     let results = graph.search_entities("claude-dev", 10);
@@ -91,12 +72,12 @@ fn test_search_entities_token_overlap() {
 
     for (name, etype, desc) in &entities {
         let entity = Entity::new(
-            format!("tool:{}", name),
+            format!("tool:{name}"),
             name.to_string(),
             etype.clone(),
             desc.to_string(),
         );
-        graph.add_entity(entity).unwrap();
+        assert!(graph.add_entity(entity).is_ok());
     }
 
     // "smart commit" should match "git.smart_commit" via token overlap
@@ -118,7 +99,7 @@ fn test_search_entities_fuzzy_match() {
         EntityType::Concept,
         "Note-taking method".to_string(),
     );
-    graph.add_entity(entity).unwrap();
+    assert!(graph.add_entity(entity).is_ok());
 
     // Typo: "zettelkastn" should still find "zettelkasten" via fuzzy match
     let results = graph.search_entities("zettelkastn", 10);
@@ -139,7 +120,7 @@ fn test_search_entities_description_fallback() {
         EntityType::Tool,
         "Search the internet for information about any topic".to_string(),
     );
-    graph.add_entity(entity).unwrap();
+    assert!(graph.add_entity(entity).is_ok());
 
     // "internet" doesn't appear in name, aliases, or tokens — only description
     let results = graph.search_entities("internet", 10);
@@ -156,7 +137,7 @@ fn test_search_entities_empty_query() {
         EntityType::Tool,
         "Git".to_string(),
     );
-    graph.add_entity(entity).unwrap();
+    assert!(graph.add_entity(entity).is_ok());
 
     let results = graph.search_entities("", 10);
     assert!(results.is_empty(), "Empty query should return no results");
@@ -182,8 +163,8 @@ fn test_search_entities_confidence_boost() {
     );
     low_conf.confidence = 0.3;
 
-    graph.add_entity(high_conf).unwrap();
-    graph.add_entity(low_conf).unwrap();
+    assert!(graph.add_entity(high_conf).is_ok());
+    assert!(graph.add_entity(low_conf).is_ok());
 
     // Both match via description ("search"), but high confidence should rank first
     let results = graph.search_entities("search", 10);

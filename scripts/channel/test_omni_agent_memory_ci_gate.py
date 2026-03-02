@@ -135,7 +135,7 @@ print_gate_failure_triage = partial(
 wait_for_mock_health = _runtime_module.wait_for_mock_health
 terminate_process = _runtime_module.terminate_process
 ensure_parent_dirs = _log_bindings_module.ensure_parent_dirs
-_yaml_inline_list = _runtime_module._yaml_inline_list
+_toml_inline_list = _runtime_module._toml_inline_list
 write_ci_channel_acl_settings = _runtime_module.write_ci_channel_acl_settings
 start_background_process = partial(
     _log_bindings_module.start_background_process,

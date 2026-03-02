@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Python Engineering Skill Guide"
+---
+
 # Python Engineering Skill Guide
 
 This skill provides Python development utilities including linting, testing, and adherence to Pydantic patterns.

@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use xiuxian_macros::{env_first_non_empty, env_non_empty};
+
 #[cfg(feature = "agent-provider-litellm")]
 use crate::config::load_runtime_settings;
 
@@ -19,12 +21,15 @@ pub(super) fn build_chunk_ranges(total: usize, max_chunk_size: usize) -> Vec<(us
 }
 
 pub(super) fn build_http_client(timeout_secs: u64) -> reqwest::Client {
-    let builder = reqwest::Client::builder()
+    let mut builder = reqwest::Client::builder()
         .timeout(Duration::from_secs(timeout_secs))
         .connect_timeout(Duration::from_secs(5))
         .pool_idle_timeout(Duration::from_secs(90))
         .pool_max_idle_per_host(64)
         .tcp_nodelay(true);
+    if !system_proxy_enabled() {
+        builder = builder.no_proxy();
+    }
     match builder.build() {
         Ok(client) => client,
         Err(error) => {
@@ -37,6 +42,12 @@ pub(super) fn build_http_client(timeout_secs: u64) -> reqwest::Client {
     }
 }
 
+fn system_proxy_enabled() -> bool {
+    env_non_empty!("OMNI_AGENT_HTTP_ENABLE_SYSTEM_PROXY")
+        .map(|raw| raw.trim().to_ascii_lowercase())
+        .is_some_and(|raw| matches!(raw.as_str(), "1" | "true" | "yes" | "on"))
+}
+
 #[cfg(feature = "agent-provider-litellm")]
 pub(super) struct LitellmEmbedApiKeyResolution {
     pub(super) api_key: Option<String>,
@@ -45,12 +56,7 @@ pub(super) struct LitellmEmbedApiKeyResolution {
 
 #[cfg(feature = "agent-provider-litellm")]
 pub(super) fn resolve_litellm_embed_api_key() -> LitellmEmbedApiKeyResolution {
-    let read_from_env = |name: &str| {
-        std::env::var(name)
-            .ok()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
-    };
+    let read_from_env = |name: &str| env_non_empty!(name);
     let from_named_env = |name: &str| {
         read_from_env(name).map(|value| LitellmEmbedApiKeyResolution {
             api_key: Some(value),
@@ -81,11 +87,16 @@ pub(super) fn resolve_litellm_embed_api_key() -> LitellmEmbedApiKeyResolution {
         };
     }
 
-    if let Some(result) = from_named_env("MINIMAX_API_KEY") {
-        return result;
-    }
-    if let Some(result) = from_named_env("OPENAI_API_KEY") {
-        return result;
+    if let Some(api_key) = env_first_non_empty!("MINIMAX_API_KEY", "OPENAI_API_KEY") {
+        let source = if env_non_empty!("MINIMAX_API_KEY").is_some() {
+            "MINIMAX_API_KEY"
+        } else {
+            "OPENAI_API_KEY"
+        };
+        return LitellmEmbedApiKeyResolution {
+            api_key: Some(api_key),
+            source: source.to_string(),
+        };
     }
 
     LitellmEmbedApiKeyResolution {
@@ -95,9 +106,8 @@ pub(super) fn resolve_litellm_embed_api_key() -> LitellmEmbedApiKeyResolution {
 }
 
 pub(super) fn parse_positive_env_u64(name: &str, default_value: u64, max_value: u64) -> u64 {
-    let value = std::env::var(name)
-        .ok()
-        .and_then(|raw| raw.trim().parse::<u64>().ok())
+    let value = env_non_empty!(name)
+        .and_then(|raw| raw.parse::<u64>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(default_value);
     value.min(max_value)
@@ -108,9 +118,8 @@ pub(super) fn parse_positive_env_usize(
     default_value: usize,
     max_value: usize,
 ) -> usize {
-    let value = std::env::var(name)
-        .ok()
-        .and_then(|raw| raw.trim().parse::<usize>().ok())
+    let value = env_non_empty!(name)
+        .and_then(|raw| raw.parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(default_value);
     value.min(max_value)

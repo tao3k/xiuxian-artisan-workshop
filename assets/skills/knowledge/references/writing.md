@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Writing Memory"
+---
+
 # Writing Memory
 
 ## Overview

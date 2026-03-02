@@ -1,16 +1,19 @@
 use std::path::Path;
 
-#[allow(clippy::doc_markdown)]
 impl VectorStore {
-    #[allow(clippy::unused_self)]
     fn scan_unique_skill_tools(
         &self,
         base_path: &str,
-    ) -> Result<Vec<omni_scanner::ToolRecord>, VectorStoreError> {
+    ) -> Result<Vec<xiuxian_skills::ToolRecord>, VectorStoreError> {
         let skill_scanner = SkillScanner::new();
         let script_scanner = ToolsScanner::new();
         let resource_scanner = ResourceScanner::new();
         let skills_path = Path::new(base_path);
+        log::debug!(
+            "scan_unique_skill_tools: scan_path={}, store_base={}",
+            skills_path.display(),
+            self.base_path.display()
+        );
         if !skills_path.exists() {
             log::warn!("Skills path does not exist: {}", skills_path.display());
             return Ok(vec![]);
@@ -94,7 +97,7 @@ impl VectorStore {
     /// # Errors
     ///
     /// Returns an error if filesystem scanning fails, if vector-table writes fail,
-    /// or if index/table operations fail in LanceDB.
+    /// or if index/table operations fail in `LanceDB`.
     pub async fn index_skill_tools(
         &mut self,
         base_path: &str,
@@ -142,7 +145,7 @@ impl VectorStore {
     /// # Errors
     ///
     /// Returns an error if skill scanning fails, table writes/counts fail,
-    /// or LanceDB operations fail while rebuilding either table.
+    /// or `LanceDB` operations fail while rebuilding either table.
     pub async fn index_skill_tools_dual(
         &mut self,
         base_path: &str,
@@ -199,11 +202,15 @@ impl VectorStore {
     /// # Errors
     ///
     /// Returns an error if skill manifests/scripts cannot be scanned.
-    #[allow(clippy::unused_self)]
     pub fn scan_skill_tools_raw(&self, base_path: &str) -> Result<Vec<String>, VectorStoreError> {
         let skill_scanner = SkillScanner::new();
         let script_scanner = ToolsScanner::new();
         let skills_path = Path::new(base_path);
+        log::debug!(
+            "scan_skill_tools_raw: scan_path={}, store_base={}",
+            skills_path.display(),
+            self.base_path.display()
+        );
         if !skills_path.exists() {
             return Ok(vec![]);
         }

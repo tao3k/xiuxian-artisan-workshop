@@ -13,7 +13,7 @@ pub(in super::super) fn format_session_partition_status(current_mode: &str) -> S
         format!("supported_modes={}", supported_modes_csv(profile)),
         format!("quick_toggle={}", quick_toggle_usage()),
         format!("set_mode={}", set_mode_usage(profile)),
-        "scope=runtime (takes effect for new incoming messages)".to_string(),
+        "scope=channel (takes effect for new incoming messages)".to_string(),
     ]
     .join("\n")
 }
@@ -26,7 +26,7 @@ pub(in super::super) fn format_session_partition_status_json(current_mode: &str)
         "current_mode": current_mode,
         "supported_modes": supported_modes(profile),
         "quick_toggle": quick_toggle_usage(),
-        "scope": "runtime",
+        "scope": "channel",
     })
     .to_string()
 }
@@ -39,7 +39,7 @@ pub(in super::super) fn format_session_partition_updated(
         "Session partition updated.".to_string(),
         format!("requested_mode={requested_mode}"),
         format!("current_mode={current_mode}"),
-        "scope=runtime (takes effect for new incoming messages)".to_string(),
+        "scope=channel (takes effect for new incoming messages)".to_string(),
     ]
     .join("\n")
 }
@@ -53,7 +53,7 @@ pub(in super::super) fn format_session_partition_updated_json(
         "updated": true,
         "requested_mode": requested_mode,
         "current_mode": current_mode,
-        "scope": "runtime",
+        "scope": "channel",
     })
     .to_string()
 }
@@ -80,7 +80,7 @@ pub(in super::super) fn format_session_partition_admin_required(
         "- `reason`: `admin_required`".to_string(),
         format!("- `sender`: `{sender}`"),
         format!("- `current_mode`: `{current_mode}`"),
-        "- `hint`: Ask an identity allowed by `telegram.acl.control.allow_from.users` (or `telegram.acl.control.rules` / `telegram.acl.admin.users`) to run `/session partition ...`."
+        "- `hint`: Ask an identity allowed by `telegram.acl.control.allow_from.users` (or `telegram.acl.control.rules` / `telegram.acl.admin.users`) to run `/session partition ...` (or `/session scope ...`)."
             .to_string(),
     ]
     .join("\n")
@@ -96,7 +96,7 @@ pub(in super::super) fn format_session_partition_admin_required_json(
         "reason": "admin_required",
         "sender": sender,
         "current_mode": current_mode,
-        "hint": "Ask an identity allowed by telegram.acl.control.allow_from.users (or telegram.acl.control.rules / telegram.acl.admin.users) to run /session partition ...",
+        "hint": "Ask an identity allowed by telegram.acl.control.allow_from.users (or telegram.acl.control.rules / telegram.acl.admin.users) to run /session partition ... (or /session scope ...).",
     })
     .to_string()
 }

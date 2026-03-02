@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Concise Writing Guidelines"
+---
+
 # Concise Writing Guidelines
 
 ## Core Principle: Concrete First, Strip Clutter

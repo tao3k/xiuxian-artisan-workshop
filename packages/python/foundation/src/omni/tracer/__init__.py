@@ -1,15 +1,15 @@
 """
 omni.tracer - UltraRAG-style execution tracing system
 
-Fine-grained execution tracing for LangGraph + MCP.
+Fine-grained execution tracing for native workflows + MCP.
 
 Provides:
 - Step-by-step execution tracking
 - Thinking content capture (LLM streaming)
 - Memory pool for variable history ($var, memory_var conventions)
 - Callback system for custom processing
-- LangGraph integration
-- Pipeline configuration (YAML to LangGraph generator)
+- Workflow integration
+- Pipeline configuration (YAML to native workflow app)
 - Rich console UI with colored output
 
 UltraRAG Memory Conventions:
@@ -24,8 +24,8 @@ Usage:
     tracer = ExecutionTracer(trace_id="session-123")
     handler = TracingCallbackHandler(tracer)
 
-    # Use with LangGraph
-    app = graph.compile(callbacks=[handler])
+    # Use with workflow callbacks
+    app = workflow
 
     # Or use context manager
     async with traced("my_task", trace_id="run_001") as t:
@@ -41,7 +41,6 @@ from .engine import ExecutionTracer, traced_session
 from .graphflow import run_graphflow_pipeline
 from .interfaces import ExecutionStep, ExecutionTrace, MemoryPool, StepType
 from .invoker_stack import create_default_invoker_stack
-from .langgraph import TracingCallbackHandler, create_traced_app, stream_with_trace
 from .mcp_invoker import MCPToolClient, MCPToolInvoker
 from .node_factory import (
     MappingToolInvoker,
@@ -49,14 +48,14 @@ from .node_factory import (
     ToolInvoker,
     create_pipeline_node,
 )
-from .pipeline_builder import LangGraphPipelineBuilder
+from .pipeline_builder import PipelineWorkflowBuilder
 from .pipeline_checkpoint import compile_workflow, create_in_memory_checkpointer
 from .pipeline_runtime import (
     PipelineExecutor,
-    create_langgraph_from_pipeline,
-    create_langgraph_from_pipeline_with_defaults,
-    create_langgraph_from_yaml,
     create_pipeline_executor,
+    create_workflow_from_pipeline,
+    create_workflow_from_pipeline_with_defaults,
+    create_workflow_from_yaml,
     load_pipeline,
 )
 from .pipeline_schema import (
@@ -87,78 +86,70 @@ from .ui import (
     print_trace_summary,
     traced,
 )
+from .workflow_events import TracingCallbackHandler, create_traced_app, stream_with_trace
 from .xml import escape_xml, extract_attr, extract_tag
 
 __version__ = "0.2.0"
 
 __all__ = [
-    # Core
-    "ExecutionTracer",
-    "ExecutionTrace",
-    "ExecutionStep",
-    "StepType",
-    "MemoryPool",
-    # Callbacks
     "CallbackManager",
-    "LoggingCallback",
-    "TracingCallback",
+    "CheckpointerRuntimeConfig",
+    "CompositeToolInvoker",
     "DispatchMode",
-    "dispatch_coroutine",
-    # LangGraph
-    "TracingCallbackHandler",
-    "create_traced_app",
-    "stream_with_trace",
-    # MCP Invoker
+    "ExecutionStep",
+    "ExecutionTrace",
+    "ExecutionTracer",
+    "InMemoryTraceStorage",
+    "InvokerRuntimeConfig",
+    "LoggingCallback",
     "MCPToolClient",
     "MCPToolInvoker",
-    "CompositeToolInvoker",
+    "MappingToolInvoker",
+    "MemoryPool",
+    "NoOpToolInvoker",
+    "PipelineConfig",
+    "PipelineExecutor",
+    "PipelineRuntimeConfig",
+    "PipelineState",
+    "PipelineWorkflowBuilder",
+    "RetrievalRuntimeConfig",
     "RetrievalToolInvoker",
+    "StateRuntimeConfig",
+    "StepType",
+    "ToolInvoker",
+    "TraceStorage",
+    "TracedExecution",
+    "TracerRuntimeConfig",
+    "TracingCallback",
+    "TracingCallbackHandler",
+    "compile_workflow",
+    "console",
     "create_default_invoker_stack",
     "create_in_memory_checkpointer",
-    "compile_workflow",
-    # Pipeline Node Factory
-    "ToolInvoker",
-    "NoOpToolInvoker",
-    "MappingToolInvoker",
-    "create_pipeline_node",
-    # Pipeline
-    "PipelineConfig",
-    "PipelineRuntimeConfig",
-    "CheckpointerRuntimeConfig",
-    "InvokerRuntimeConfig",
-    "RetrievalRuntimeConfig",
-    "TracerRuntimeConfig",
-    "StateRuntimeConfig",
-    "PipelineExecutor",
-    "PipelineState",
-    "LangGraphPipelineBuilder",
-    "create_langgraph_from_pipeline",
-    "create_langgraph_from_pipeline_with_defaults",
-    "create_langgraph_from_yaml",
     "create_pipeline_executor",
-    "load_pipeline",
-    "run_graphflow_pipeline",
+    "create_pipeline_node",
+    "create_traced_app",
+    "create_workflow_from_pipeline",
+    "create_workflow_from_pipeline_with_defaults",
+    "create_workflow_from_yaml",
+    "dispatch_coroutine",
     "escape_xml",
     "extract_attr",
     "extract_tag",
-    # Storage
-    "TraceStorage",
-    "InMemoryTraceStorage",
-    # Utilities
-    "traced_session",
-    # UI
-    "TracedExecution",
-    "traced",
-    "console",
+    "load_pipeline",
+    "print_error",
+    "print_execution_path",
     "print_header",
-    "print_step_start",
-    "print_step_end",
-    "print_thinking",
+    "print_info",
     "print_memory",
     "print_param",
-    "print_error",
+    "print_step_end",
+    "print_step_start",
     "print_success",
-    "print_info",
+    "print_thinking",
     "print_trace_summary",
-    "print_execution_path",
+    "run_graphflow_pipeline",
+    "stream_with_trace",
+    "traced",
+    "traced_session",
 ]

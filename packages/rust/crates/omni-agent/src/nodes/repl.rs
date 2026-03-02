@@ -16,6 +16,6 @@ pub(crate) async fn run_repl_mode(
         println!("{out}");
         Ok(())
     } else {
-        run_stdio(agent, session_id).await
+        Box::pin(run_stdio(agent, session_id)).await
     }
 }

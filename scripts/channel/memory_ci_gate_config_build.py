@@ -20,6 +20,7 @@ from memory_ci_gate_config_ports import (
     resolve_runtime_ports,
 )
 from memory_ci_gate_config_validation import validate_args
+from resolve_valkey_endpoint import resolve_valkey_endpoint
 
 # Backward-compatible aliases for existing test hooks/imports.
 _ARTIFACT_SPECS = ARTIFACT_SPECS
@@ -59,7 +60,13 @@ def parse_args(
         default_artifact_relpath_fn=default_artifact_relpath_fn,
     )
 
-    valkey_url = args.valkey_url.strip() or f"redis://127.0.0.1:{args.valkey_port}/0"
+    if args.valkey_url.strip():
+        valkey_url = args.valkey_url.strip()
+    else:
+        resolved_valkey = resolve_valkey_endpoint()
+        valkey_host = str(resolved_valkey["host"])
+        valkey_db = str(resolved_valkey["db"])
+        valkey_url = f"redis://{valkey_host}:{args.valkey_port}/{valkey_db}"
     valkey_prefix = args.valkey_prefix.strip() or default_valkey_prefix_fn(args.profile)
     webhook_secret = args.webhook_secret.strip() or secrets.token_urlsafe(24)
     ids = resolve_numeric_identities(args)

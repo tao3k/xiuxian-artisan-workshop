@@ -1,0 +1,4 @@
+skill validation report for <SKILL_PATH> (errors: 2, warnings: 1)
+[ERROR] missing default(strict_mode) item `assets/` at <SKILL_PATH>/assets/
+[ERROR] missing default(strict_mode) item `tests/` at <SKILL_PATH>/tests/
+[WARN] out-of-scope entry `scratch` detected at <SKILL_PATH> (not declared in skills.toml)

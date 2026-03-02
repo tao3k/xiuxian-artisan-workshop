@@ -1,3 +1,21 @@
+---
+type: skill
+name: embedding
+description: Use when generating vector embeddings for text.
+metadata:
+  author: omni-dev-fusion
+  version: "1.0.0"
+  source: "https://github.com/tao3k/omni-dev-fusion/tree/main/assets/skills/embedding"
+  routing_keywords:
+    - "embedding"
+    - "vector"
+    - "semantic"
+    - "similarity"
+  intents:
+    - "Generate embeddings"
+    - "Embed text"
+---
+
 # Embedding Skill
 
 Provides text embedding generation via the unified embedding service.

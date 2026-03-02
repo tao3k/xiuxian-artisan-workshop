@@ -76,7 +76,7 @@ class ExecutionTrace:
 
 
 class DemoState(TypedDict):
-    """LangGraph state with structured reflection labels for cross-node context."""
+    """Workflow state with structured reflection labels for cross-node context."""
 
     topic: str
     iterations: int

@@ -1,7 +1,7 @@
 """Knowledge Configuration - Load settings from references.yaml.
 
 System default: packages/conf/references.yaml
-User override:  $PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml (merged by ReferenceLibrary).
+User override:  $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml (merged by ReferenceLibrary).
 """
 
 from pathlib import Path

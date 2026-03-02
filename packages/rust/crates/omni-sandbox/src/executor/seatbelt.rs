@@ -28,10 +28,9 @@ impl SeatbeltExecutor {
     }
 
     /// Get executor name
-    #[allow(clippy::unused_self)]
     #[must_use]
     pub fn name(&self) -> &'static str {
-        "seatbelt"
+        <Self as SandboxExecutor>::name(self)
     }
 }
 

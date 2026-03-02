@@ -53,7 +53,6 @@ pub fn link_graph_count_refs(content: &str) -> usize {
 /// Find notes referencing an entity (Python-friendly API).
 #[pyfunction]
 #[pyo3(signature = (entity_name, contents))]
-#[allow(clippy::needless_pass_by_value)]
 #[must_use]
 pub fn link_graph_find_referencing_notes(entity_name: &str, contents: Vec<String>) -> Vec<usize> {
     let lower_name = entity_name.to_lowercase();
@@ -63,7 +62,7 @@ pub fn link_graph_find_referencing_notes(entity_name: &str, contents: Vec<String
     let wikilink_pattern_typed_lower = wikilink_pattern_typed.to_lowercase();
 
     contents
-        .iter()
+        .into_iter()
         .enumerate()
         .filter_map(|(idx, content)| {
             let lower = content.to_lowercase();

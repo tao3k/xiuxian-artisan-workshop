@@ -1,4 +1,8 @@
 use crate::cli::{DiscordRuntimeMode, TelegramChannelMode, WebhookDedupBackendMode};
+use xiuxian_macros::{env_first_non_empty, env_non_empty};
+
+pub(crate) const XIUXIAN_WENDAO_VALKEY_URL_ENV: &str = "XIUXIAN_WENDAO_VALKEY_URL";
+pub(crate) const LEGACY_VALKEY_URL_ENV: &str = "VALKEY_URL";
 
 pub(crate) fn resolve_string(
     cli_value: Option<String>,
@@ -9,9 +13,7 @@ pub(crate) fn resolve_string(
     if let Some(value) = cli_value {
         return value;
     }
-    if let Ok(value) = std::env::var(env_name)
-        && !value.trim().is_empty()
-    {
+    if let Some(value) = env_non_empty!(env_name) {
         return value;
     }
     if let Some(value) = settings_value {
@@ -71,7 +73,7 @@ pub(crate) fn resolve_channel_mode(
     if let Some(mode) = cli_mode {
         return mode;
     }
-    if let Ok(raw) = std::env::var("OMNI_AGENT_TELEGRAM_MODE") {
+    if let Some(raw) = env_non_empty!("OMNI_AGENT_TELEGRAM_MODE") {
         if let Some(mode) = parse_channel_mode(&raw) {
             return mode;
         }
@@ -99,7 +101,7 @@ pub(crate) fn resolve_dedup_backend(
     if let Some(backend) = cli_backend {
         return backend;
     }
-    if let Ok(raw) = std::env::var("OMNI_AGENT_TELEGRAM_WEBHOOK_DEDUP_BACKEND") {
+    if let Some(raw) = env_non_empty!("OMNI_AGENT_TELEGRAM_WEBHOOK_DEDUP_BACKEND") {
         if let Some(backend) = parse_dedup_backend(&raw) {
             return backend;
         }
@@ -127,7 +129,7 @@ pub(crate) fn resolve_discord_runtime_mode(
     if let Some(mode) = cli_mode {
         return mode;
     }
-    if let Ok(raw) = std::env::var("OMNI_AGENT_DISCORD_RUNTIME_MODE") {
+    if let Some(raw) = env_non_empty!("OMNI_AGENT_DISCORD_RUNTIME_MODE") {
         if let Some(mode) = parse_discord_runtime_mode(&raw) {
             return mode;
         }
@@ -146,6 +148,11 @@ pub(crate) fn resolve_discord_runtime_mode(
         );
     }
     DiscordRuntimeMode::Gateway
+}
+
+#[must_use]
+pub(crate) fn resolve_valkey_url_env() -> Option<String> {
+    env_first_non_empty!(XIUXIAN_WENDAO_VALKEY_URL_ENV, LEGACY_VALKEY_URL_ENV)
 }
 
 fn parse_channel_mode(raw: &str) -> Option<TelegramChannelMode> {
@@ -172,77 +179,78 @@ fn parse_dedup_backend(raw: &str) -> Option<WebhookDedupBackendMode> {
     }
 }
 
+#[must_use]
 pub(crate) fn parse_positive_u32_from_env(name: &str) -> Option<u32> {
-    let raw = std::env::var(name).ok()?;
-    match raw.parse::<u32>() {
-        Ok(value) if value > 0 => Some(value),
-        _ => {
-            tracing::warn!(env_var = %name, value = %raw, "invalid positive integer env value");
-            None
-        }
-    }
+    parse_env_value(
+        name,
+        |raw| raw.parse::<u32>().ok().filter(|value| *value > 0),
+        "invalid positive integer env value",
+    )
 }
 
+#[must_use]
 pub(crate) fn parse_positive_usize_from_env(name: &str) -> Option<usize> {
-    let raw = std::env::var(name).ok()?;
-    match raw.parse::<usize>() {
-        Ok(value) if value > 0 => Some(value),
-        _ => {
-            tracing::warn!(env_var = %name, value = %raw, "invalid positive integer env value");
-            None
-        }
-    }
+    parse_env_value(
+        name,
+        |raw| raw.parse::<usize>().ok().filter(|value| *value > 0),
+        "invalid positive integer env value",
+    )
 }
 
+#[must_use]
 pub(crate) fn parse_positive_u64_from_env(name: &str) -> Option<u64> {
-    let raw = std::env::var(name).ok()?;
-    match raw.parse::<u64>() {
-        Ok(value) if value > 0 => Some(value),
-        _ => {
-            tracing::warn!(env_var = %name, value = %raw, "invalid positive integer env value");
-            None
-        }
-    }
+    parse_env_value(
+        name,
+        |raw| raw.parse::<u64>().ok().filter(|value| *value > 0),
+        "invalid positive integer env value",
+    )
 }
 
+#[must_use]
 pub(crate) fn parse_positive_f32_from_env(name: &str) -> Option<f32> {
-    let raw = std::env::var(name).ok()?;
-    match raw.parse::<f32>() {
-        Ok(value) if value > 0.0 => Some(value),
-        _ => {
-            tracing::warn!(env_var = %name, value = %raw, "invalid positive float env value");
-            None
-        }
-    }
+    parse_env_value(
+        name,
+        |raw| raw.parse::<f32>().ok().filter(|value| *value > 0.0),
+        "invalid positive float env value",
+    )
 }
 
+#[must_use]
 pub(crate) fn parse_unit_f32_from_env(name: &str) -> Option<f32> {
-    let raw = std::env::var(name).ok()?;
-    match raw.parse::<f32>() {
-        Ok(value) if (0.0..=1.0).contains(&value) => Some(value),
-        _ => {
-            tracing::warn!(
-                env_var = %name,
-                value = %raw,
-                "invalid unit float env value (expected 0.0..=1.0)"
-            );
-            None
-        }
-    }
+    parse_env_value(
+        name,
+        |raw| {
+            raw.parse::<f32>()
+                .ok()
+                .filter(|value| (0.0..=1.0).contains(value))
+        },
+        "invalid unit float env value (expected 0.0..=1.0)",
+    )
 }
 
+#[must_use]
 pub(crate) fn parse_bool_from_env(name: &str) -> Option<bool> {
+    parse_env_value(
+        name,
+        |raw| match raw.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Some(true),
+            "0" | "false" | "no" | "off" => Some(false),
+            _ => None,
+        },
+        "invalid boolean env value",
+    )
+}
+
+fn parse_env_value<T>(
+    name: &str,
+    parser: impl FnOnce(&str) -> Option<T>,
+    invalid_message: &'static str,
+) -> Option<T> {
     let raw = std::env::var(name).ok()?;
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Some(true),
-        "0" | "false" | "no" | "off" => Some(false),
-        _ => {
-            tracing::warn!(
-                env_var = %name,
-                value = %raw,
-                "invalid boolean env value"
-            );
-            None
-        }
+    if let Some(value) = parser(raw.as_str()) {
+        Some(value)
+    } else {
+        tracing::warn!(env_var = %name, value = %raw, "{invalid_message}");
+        None
     }
 }

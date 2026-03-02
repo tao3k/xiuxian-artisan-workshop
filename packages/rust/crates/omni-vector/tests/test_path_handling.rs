@@ -1,13 +1,14 @@
-//! Tests for VectorStore path handling and dataset creation.
+//! Tests for `VectorStore` path handling and dataset creation.
 //!
 //! These tests ensure that:
 //! 1. Dataset creation works correctly even with pre-existing empty directories
-//! 2. drop_table properly cleans up both LanceDB and keyword index data
+//! 2. `drop_table` properly cleans up both `LanceDB` and keyword index data
 //! 3. Reindex workflows work correctly after dropping tables
 
+use anyhow::Result;
 use omni_vector::VectorStore;
 
-/// Helper to verify LanceDB directory has valid structure
+/// Helper to verify `LanceDB` directory has valid structure
 fn has_lance_data(path: &std::path::Path) -> bool {
     if !path.exists() {
         return false;
@@ -17,15 +18,14 @@ fn has_lance_data(path: &std::path::Path) -> bool {
 }
 
 #[tokio::test]
-async fn test_create_store_with_lance_extension() {
+async fn test_create_store_with_lance_extension() -> Result<()> {
     // Test creating store with .lance extension path
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_store.lance");
+    let db_path_str = db_path.to_string_lossy();
 
     // Create vector store with .lance extension
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     // Verify table_path returns the base_path when it ends with .lance
     let table_path = store.table_path("test_table");
@@ -33,18 +33,19 @@ async fn test_create_store_with_lance_extension() {
         table_path, db_path,
         "table_path should return base_path when it ends with .lance"
     );
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_add_documents_creates_dataset() {
+async fn test_add_documents_creates_dataset() -> Result<()> {
     // Test that add_documents creates the dataset properly
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_docs.lance");
+    let db_path_str = db_path.to_string_lossy();
 
     // Create vector store
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     // Add documents - this should create the dataset
     store
@@ -55,11 +56,10 @@ async fn test_add_documents_creates_dataset() {
             vec!["Test content".to_string()],
             vec![r#"{"test": true}"#.to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Verify the dataset was created
-    let count = store.count("documents").await.unwrap();
+    let count = store.count("documents").await?;
     assert_eq!(count, 1, "Should have added one document");
 
     // Verify the directory now contains LanceDB data
@@ -73,18 +73,19 @@ async fn test_add_documents_creates_dataset() {
         has_lance_data(&db_path),
         "Directory should contain LanceDB data (_versions or data)"
     );
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_drop_table_clears_dataset() {
+async fn test_drop_table_clears_dataset() -> Result<()> {
     // Test that drop_table properly removes the dataset
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_drop.lance");
+    let db_path_str = db_path.to_string_lossy();
 
     // Create store and add a document
-    let mut store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let mut store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     store
         .add_documents(
@@ -94,14 +95,13 @@ async fn test_drop_table_clears_dataset() {
             vec!["Content".to_string()],
             vec!["{}".to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Verify data is there
-    assert_eq!(store.count("test").await.unwrap(), 1);
+    assert_eq!(store.count("test").await?, 1);
 
     // Drop the table
-    store.drop_table("test").await.unwrap();
+    store.drop_table("test").await?;
 
     // After dropping, add_documents should recreate the dataset
     store
@@ -112,17 +112,18 @@ async fn test_drop_table_clears_dataset() {
             vec!["New content".to_string()],
             vec!["{}".to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Verify data is there again
-    assert_eq!(store.count("test").await.unwrap(), 1);
+    assert_eq!(store.count("test").await?, 1);
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_memory_mode_path_computation() {
+async fn test_memory_mode_path_computation() -> Result<()> {
     // Test that memory mode computes paths correctly
-    let store = VectorStore::new(":memory:", Some(1536)).await.unwrap();
+    let store = VectorStore::new(":memory:", Some(1536)).await?;
 
     // Verify memory mode path computation
     let table_path = store.table_path("mem_test");
@@ -131,13 +132,15 @@ async fn test_memory_mode_path_computation() {
         ":memory:_mem_test",
         "Memory mode should use :memory: prefix"
     );
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_memory_mode_add_documents_twice_without_dataset_exists_error() {
+async fn test_memory_mode_add_documents_twice_without_dataset_exists_error() -> Result<()> {
     // Regression: memory mode must not try Dataset::write over an existing dataset.
     // Each store gets a unique temp path (omni_lance/{id}/{table}) so no cross-run collision.
-    let store = VectorStore::new(":memory:", Some(1536)).await.unwrap();
+    let store = VectorStore::new(":memory:", Some(1536)).await?;
 
     store
         .add_documents(
@@ -147,8 +150,7 @@ async fn test_memory_mode_add_documents_twice_without_dataset_exists_error() {
             vec!["content1".to_string()],
             vec!["{}".to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Second write to same table should append/open, not fail with "Dataset already exists".
     store
@@ -159,25 +161,25 @@ async fn test_memory_mode_add_documents_twice_without_dataset_exists_error() {
             vec!["content2".to_string()],
             vec!["{}".to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_recreate_after_empty_directory() {
+async fn test_recreate_after_empty_directory() -> Result<()> {
     // Regression test: ensure Dataset::write works even when directory exists but is empty
     // This was a bug where std::fs::create_dir_all created empty directories,
     // causing LanceDB to think a dataset already existed
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_empty_recreate.lance");
+    let db_path_str = db_path.to_string_lossy();
 
     // Create store
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     // Pre-create empty directory (simulating the bug scenario)
-    std::fs::create_dir_all(&db_path).unwrap();
+    std::fs::create_dir_all(&db_path)?;
     assert!(db_path.exists(), "Directory should exist");
     assert!(
         !has_lance_data(&db_path),
@@ -193,11 +195,10 @@ async fn test_recreate_after_empty_directory() {
             vec!["Content".to_string()],
             vec!["{}".to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Verify the dataset was created correctly
-    let count = store.count("test").await.unwrap();
+    let count = store.count("test").await?;
     assert_eq!(count, 1, "Should have added one document");
 
     // Verify LanceDB structure exists
@@ -205,27 +206,24 @@ async fn test_recreate_after_empty_directory() {
         has_lance_data(&db_path),
         "Directory should now contain LanceDB data"
     );
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_reindex_after_drop_with_keyword_index() {
+async fn test_reindex_after_drop_with_keyword_index() -> Result<()> {
     // Regression test: ensure drop_table properly removes keyword index directory
     // This was the bug: drop_table only cleared the Arc reference but didn't delete the directory,
     // causing stale keyword index data to persist across reindex operations
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     // Use a directory path (not .lance) so keyword index is at base_path/keyword_index
     let db_path = temp_dir.path().join("test_reindex_kw");
 
     // Create store with keyword index enabled
-    let mut store = VectorStore::new_with_keyword_index(
-        db_path.to_str().unwrap(),
-        Some(1536),
-        true,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    let db_path_str = db_path.to_string_lossy();
+    let mut store =
+        VectorStore::new_with_keyword_index(db_path_str.as_ref(), Some(1536), true, None, None)
+            .await?;
 
     // Add initial documents
     store
@@ -236,8 +234,7 @@ async fn test_reindex_after_drop_with_keyword_index() {
             vec!["Initial tool description".to_string()],
             vec![r#"{"skill_name": "test", "tool_name": "test_tool1", "command": "tool1", "keywords": ["test"], "intents": []}"#.to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Verify LanceDB table directory has data (skills.lance)
     let lance_path = db_path.join("skills.lance");
@@ -254,7 +251,7 @@ async fn test_reindex_after_drop_with_keyword_index() {
     );
 
     // Drop the table
-    store.drop_table("skills").await.unwrap();
+    store.drop_table("skills").await?;
 
     // Verify keyword index reference is cleared
     assert!(
@@ -275,15 +272,9 @@ async fn test_reindex_after_drop_with_keyword_index() {
     );
 
     // Recreate store (simulating what Python code does with new PyVectorStore)
-    let store2 = VectorStore::new_with_keyword_index(
-        db_path.to_str().unwrap(),
-        Some(1536),
-        true,
-        None,
-        None,
-    )
-    .await
-    .unwrap();
+    let store2 =
+        VectorStore::new_with_keyword_index(db_path_str.as_ref(), Some(1536), true, None, None)
+            .await?;
 
     // Add new documents with new store instance
     store2
@@ -294,8 +285,7 @@ async fn test_reindex_after_drop_with_keyword_index() {
             vec!["New tool description".to_string()],
             vec![r#"{"skill_name": "new", "tool_name": "new_tool2", "command": "tool2", "keywords": ["new"], "intents": []}"#.to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
     // Verify LanceDB data exists again
     assert!(
@@ -311,19 +301,20 @@ async fn test_reindex_after_drop_with_keyword_index() {
     );
 
     // Verify data was added to LanceDB
-    let count = store2.count("skills").await.unwrap();
+    let count = store2.count("skills").await?;
     assert_eq!(count, 1, "Should have added one document after reindex");
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_multiple_cycles_of_drop_and_recreate() {
+async fn test_multiple_cycles_of_drop_and_recreate() -> Result<()> {
     // Stress test: multiple cycles of drop and recreate
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("test_multi_cycle.lance");
 
-    let mut store = VectorStore::new(db_path.to_str().unwrap(), Some(1536))
-        .await
-        .unwrap();
+    let db_path_str = db_path.to_string_lossy();
+    let mut store = VectorStore::new(db_path_str.as_ref(), Some(1536)).await?;
 
     for cycle in 1..=3 {
         // Add data
@@ -335,22 +326,21 @@ async fn test_multiple_cycles_of_drop_and_recreate() {
                 vec![format!("Content from cycle {cycle}")],
                 vec!["{}".to_string()],
             )
-            .await
-            .unwrap();
+            .await?;
 
         // Verify
         assert_eq!(
-            store.count("test").await.unwrap(),
+            store.count("test").await?,
             1,
             "Should have 1 document in cycle {cycle}"
         );
 
         // Drop
-        store.drop_table("test").await.unwrap();
+        store.drop_table("test").await?;
 
         // Verify empty
         assert_eq!(
-            store.count("test").await.unwrap(),
+            store.count("test").await?,
             0,
             "Should be empty after drop in cycle {cycle}"
         );
@@ -365,8 +355,9 @@ async fn test_multiple_cycles_of_drop_and_recreate() {
             vec!["Final content".to_string()],
             vec!["{}".to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
-    assert_eq!(store.count("test").await.unwrap(), 1);
+    assert_eq!(store.count("test").await?, 1);
+
+    Ok(())
 }

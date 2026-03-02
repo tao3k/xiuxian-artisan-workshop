@@ -1,4 +1,4 @@
-use super::LinkGraphIndex;
+use super::{LinkGraphDocument, LinkGraphIndex};
 use crate::link_graph::parser::normalize_alias;
 use std::collections::HashSet;
 
@@ -17,6 +17,14 @@ impl LinkGraphIndex {
             .filter_map(|value| self.resolve_doc_id(value))
             .map(str::to_string)
             .collect()
+    }
+
+    pub(in crate::link_graph::index) fn resolve_doc(
+        &self,
+        stem_or_id: &str,
+    ) -> Option<&LinkGraphDocument> {
+        let doc_id = self.resolve_doc_id(stem_or_id)?;
+        self.docs_by_id.get(doc_id)
     }
 
     pub(in crate::link_graph::index) fn resolve_weighted_doc_ids(

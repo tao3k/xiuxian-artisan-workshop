@@ -10,7 +10,7 @@ Usage:
     from omni.foundation.config.skills import SKILLS_DIR, load_skill_module
     from omni.foundation.runtime.gitops import get_project_root
 
-    # Get skill directory path from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml) -> assets.skills_dir
+    # Get skill directory path from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml) -> assets.skills_dir
     git_path = SKILLS_DIR("git")                   # -> /project/root/assets/skills/git
     git_commands = SKILLS_DIR("git", "scripts/commands.py")  # -> /project/root/assets/skills/git/scripts/commands.py
 
@@ -21,7 +21,7 @@ Usage:
     root = get_project_root()
 
 Settings:
-    Reads from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml):
+    Reads from settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml):
         assets:
           skills_dir: "assets/skills"        # Skills base directory
           definition_file: "SKILL.md"         # Skill definition file (default: SKILL.md)
@@ -33,7 +33,7 @@ from pathlib import Path
 
 
 class _SkillDirCallable:
-    """Callable that returns skill paths based on settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/omni-dev-fusion/settings.yaml) config.
+    """Callable that returns skill paths based on settings (system: packages/conf/settings.yaml, user: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/settings.yaml) config.
 
     Usage:
         SKILLS_DIR("git")                           # -> Path("assets/skills/git")

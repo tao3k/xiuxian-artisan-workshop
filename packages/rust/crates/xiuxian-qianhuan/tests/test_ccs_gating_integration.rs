@@ -24,7 +24,7 @@ async fn test_full_chain_ccs_enforcement() {
     let thin_narrative = vec!["The system is fast.".to_string()];
 
     let result = orchestrator
-        .assemble_snapshot(artisan, thin_narrative, "User asked for audit.")
+        .assemble_snapshot(&artisan, thin_narrative, "User asked for audit.")
         .await;
 
     // 4. Verification: Should fail because "audit trail" is not grounded in the facts

@@ -16,6 +16,8 @@ async fn test_mock_transmute() {
         cot_template: "CoT".to_string(),
         forbidden_words: vec![],
         metadata: HashMap::new(),
+        background: None,
+        guidelines: vec![],
     };
 
     let result = match transmuter.transmute("fact", &artisan).await {
@@ -34,6 +36,8 @@ async fn test_mock_transmute() {
         cot_template: "CoT".to_string(),
         forbidden_words: vec![],
         metadata: HashMap::new(),
+        background: None,
+        guidelines: vec![],
     };
 
     let result = match transmuter.transmute("fact", &cultivator).await {

@@ -1,8 +1,17 @@
 use super::super::transport_http::embed_http;
 #[cfg(feature = "agent-provider-litellm")]
 use super::super::transport_litellm::embed_litellm;
+use super::super::transport_mistral_sdk::embed_mistral_sdk;
 use super::super::transport_openai::embed_openai_http;
 use super::EmbeddingDispatchRuntime;
+
+fn has_non_empty(value: Option<&str>) -> bool {
+    value.is_some_and(|candidate| !candidate.trim().is_empty())
+}
+
+fn has_legacy_mcp_url(runtime: &EmbeddingDispatchRuntime) -> bool {
+    has_non_empty(runtime.mcp_url.as_deref())
+}
 
 pub(super) async fn dispatch_chunk_by_backend(
     runtime: &EmbeddingDispatchRuntime,
@@ -13,9 +22,11 @@ pub(super) async fn dispatch_chunk_by_backend(
         super::super::backend::EmbeddingBackendMode::Http => {
             dispatch_http_backend(runtime, texts, model).await
         }
-        super::super::backend::EmbeddingBackendMode::OpenAiHttp
-        | super::super::backend::EmbeddingBackendMode::MistralLocal => {
+        super::super::backend::EmbeddingBackendMode::OpenAiHttp => {
             dispatch_openai_backend(runtime, texts, model).await
+        }
+        super::super::backend::EmbeddingBackendMode::MistralSdk => {
+            dispatch_mistral_sdk_backend(runtime, texts, model).await
         }
         super::super::backend::EmbeddingBackendMode::LiteLlmRs => {
             dispatch_litellm_backend(runtime, texts, model).await
@@ -34,10 +45,7 @@ async fn dispatch_http_backend(
             event = "agent.embedding.http.primary_failed",
             base_url = runtime.base_url,
             model = model.unwrap_or(""),
-            has_legacy_mcp_url = runtime
-                .mcp_url
-                .as_deref()
-                .is_some_and(|value| !value.trim().is_empty()),
+            has_legacy_mcp_url = has_legacy_mcp_url(runtime),
             "embedding http primary failed; no MCP fallback is configured in rust-only mode"
         );
     }
@@ -55,14 +63,38 @@ async fn dispatch_openai_backend(
             event = "agent.embedding.openai_http.primary_failed",
             base_url = runtime.base_url,
             model = model.unwrap_or(""),
-            has_legacy_mcp_url = runtime
-                .mcp_url
-                .as_deref()
-                .is_some_and(|value| !value.trim().is_empty()),
+            has_legacy_mcp_url = has_legacy_mcp_url(runtime),
             "embedding openai-http primary failed; no MCP fallback is configured in rust-only mode"
         );
     }
     primary
+}
+
+async fn dispatch_mistral_sdk_backend(
+    runtime: &EmbeddingDispatchRuntime,
+    texts: &[String],
+    model: Option<&str>,
+) -> Option<Vec<Vec<f32>>> {
+    let vectors = embed_mistral_sdk(
+        texts,
+        model,
+        runtime.mistral_sdk_hf_cache_path.as_deref(),
+        runtime.mistral_sdk_hf_revision.as_deref(),
+        runtime.mistral_sdk_max_num_seqs,
+    )
+    .await;
+    if vectors.is_none() {
+        tracing::debug!(
+            event = "agent.embedding.mistral_sdk.failed",
+            model = model.unwrap_or(""),
+            backend_source = runtime.backend_source,
+            hf_cache_path = runtime.mistral_sdk_hf_cache_path.as_deref().unwrap_or(""),
+            hf_revision = runtime.mistral_sdk_hf_revision.as_deref().unwrap_or(""),
+            max_num_seqs = runtime.mistral_sdk_max_num_seqs,
+            "mistral_sdk embedding path failed"
+        );
+    }
+    vectors
 }
 
 async fn dispatch_litellm_backend(
@@ -118,11 +150,7 @@ async fn dispatch_litellm_backend_with_feature(
 
 #[cfg(feature = "agent-provider-litellm")]
 fn litellm_api_key_is_present(runtime: &EmbeddingDispatchRuntime) -> bool {
-    runtime
-        .litellm_api_key
-        .as_deref()
-        .map(str::trim)
-        .is_some_and(|value| !value.is_empty())
+    has_non_empty(runtime.litellm_api_key.as_deref())
 }
 
 #[cfg(feature = "agent-provider-litellm")]
@@ -214,10 +242,7 @@ async fn dispatch_ollama_model_with_feature(
         event = "agent.embedding.ollama.all_paths_failed",
         model,
         base_url = runtime.base_url,
-        has_legacy_mcp_url = runtime
-            .mcp_url
-            .as_deref()
-            .is_some_and(|value| !value.trim().is_empty()),
+        has_legacy_mcp_url = has_legacy_mcp_url(runtime),
         "all rust embedding paths failed for ollama model; no MCP fallback in rust-only mode"
     );
     None
@@ -263,10 +288,7 @@ async fn dispatch_standard_litellm_model_with_feature(
             event = "agent.embedding.litellm.standard_paths_failed",
             model,
             base_url = runtime.base_url,
-            has_legacy_mcp_url = runtime
-                .mcp_url
-                .as_deref()
-                .is_some_and(|value| !value.trim().is_empty()),
+            has_legacy_mcp_url = has_legacy_mcp_url(runtime),
             "provider and http fallback failed for litellm backend; no MCP fallback in rust-only mode"
         );
     }

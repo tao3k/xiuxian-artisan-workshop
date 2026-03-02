@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -16,6 +17,10 @@ if str(_SCRIPT_DIR) not in sys.path:
 _execution_module = importlib.import_module("session_matrix_execution")
 run_command_with_restart_retry = _execution_module.run_command_with_restart_retry
 run_matrix = _execution_module.run_matrix
+
+
+def _local_host() -> str:
+    return os.environ.get("XIUXIAN_WENDAO_LOCAL_HOST", "localhost").strip() or "localhost"
 
 
 @dataclass(frozen=True)
@@ -61,7 +66,7 @@ def test_run_command_with_restart_retry_retries_once_on_known_restart_noise() ->
         nonlocal calls
         calls += 1
         if calls == 1:
-            return 1, 7, "Telegram webhook listening on 127.0.0.1", ""
+            return 1, 7, f"Telegram webhook listening on {_local_host()}", ""
         return 0, 4, "ok", ""
 
     returncode, duration_ms, stdout, stderr = run_command_with_restart_retry(

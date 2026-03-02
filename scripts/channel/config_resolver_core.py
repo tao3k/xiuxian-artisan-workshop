@@ -10,14 +10,14 @@ from config_resolver_core_env import (
     read_env_profile,
 )
 from config_resolver_core_scalars import (
-    parse_yaml_scalar_list,
+    parse_scalar_list,
     split_csv_entries,
     strip_inline_comment,
     unquote,
 )
 from config_resolver_core_settings import (
     read_telegram_acl_allow_users,
-    read_telegram_key_from_yaml,
+    read_telegram_key_from_toml,
     repo_root_from,
     settings_candidates,
 )
@@ -26,10 +26,10 @@ __all__ = [
     "ENV_ASSIGNMENT_RE",
     "dotenv_file",
     "group_env_file",
-    "parse_yaml_scalar_list",
+    "parse_scalar_list",
     "read_env_profile",
     "read_telegram_acl_allow_users",
-    "read_telegram_key_from_yaml",
+    "read_telegram_key_from_toml",
     "repo_root_from",
     "settings_candidates",
     "split_csv_entries",

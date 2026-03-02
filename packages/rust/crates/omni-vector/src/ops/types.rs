@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// A single document row from a full table scan (id, content, vector, metadata).
-/// Used by omni-memory to load all episodes from LanceDB.
+/// Used by omni-memory to load all episodes from `LanceDB`.
 #[derive(Debug, Clone)]
 pub struct DocumentRow {
     /// Document identifier.
@@ -159,7 +159,7 @@ pub struct IndexStatus {
     pub index_type: String,
 }
 
-/// Suggested action from [crate::VectorStore::analyze_table_health].
+/// Suggested action from [`crate::VectorStore::analyze_table_health`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Recommendation {
@@ -178,17 +178,17 @@ pub enum Recommendation {
     None,
 }
 
-/// Per-table query metrics. In-process: updated by [crate::VectorStore::record_query] when
-/// [crate::VectorStore::agentic_search] runs; can later be wired to Lance tracing when available.
+/// Per-table query metrics. In-process: updated by [`crate::VectorStore::record_query`] when
+/// [`crate::VectorStore::agentic_search`] runs; can later be wired to Lance tracing when available.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct QueryMetrics {
-    /// Number of agentic_search calls for this table (in-process; resets with store instance).
+    /// Number of `agentic_search` calls for this table (in-process; resets with store instance).
     pub query_count: u64,
     /// Last query latency in milliseconds.
     pub last_query_ms: Option<u64>,
 }
 
-/// Table health report from [crate::VectorStore::analyze_table_health].
+/// Table health report from [`crate::VectorStore::analyze_table_health`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableHealthReport {
     /// Total row count.

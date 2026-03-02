@@ -5,6 +5,8 @@ use omni_memory::{
     MemoryUtilityLedger,
 };
 
+type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
+
 fn episode_with_stats(
     id: &str,
     outcome: &str,
@@ -82,7 +84,7 @@ fn gate_policy_obsolete_requires_threshold_and_min_usage() {
 }
 
 #[test]
-fn gate_event_matches_contract_shape() {
+fn gate_event_matches_contract_shape() -> TestResult {
     let episode = episode_with_stats("mem-event", "completed", 0.91, 7, 1);
     let ledger = MemoryUtilityLedger::from_episode(&episode, 0.92, 0.88, 0.90);
     let policy = MemoryGatePolicy::default();
@@ -100,7 +102,7 @@ fn gate_event_matches_contract_shape() {
         decision,
     );
 
-    let value = serde_json::to_value(&event).expect("serialize memory gate event");
+    let value = serde_json::to_value(&event)?;
     assert_eq!(value["session_id"], "telegram:1304799691:1304799691");
     assert_eq!(value["turn_id"], 42);
     assert_eq!(value["state_before"], "active");
@@ -111,26 +113,20 @@ fn gate_event_matches_contract_shape() {
             | MemoryLifecycleState::Promoted
     ));
     assert!(value["decision"]["next_action"].is_string());
-    assert_eq!(
-        value["decision"]["react_evidence_refs"]
-            .as_array()
-            .expect("react evidence refs should be an array")
-            .len(),
-        1
-    );
-    assert_eq!(
-        value["decision"]["graph_evidence_refs"]
-            .as_array()
-            .expect("graph evidence refs should be an array")
-            .len(),
-        1
-    );
+    let react_refs = value["decision"]["react_evidence_refs"]
+        .as_array()
+        .ok_or_else(|| std::io::Error::other("react evidence refs should be an array"))?;
+    let graph_refs = value["decision"]["graph_evidence_refs"]
+        .as_array()
+        .ok_or_else(|| std::io::Error::other("graph evidence refs should be an array"))?;
+    assert_eq!(react_refs.len(), 1);
+    assert_eq!(graph_refs.len(), 1);
+    let omega_factors = value["decision"]["omega_factors"]
+        .as_array()
+        .ok_or_else(|| std::io::Error::other("omega factors should be an array"))?;
     assert!(
-        value["decision"]["omega_factors"]
-            .as_array()
-            .expect("omega factors should be an array")
-            .len()
-            >= 4,
+        omega_factors.len() >= 4,
         "omega factors should include baseline utility metadata"
     );
+    Ok(())
 }

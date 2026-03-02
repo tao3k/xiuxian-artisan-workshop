@@ -18,6 +18,7 @@ lance-linalg = "2.0"
 # Tantivy - Rust Lucene for BM25/Sparse Retrieval
 tantivy = "0.25"
 ordered-float = "4.2"
+num-traits = "0.2"
 
 # RecordBatch utilities (extracted to omni-lance)
 omni-lance = { path = "../omni-lance" }
@@ -55,7 +56,7 @@ omni-types = { path = "../omni-types" }
 omni-io = { path = "../omni-io" }
 
 # Omni Scanner - Skills and Knowledge scanning
-omni-scanner = { path = "../omni-scanner" }
+xiuxian-skills = { path = "../xiuxian-skills" }
 
 # YAML parsing for skill manifests
 serde_yaml = { workspace = true }

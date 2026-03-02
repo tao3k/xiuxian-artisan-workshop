@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Modern Python Engineering Standards (3.12+)"
+---
+
 # Modern Python Engineering Standards (3.12+)
 
 > **Version Requirement**: Python >= 3.12

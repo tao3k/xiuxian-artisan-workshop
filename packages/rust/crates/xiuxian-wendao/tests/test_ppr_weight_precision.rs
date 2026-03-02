@@ -1,39 +1,20 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 //! Precision regression for weighted-seed PPR ranking.
 
 use std::collections::HashMap;
 use xiuxian_wendao::LinkGraphIndex;
 
-/// Precision test for Non-uniform Seed Distribution (Ref: HippoRAG 2).
+/// Precision test for Non-uniform Seed Distribution (Ref: `HippoRAG` 2).
 ///
 /// Validates that higher semantic weights on seeds correctly influence
 /// the structural diffusion results compared to uniform distribution.
 #[tokio::test]
-async fn test_ppr_weight_precision_impact() {
+async fn test_ppr_weight_precision_impact() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Create a minimal synthetic graph:
     // A -> B (Standard reference)
     // C -> D (Weak reference)
 
     // Using a temporary directory for the "notebook"
-    let temp = tempfile::tempdir().unwrap();
+    let temp = tempfile::tempdir()?;
     let root = temp.path();
 
     // Create nodes. We use distinct content to ensure they are picked up.
@@ -46,12 +27,12 @@ async fn test_ppr_weight_precision_impact() {
     ];
 
     for (id, content) in notes {
-        let path = root.join(format!("{}.md", id));
-        std::fs::write(path, content).unwrap();
+        let path = root.join(format!("{id}.md"));
+        std::fs::write(path, content)?;
     }
 
     // 2. Build the index
-    let index = LinkGraphIndex::build(root).expect("Failed to build index");
+    let index = LinkGraphIndex::build(root)?;
 
     // 3. Scenario: Weighted Seeds (A=0.99, C=0.01)
     // We want to see if B (neighbor of A) ranks significantly higher than D (neighbor of C).
@@ -67,7 +48,7 @@ async fn test_ppr_weight_precision_impact() {
     // Thus B should be the first non-seed result.
 
     let stems: Vec<String> = related_weighted.iter().map(|n| n.stem.clone()).collect();
-    println!("Ranked stems: {:?}", stems);
+    println!("Ranked stems: {stems:?}");
 
     // Check relative ranking
     let pos_b = stems.iter().position(|s| s == "B");
@@ -77,14 +58,10 @@ async fn test_ppr_weight_precision_impact() {
         (Some(pb), Some(pd)) => {
             assert!(
                 pb < pd,
-                "B (neighbor of 0.99 seed) should rank higher than D (neighbor of 0.01 seed). B at {}, D at {}",
-                pb,
-                pd
+                "B (neighbor of 0.99 seed) should rank higher than D (neighbor of 0.01 seed). B at {pb}, D at {pd}",
             );
         }
-        _ => panic!(
-            "Expected both B and D to be in related results. Found stems: {:?}",
-            stems
-        ),
+        _ => panic!("Expected both B and D to be in related results. Found stems: {stems:?}"),
     }
+    Ok(())
 }

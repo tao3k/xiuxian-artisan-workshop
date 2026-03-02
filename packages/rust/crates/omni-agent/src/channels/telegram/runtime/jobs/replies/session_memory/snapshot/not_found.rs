@@ -32,13 +32,12 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_not_fou
     lines.join("\n")
 }
 
-#[allow(clippy::needless_pass_by_value)]
 pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_not_found_telegram(
-    runtime_status: crate::agent::MemoryRuntimeStatusSnapshot,
-    admission_status: crate::agent::DownstreamAdmissionRuntimeSnapshot,
+    runtime_status: &crate::agent::MemoryRuntimeStatusSnapshot,
+    admission_status: &crate::agent::DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
-    let backend_ready = memory_backend_ready(&runtime_status);
+    let backend_ready = memory_backend_ready(runtime_status);
     [
         "## Session Memory".to_string(),
         "No memory recall snapshot found for this session yet.".to_string(),
@@ -56,7 +55,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_not_fou
             format_optional_str(runtime_status.active_backend),
             format_optional_string(runtime_status.configured_backend.clone())
         ),
-        format_memory_gate_policy_compact_line(&runtime_status),
+        format_memory_gate_policy_compact_line(runtime_status),
         format_downstream_admission_compact_line(admission_status),
         String::new(),
         "### Next Step".to_string(),
@@ -69,7 +68,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_not_fou
 
 pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_not_found_json(
     metrics: crate::agent::MemoryRecallMetricsSnapshot,
-    runtime_status: crate::agent::MemoryRuntimeStatusSnapshot,
+    runtime_status: &crate::agent::MemoryRuntimeStatusSnapshot,
     admission_status: crate::agent::DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
@@ -80,7 +79,7 @@ pub(in crate::channels::telegram::runtime::jobs) fn format_memory_recall_not_fou
         "status": "not_found",
         "hint": "Run at least one normal turn first (non-command message).",
         "runtime": format_memory_runtime_status_json(runtime_status),
-        "admission": format_downstream_admission_status_json(admission_status),
+        "admission": format_downstream_admission_status_json(&admission_status),
         "metrics": format_memory_recall_metrics_json(metrics),
     })
     .to_string()

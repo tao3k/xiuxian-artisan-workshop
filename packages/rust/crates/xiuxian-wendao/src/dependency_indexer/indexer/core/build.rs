@@ -36,7 +36,7 @@ impl DependencyIndexer {
     pub fn build(&mut self, verbose: bool) -> DependencyIndexResult {
         // Load configuration
         let config_path = self.config_path.as_ref().map_or_else(
-            || "packages/conf/references.yaml".to_string(),
+            || "packages/rust/crates/omni-agent/resources/config/xiuxian.toml".to_string(),
             |path| path.to_string_lossy().to_string(),
         );
 

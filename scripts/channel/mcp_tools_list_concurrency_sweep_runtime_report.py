@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 def default_report_paths(base_url: str) -> tuple[Path, Path]:
     """Build default JSON/Markdown report paths for a target base URL."""
     parsed = urlparse(base_url)
-    host = parsed.hostname or "127.0.0.1"
+    host = parsed.hostname or "unknown-host"
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
     stem = f"mcp-tools-list-observability-{host.replace('.', '_')}-{port}-concurrency-sweep"
     report_root = Path(".run/reports")

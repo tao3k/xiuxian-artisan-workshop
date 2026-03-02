@@ -3,7 +3,7 @@ react.py - Resilient ReAct Workflow Engine
 Feature: Epistemic Resilience, Validation Guard & Micro-Correction Loop
 
 Architecture:
-1. Epistemic Gating (Intent Check) - Done in OmniLoop
+1. Epistemic Gating (Intent Check) - handled by the upstream orchestrator
 2. Validation Guard (Schema Compliance) - Static validation before execution
 3. Resilient Execution (Micro-Correction) - Catch invalid args before execution
 4. Loop Detection (Stagnation Prevention) - Prevent infinite loops
@@ -311,7 +311,7 @@ class OmniReplExecutor:
             Tuple of (had_commands, execution_results)
         """
         # Use dual-format parser
-        text_content, tool_calls = ToolCallParser.parse(content)
+        _text_content, tool_calls = ToolCallParser.parse(content)
 
         if not tool_calls:
             return False, ""
@@ -366,7 +366,7 @@ class ResilientReAct:
     Advanced ReAct Engine with Self-Correction and Loop Detection.
 
     Architecture:
-    1. Epistemic Gating (Intent Check) - Done in OmniLoop
+    1. Epistemic Gating (Intent Check) - handled by the upstream orchestrator
     2. Validation Guard (Schema Compliance) - Static validation before execution
     3. Resilient Execution (Micro-Correction) - Catch invalid args before execution
     4. Loop Detection (Stagnation Prevention) - Prevent infinite loops
@@ -547,10 +547,7 @@ class ResilientReAct:
         # Check for the specific strict token required by protocol
         if "EXIT_LOOP_NOW" in content:
             return True
-        # Fallback for legacy models explicitly stating task is done
-        if "TASK_COMPLETED_SUCCESSFULLY" in content:
-            return True
-        return False
+        return "TASK_COMPLETED_SUCCESSFULLY" in content
 
     def _format_result(self, name: str, result: str, is_error: bool) -> str:
         prefix = "Error" if is_error else "Result"

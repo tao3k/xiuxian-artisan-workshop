@@ -279,16 +279,12 @@ class _FakeWendaoEngine:
         changed_paths = json.loads(changed_paths_json or "[]")
         threshold = max(1, int(full_rebuild_threshold or 256))
         changed_count = len(changed_paths)
-        strategy = (
-            "full"
-            if force_full or changed_count >= threshold
-            else ("noop" if not changed_paths else "delta")
-        )
+        strategy = "full" if force_full else ("noop" if not changed_paths else "delta")
         reason = (
             "force_full"
             if force_full
             else (
-                "threshold_exceeded"
+                "threshold_exceeded_incremental"
                 if changed_count >= threshold
                 else ("noop" if not changed_paths else "delta_requested")
             )
@@ -953,14 +949,18 @@ async def test_wendao_backend_refresh_with_delta_respects_full_rebuild_threshold
     )
     result = await backend.refresh_with_delta(["docs/a.md"])
 
-    assert result["mode"] == "full"
+    assert result["mode"] == "delta"
     assert result["fallback"] is False
-    assert fake_engine.refresh_calls == [(None, True)]
+    assert len(fake_engine.refresh_calls) == 1
+    delta_payload, delta_force_full = fake_engine.refresh_calls[0]
+    assert delta_force_full is False
+    assert isinstance(delta_payload, str)
+    assert json.loads(delta_payload) == ["docs/a.md"]
 
     plan_events = [row for row in captured if row[0] == "link_graph.index.delta.plan"]
     assert plan_events
-    assert str(plan_events[0][2].get("strategy")) == "full"
-    assert str(plan_events[0][2].get("reason")) == "threshold_exceeded"
+    assert str(plan_events[0][2].get("strategy")) == "delta"
+    assert str(plan_events[0][2].get("reason")) == "threshold_exceeded_incremental"
     assert int(plan_events[0][2].get("threshold", 0)) == 1
 
 

@@ -21,7 +21,7 @@ class TestDualLayerConfig:
         # Empty user config
         user_conf = tmp_path / ".config"
         user_conf.mkdir()
-        app_conf = user_conf / "omni-dev-fusion"
+        app_conf = user_conf / "xiuxian-artisan-workshop"
         app_conf.mkdir()
 
         # Mock environment and project root
@@ -56,7 +56,7 @@ class TestDualLayerConfig:
         # User config with override
         user_conf = tmp_path / ".config"
         user_conf.mkdir()
-        app_conf = user_conf / "omni-dev-fusion"
+        app_conf = user_conf / "xiuxian-artisan-workshop"
         app_conf.mkdir()
         (app_conf / "settings.yaml").write_text("core:\n  mode: turbo")
 
@@ -84,7 +84,7 @@ class TestDualLayerConfig:
 
         user_conf = tmp_path / ".config"
         user_conf.mkdir()
-        app_conf = user_conf / "omni-dev-fusion"
+        app_conf = user_conf / "xiuxian-artisan-workshop"
         app_conf.mkdir()
         (app_conf / "settings.yaml").write_text("api:\n  timeout: 60")
 
@@ -110,8 +110,10 @@ class TestDualLayerConfig:
 
         custom_conf = tmp_path / "custom_conf"
         custom_conf.mkdir()
-        (custom_conf / "omni-dev-fusion").mkdir(parents=True)
-        (custom_conf / "omni-dev-fusion" / "settings.yaml").write_text("core:\n  mode: from-cli")
+        (custom_conf / "xiuxian-artisan-workshop").mkdir(parents=True)
+        (custom_conf / "xiuxian-artisan-workshop" / "settings.yaml").write_text(
+            "core:\n  mode: from-cli"
+        )
 
         test_args = ["app.py", "--conf", str(custom_conf)]
 
@@ -139,13 +141,17 @@ class TestDualLayerConfig:
 
         env_conf = tmp_path / "env_conf"
         env_conf.mkdir()
-        (env_conf / "omni-dev-fusion").mkdir(parents=True)
-        (env_conf / "omni-dev-fusion" / "settings.yaml").write_text("core:\n  mode: from-env")
+        (env_conf / "xiuxian-artisan-workshop").mkdir(parents=True)
+        (env_conf / "xiuxian-artisan-workshop" / "settings.yaml").write_text(
+            "core:\n  mode: from-env"
+        )
 
         cli_conf = tmp_path / "cli_conf"
         cli_conf.mkdir()
-        (cli_conf / "omni-dev-fusion").mkdir(parents=True)
-        (cli_conf / "omni-dev-fusion" / "settings.yaml").write_text("core:\n  mode: from-cli")
+        (cli_conf / "xiuxian-artisan-workshop").mkdir(parents=True)
+        (cli_conf / "xiuxian-artisan-workshop" / "settings.yaml").write_text(
+            "core:\n  mode: from-cli"
+        )
 
         test_args = ["app.py", "--conf", str(cli_conf)]
 
@@ -175,7 +181,7 @@ class TestDualLayerConfig:
         )
 
         user_conf = tmp_path / ".config"
-        app_conf = user_conf / "omni-dev-fusion"
+        app_conf = user_conf / "xiuxian-artisan-workshop"
         app_conf.mkdir(parents=True)
         (app_conf / "settings.yaml").write_text("core:\n  mode: user\n", encoding="utf-8")
         (app_conf / "wendao.yaml").write_text(
@@ -217,7 +223,7 @@ class TestDualLayerConfig:
         )
 
         user_conf = tmp_path / ".config"
-        app_conf = user_conf / "omni-dev-fusion"
+        app_conf = user_conf / "xiuxian-artisan-workshop"
         app_conf.mkdir(parents=True)
         (app_conf / "settings.yaml").write_text(
             "link_graph:\n  cache:\n    ttl_seconds: 600\n",

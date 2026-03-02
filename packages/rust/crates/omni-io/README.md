@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni IO"
+---
+
 # Omni IO
 
 > File I/O utilities for Omni DevEnv.

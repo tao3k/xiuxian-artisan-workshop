@@ -9,6 +9,32 @@ import json
 from functools import cache
 from typing import Any
 
+_BUILTIN_SCHEMAS: dict[str, dict[str, Any]] = {
+    "omni.mcp.tool_result.v1": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "omni.mcp.tool_result.v1.schema.json",
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["content", "isError"],
+        "properties": {
+            "content": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["type", "text"],
+                    "properties": {
+                        "type": {"const": "text"},
+                        "text": {"type": "string"},
+                    },
+                },
+            },
+            "isError": {"type": "boolean"},
+        },
+    },
+}
+
 _OMNI_CORE_RS_SCHEMA_MAP: dict[str, str] = {
     # Rust omni_core_rs exposes type-based schema retrieval.
     "omni.vector.hybrid.v1": "HybridSearchResult",
@@ -32,6 +58,10 @@ def get_schema(name: str) -> dict[str, Any]:
         ImportError: If the Rust backend is not available.
         ValueError: If the schema name is unknown.
     """
+    builtin = _BUILTIN_SCHEMAS.get(name)
+    if builtin is not None:
+        return builtin
+
     # Canonical backend: xiuxian_wendao schema registry (canonical id -> JSON schema)
     last_error: Exception | None = None
 

@@ -8,13 +8,11 @@ Compatibility target:
 
 from __future__ import annotations
 
-import argparse
 import importlib
 import re
-import sys
-from pathlib import Path
 
-from log_io import iter_log_lines
+from check_omni_agent_event_sequence_args import parse_args as _parse_args_impl
+from check_omni_agent_event_sequence_runtime import run_main as _run_main_impl
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -22,32 +20,9 @@ _checks_module = importlib.import_module("event_sequence_checks")
 Reporter = _checks_module.Reporter
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="check_omni_agent_event_sequence.py",
-        description=(
-            "Validate key observability event sequence for Telegram webhook + session gate + "
-            "memory persistence flows."
-        ),
-    )
-    parser.add_argument("log_file", help="Path to agent log file.")
-    parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Treat warnings as failures.",
-    )
-    parser.add_argument(
-        "--require-memory",
-        action="store_true",
-        help="Fail if memory backend lifecycle events are missing.",
-    )
-    parser.add_argument(
-        "--expect-memory-backend",
-        choices=("local", "valkey"),
-        default="",
-        help="Require backend in agent.memory.backend.initialized to match.",
-    )
-    return parser.parse_args()
+def parse_args():
+    """Parse CLI args for event-sequence checker script."""
+    return _parse_args_impl()
 
 
 def strip_ansi(text: str) -> str:
@@ -102,22 +77,13 @@ def run_checks(
 
 def main() -> int:
     args = parse_args()
-    log_file = Path(args.log_file)
-    if not log_file.is_file():
-        print(f"Error: log file not found: {log_file}", file=sys.stderr)
-        return 2
-
-    lines: list[str] = []
-    stripped_lines: list[str] = []
-    for line in iter_log_lines(log_file, errors="replace"):
-        lines.append(line)
-        stripped_lines.append(strip_ansi(line))
-    return run_checks(
-        lines=lines,
-        stripped_lines=stripped_lines,
+    return _run_main_impl(
+        log_file=args.log_file,
         strict=args.strict,
         require_memory=args.require_memory,
         expect_memory_backend=args.expect_memory_backend,
+        strip_ansi_fn=strip_ansi,
+        run_checks_fn=run_checks,
     )
 
 

@@ -17,21 +17,33 @@ def _load_module():
     return module
 
 
-def test_read_telegram_setting_returns_trimmed_string(monkeypatch) -> None:
+def test_read_telegram_setting_returns_trimmed_string_from_config(tmp_path, monkeypatch) -> None:
     module = _load_module()
-
-    def _fake_get_setting(_key: str):
-        return "  my-secret  "
-
-    monkeypatch.setattr(module, "get_setting", _fake_get_setting)
+    xiuxian = tmp_path / "xiuxian.toml"
+    xiuxian.write_text(
+        '[telegram]\nwebhook_secret_token = "  my-secret  "\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "repo_root_from", lambda _path: tmp_path)
+    monkeypatch.setattr(module, "settings_candidates", lambda _root: [xiuxian])
     assert module.read_telegram_setting("webhook_secret_token") == "my-secret"
 
 
 def test_read_telegram_setting_returns_empty_when_none(monkeypatch) -> None:
     module = _load_module()
-
-    def _fake_get_setting(_key: str):
-        return None
-
-    monkeypatch.setattr(module, "get_setting", _fake_get_setting)
+    monkeypatch.setattr(module, "repo_root_from", lambda _path: Path("."))
+    monkeypatch.setattr(module, "settings_candidates", lambda _root: [])
     assert module.read_telegram_setting("webhook_bind") == ""
+
+
+def test_read_telegram_setting_prefers_xiuxian_candidate(tmp_path, monkeypatch) -> None:
+    module = _load_module()
+    xiuxian = tmp_path / "xiuxian.toml"
+    xiuxian.write_text(
+        '[telegram]\nwebhook_secret_token = "from-xiuxian"\n',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(module, "repo_root_from", lambda _path: tmp_path)
+    monkeypatch.setattr(module, "settings_candidates", lambda _root: [xiuxian])
+    assert module.read_telegram_setting("webhook_secret_token") == "from-xiuxian"

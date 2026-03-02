@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from omni.foundation.config.paths import get_config_paths
+from omni.foundation.runtime.cargo_subprocess_env import prepare_cargo_subprocess_env
 from omni.foundation.runtime.gitops import get_project_root
 
 DEFAULT_MATRIX = "docs/testing/wendao-query-regression-matrix.json"
@@ -91,7 +92,8 @@ def _resolve_binary(project_root: Path, binary: str | None, build: bool, release
         cmd = ["cargo", "build", "-p", "xiuxian-wendao", "--bin", "wendao"]
         if release:
             cmd.append("--release")
-        subprocess.run(cmd, cwd=project_root, check=True)
+        env = prepare_cargo_subprocess_env(os.environ)
+        subprocess.run(cmd, cwd=project_root, check=True, env=env)
     if env_target_bin is not None and env_target_bin.exists():
         return env_target_bin
     if default_bin.exists():
@@ -263,7 +265,7 @@ def main() -> int:
     parser.add_argument(
         "--config",
         default=None,
-        help="wendao config path (defaults to config API: $PRJ_CONFIG_HOME/omni-dev-fusion/wendao.yaml)",
+        help="wendao config path (defaults to config API: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/wendao.yaml)",
     )
     parser.add_argument(
         "--matrix-file",

@@ -1,4 +1,5 @@
 ---
+type: skill
 title: "Git Version Control Operations and Smart Commit Workflow"
 category: "workflows"
 tags:

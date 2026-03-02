@@ -1,7 +1,7 @@
 """
 interfaces.py - Core type definitions for the execution tracing system
 
-UltraRAG-style fine-grained execution tracing for LangGraph + MCP.
+UltraRAG-style fine-grained execution tracing for workflows + MCP.
 
 Defines:
 - StepType: Enumeration of step types (LLM, TOOL, RETRIEVAL, REASONING, etc.)
@@ -21,7 +21,7 @@ from typing import Any
 class StepType(Enum):
     """Types of steps in the execution trace.
 
-    Mirrors LangGraph callback events with additional UltraRAG-style types.
+    Mirrors workflow callback events with additional UltraRAG-style types.
     """
 
     # Lifecycle

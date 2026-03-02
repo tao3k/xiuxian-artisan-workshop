@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Project Conventions"
+---
+
 # Project Conventions
 
 > Universal project instructions for any LLM CLI (Claude, Gemini, OpenAI, etc.)

@@ -136,15 +136,29 @@ def build_link_graph_index_refresh_signals(phases: list[dict[str, Any]]) -> dict
     if not index_plan_events and not index_delta_events and not index_full_events:
         return None
 
+    def _normalize_plan_strategy_and_reason(
+        strategy: object,
+        reason: object,
+    ) -> tuple[str, str]:
+        normalized_strategy = str(strategy or "unknown")
+        normalized_reason = str(reason or "unknown")
+        # Legacy compatibility: threshold-triggered full plans are now represented
+        # as incremental plans in current runtime.
+        if normalized_strategy == "full" and normalized_reason == "threshold_exceeded":
+            return "delta", "threshold_exceeded_incremental"
+        return normalized_strategy, normalized_reason
+
     strategies: dict[str, int] = defaultdict(int)
     reasons: dict[str, int] = defaultdict(int)
     plan_force_full_true = 0
     plan_changed_sum = 0
     plan_threshold_values: list[int] = []
     for event in index_plan_events:
-        strategy = str(event.get("strategy", "unknown") or "unknown")
+        strategy, reason = _normalize_plan_strategy_and_reason(
+            event.get("strategy", "unknown"),
+            event.get("reason", "unknown"),
+        )
         strategies[strategy] += 1
-        reason = str(event.get("reason", "unknown") or "unknown")
         reasons[reason] += 1
         if bool(event.get("force_full")):
             plan_force_full_true += 1
@@ -210,8 +224,14 @@ def build_link_graph_index_refresh_signals(phases: list[dict[str, Any]]) -> dict
             },
             "latest": (
                 {
-                    "strategy": latest_plan.get("strategy"),
-                    "reason": latest_plan.get("reason"),
+                    "strategy": _normalize_plan_strategy_and_reason(
+                        latest_plan.get("strategy", "unknown"),
+                        latest_plan.get("reason", "unknown"),
+                    )[0],
+                    "reason": _normalize_plan_strategy_and_reason(
+                        latest_plan.get("strategy", "unknown"),
+                        latest_plan.get("reason", "unknown"),
+                    )[1],
                     "changed_count": latest_plan.get("changed_count"),
                     "threshold": latest_plan.get("threshold"),
                     "force_full": bool(latest_plan.get("force_full")),

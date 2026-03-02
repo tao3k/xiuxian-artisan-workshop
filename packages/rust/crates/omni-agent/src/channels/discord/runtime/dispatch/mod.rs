@@ -2,6 +2,7 @@ use crate::agent::Agent;
 use crate::channels::managed_commands::{
     detect_managed_control_command, detect_managed_slash_command,
 };
+use crate::channels::managed_runtime::ForegroundQueueMode;
 use crate::channels::managed_runtime::parsing::is_stop_command;
 use crate::channels::managed_runtime::turn::build_session_id;
 use crate::channels::traits::{Channel, ChannelMessage};
@@ -34,6 +35,7 @@ pub(super) async fn process_discord_message(
         msg,
         job_manager,
         turn_timeout_secs,
+        ForegroundQueueMode::Interrupt,
         &interrupt_controller,
     )
     .await;
@@ -45,6 +47,7 @@ pub(in crate::channels::discord::runtime) async fn process_discord_message_with_
     msg: ChannelMessage,
     job_manager: &Arc<JobManager>,
     turn_timeout_secs: u64,
+    foreground_queue_mode: ForegroundQueueMode,
     interrupt_controller: &ForegroundInterruptController,
 ) {
     let session_id = build_session_id(&msg.channel, &msg.session_key);
@@ -80,7 +83,9 @@ pub(in crate::channels::discord::runtime) async fn process_discord_message_with_
         return;
     }
 
-    log_preempted_turn(interrupt_controller, &session_id, &msg);
+    if foreground_queue_mode.should_interrupt_on_new_message() {
+        log_preempted_turn(interrupt_controller, &session_id, &msg);
+    }
     log_inbound_user_message(&msg);
     let (interrupt_rx, _active_generation_guard, interrupt_generation) =
         begin_active_generation(interrupt_controller, &session_id);

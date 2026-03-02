@@ -6,19 +6,14 @@ were written in parallel.
 """
 
 import pytest
+from _module_loader import load_script_module
 
 
 @pytest.mark.asyncio
 async def test_write_entities_then_relations_order():
     """write_entities_then_relations must call add_entity for all entities before any add_relation."""
-    import sys
-    from pathlib import Path
-
-    scripts = Path(__file__).resolve().parents[1] / "scripts"
-    if str(scripts) not in sys.path:
-        sys.path.insert(0, str(scripts))
-
-    from graph import write_entities_then_relations
+    graph_mod = load_script_module("graph", alias="knowledge_graph_order_test")
+    write_entities_then_relations = graph_mod.write_entities_then_relations
 
     call_order = []
 

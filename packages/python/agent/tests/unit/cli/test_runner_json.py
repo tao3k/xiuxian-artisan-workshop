@@ -187,3 +187,23 @@ def test_run_skills_json_emits_timing_to_stderr_when_enabled(monkeypatch) -> Non
     assert timing_payload["mode"] == "local"
     assert isinstance(timing_payload["bootstrap_ms"], float)
     assert isinstance(timing_payload["tool_exec_ms"], float)
+
+
+def test_get_daemon_request_timeout_seconds_prefers_env(monkeypatch) -> None:
+    """Daemon request timeout should prefer explicit env override."""
+    from omni.agent.cli import runner_json as runner_json_module
+
+    monkeypatch.setenv("OMNI_SKILL_RUNNER_REQUEST_TIMEOUT", "45")
+    assert runner_json_module.get_daemon_request_timeout_seconds() == 45.0
+
+
+def test_get_daemon_request_timeout_seconds_uses_mcp_timeout(monkeypatch) -> None:
+    """Daemon request timeout should fall back to settings mcp.timeout."""
+    from omni.agent.cli import runner_json as runner_json_module
+
+    monkeypatch.delenv("OMNI_SKILL_RUNNER_REQUEST_TIMEOUT", raising=False)
+    monkeypatch.setattr(
+        "omni.foundation.config.settings.get_setting",
+        lambda key, default=None: 120 if key == "mcp.timeout" else default,
+    )
+    assert runner_json_module.get_daemon_request_timeout_seconds() == 120.0

@@ -60,7 +60,11 @@ _cli_module = load_sibling_module(
 
 DEFAULT_MAX_WAIT = int(os.environ.get("OMNI_BLACKBOX_MAX_WAIT_SECS", "25"))
 DEFAULT_MAX_IDLE_SECS = int(os.environ.get("OMNI_BLACKBOX_MAX_IDLE_SECS", "25"))
-DEFAULT_VALKEY_URL = os.environ.get("VALKEY_URL", "redis://127.0.0.1:6379/0")
+DEFAULT_LOCAL_HOST = os.environ.get("XIUXIAN_WENDAO_LOCAL_HOST", "localhost").strip() or "localhost"
+DEFAULT_VALKEY_URL = os.environ.get(
+    "XIUXIAN_WENDAO_VALKEY_URL",
+    f"redis://{DEFAULT_LOCAL_HOST}:6379/0",
+)
 FORBIDDEN_LOG_PATTERN = "tools/call: Mcp error"
 DEFAULT_EVOLUTION_SCENARIO_ID = "memory_self_correction_high_complexity_dag"
 TARGET_SESSION_SCOPE_PLACEHOLDER = _blackbox_module.TARGET_SESSION_SCOPE_PLACEHOLDER
@@ -69,7 +73,7 @@ BlackboxCase = _blackbox_module.BlackboxCase
 
 def default_valkey_prefix(tag: str) -> str:
     safe_tag = tag.strip().lower() or "memory-suite"
-    return f"omni-agent:session:{safe_tag}:{os.getpid()}:{int(time.time() * 1000)}"
+    return f"xiuxian_wendao:session:{safe_tag}:{os.getpid()}:{int(time.time() * 1000)}"
 
 
 def default_report_path(filename: str) -> Path:

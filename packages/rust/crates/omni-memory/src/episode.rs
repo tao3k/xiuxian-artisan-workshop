@@ -4,6 +4,7 @@
 //! storing intent, experience, outcome, and Q-learning metadata.
 
 use chrono::Utc;
+use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
 /// Default scope for legacy/global episodes.
@@ -11,6 +12,22 @@ pub const GLOBAL_EPISODE_SCOPE: &str = "__global__";
 
 fn default_episode_scope() -> String {
     GLOBAL_EPISODE_SCOPE.to_string()
+}
+
+const MILLIS_PER_HOUR: f32 = 3_600_000.0;
+
+fn u32_to_f32(value: u32) -> f32 {
+    value.to_f32().unwrap_or(f32::MAX)
+}
+
+fn i64_to_f32_saturating(value: i64) -> f32 {
+    value.to_f32().unwrap_or_else(|| {
+        if value.is_negative() {
+            f32::MIN
+        } else {
+            f32::MAX
+        }
+    })
 }
 
 /// A single experience episode in the memory system.
@@ -119,10 +136,9 @@ impl Episode {
     /// - `success_rate = success / (success + failure + 1)` to avoid division by zero
     /// - This gives higher weight to episodes with more successes
     #[must_use]
-    #[allow(clippy::cast_precision_loss)]
     pub fn utility(&self) -> f32 {
-        let total = (self.success_count + self.failure_count) as f32 + 1.0;
-        let success_rate = (self.success_count as f32 + 1.0) / total;
+        let total = u32_to_f32(self.success_count.saturating_add(self.failure_count)) + 1.0;
+        let success_rate = (u32_to_f32(self.success_count) + 1.0) / total;
         success_rate * self.q_value
     }
 
@@ -158,9 +174,8 @@ impl Episode {
     ///
     /// Returns:
     /// - Decayed Q-value (moves towards 0.5 over time)
-    #[allow(clippy::cast_precision_loss)]
     pub fn apply_time_decay(&mut self, decay_factor: f32, current_time: i64) {
-        let age_hours = (current_time - self.created_at) as f32 / (1000.0 * 60.0 * 60.0);
+        let age_hours = self.age_hours(current_time);
         if age_hours > 0.0 {
             let decay = decay_factor.powf(age_hours);
             // Decay towards 0.5 (neutral value)
@@ -170,8 +185,8 @@ impl Episode {
 
     /// Get the age of this episode in hours.
     #[must_use]
-    #[allow(clippy::cast_precision_loss)]
     pub fn age_hours(&self, current_time: i64) -> f32 {
-        (current_time - self.created_at) as f32 / (1000.0 * 60.0 * 60.0)
+        let age_millis = current_time.saturating_sub(self.created_at);
+        i64_to_f32_saturating(age_millis) / MILLIS_PER_HOUR
     }
 }

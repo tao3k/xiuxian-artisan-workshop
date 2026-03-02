@@ -11,7 +11,7 @@ from omni.tracer import run_graphflow_pipeline
 
 
 @skill_command(
-    name="run_langgraph",
+    name="run_graphflow",
     description=(
         "Execute the packaged graphflow runtime with trace output and configurable quality gates."
     ),
@@ -20,7 +20,7 @@ from omni.tracer import run_graphflow_pipeline
     idempotent=True,
     open_world=False,
 )
-async def run_langgraph(
+async def run_graphflow(
     scenario: str = "complex",
     quality_threshold: str = "0.8",
     quality_gate_novelty_threshold: str = "0.2",

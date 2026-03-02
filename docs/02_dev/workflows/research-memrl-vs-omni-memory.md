@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "MemRL vs Omni-Dev-Fusion: Research Analysis"
 category: "workflows"
 tags:
@@ -6,6 +7,8 @@ tags:
   - research
 saliency_base: 6.0
 decay_rate: 0.05
+metadata:
+  title: "MemRL vs Omni-Dev-Fusion: Research Analysis"
 ---
 
 # MemRL vs Omni-Dev-Fusion: Research Analysis

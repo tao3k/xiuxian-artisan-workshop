@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-port="${1:-6379}"
-valkey_url="${2:-redis://127.0.0.1:${port}/0}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+resolve_valkey_field() {
+  python3 "${PROJECT_ROOT}/scripts/channel/resolve_valkey_endpoint.py" --field "$1"
+}
+
+port="${1:-$(resolve_valkey_field port)}"
+valkey_url="${2:-$(resolve_valkey_field url)}"
 
 cleanup() {
   bash scripts/channel/valkey-stop.sh "${port}" || true

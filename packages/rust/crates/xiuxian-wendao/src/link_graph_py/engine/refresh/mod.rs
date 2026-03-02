@@ -2,3 +2,6 @@
 
 mod parse;
 mod plan_apply;
+
+#[cfg(test)]
+mod tests;

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Role-oriented embedding performance smoke benchmark for omni-agent.
 
-This script validates that `litellm_rs` (provider routing) and `mistral_local`
-(local runtime endpoint) are both operational and reports latency/throughput.
+This script validates that `litellm_rs` (provider routing) and `mistral_sdk`
+(in-process Rust SDK runtime) are both operational and reports latency/throughput.
 It is not a winner-takes-all benchmark; each role is measured independently.
 """
 
@@ -25,8 +25,26 @@ from typing import Any
 
 import httpx
 
+from omni.foundation.config.settings import get_setting
+from omni.foundation.runtime.cargo_subprocess_env import prepare_cargo_subprocess_env
+
 _ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_REPORT = _ROOT / ".run" / "reports" / "omni-agent-embedding-role-perf-smoke.json"
+_DEFAULT_LOCAL_HOST = (
+    os.environ.get("XIUXIAN_WENDAO_LOCAL_HOST", "localhost").strip() or "localhost"
+)
+_DEFAULT_OLLAMA_BASE_URL = os.environ.get("XIUXIAN_WENDAO_OLLAMA_BASE_URL", "").strip().rstrip("/")
+
+
+def _default_upstream_base_url() -> str:
+    configured = get_setting("embedding.litellm_api_base")
+    if isinstance(configured, str):
+        value = configured.strip()
+        if value:
+            return value.rstrip("/")
+    if _DEFAULT_OLLAMA_BASE_URL:
+        return _DEFAULT_OLLAMA_BASE_URL
+    return f"http://{_DEFAULT_LOCAL_HOST}:11434"
 
 
 def _percentile(values: list[float], pct: float) -> float:
@@ -57,7 +75,7 @@ class RoleConfig:
     name: str
     port: int
     model: str
-    settings_yaml: str
+    settings_toml: str
 
 
 def _role_configs(base_port: int, upstream_base_url: str, embedding_model: str) -> list[RoleConfig]:
@@ -69,46 +87,48 @@ def _role_configs(base_port: int, upstream_base_url: str, embedding_model: str) 
             name="litellm_rs",
             port=base_port,
             model=litellm_model,
-            settings_yaml=(
-                "agent:\n"
-                "  llm_backend: litellm_rs\n"
-                "embedding:\n"
-                "  backend: litellm_rs\n"
-                "  batch_max_size: 128\n"
-                "  batch_max_concurrency: 1\n"
-                f"  litellm_model: {litellm_model}\n"
-                f"  model: {litellm_model}\n"
-                f"  litellm_api_base: {upstream}\n"
-                "memory:\n"
-                "  embedding_backend: litellm_rs\n"
-                f"  embedding_model: {litellm_model}\n"
-                "  persistence_backend: local\n"
-                "mcp:\n"
-                "  agent_strict_startup: false\n"
+            settings_toml=(
+                "[agent]\n"
+                'llm_backend = "litellm_rs"\n'
+                "\n"
+                "[llm.embedding]\n"
+                'backend = "litellm_rs"\n'
+                "batch_max_size = 128\n"
+                "batch_max_concurrency = 1\n"
+                f'litellm_model = "{litellm_model}"\n'
+                f'model = "{litellm_model}"\n'
+                f'litellm_api_base = "{upstream}"\n'
+                "\n"
+                "[memory]\n"
+                'embedding_backend = "litellm_rs"\n'
+                f'embedding_model = "{litellm_model}"\n'
+                'persistence_backend = "local"\n'
+                "\n"
+                "[mcp]\n"
+                "strict_startup = false\n"
             ),
         ),
         RoleConfig(
-            name="mistral_local",
+            name="mistral_sdk",
             port=base_port + 1,
             model=model,
-            settings_yaml=(
-                "agent:\n"
-                "  llm_backend: mistral_local\n"
-                "embedding:\n"
-                "  backend: mistral_local\n"
-                "  batch_max_size: 128\n"
-                "  batch_max_concurrency: 1\n"
-                f"  model: {model}\n"
-                "memory:\n"
-                "  embedding_backend: mistral_local\n"
-                f"  embedding_model: {model}\n"
-                "  persistence_backend: local\n"
-                "mistral:\n"
-                "  enabled: false\n"
-                "  auto_start: false\n"
-                f"  base_url: {upstream}\n"
-                "mcp:\n"
-                "  agent_strict_startup: false\n"
+            settings_toml=(
+                "[agent]\n"
+                'llm_backend = "http"\n'
+                "\n"
+                "[llm.embedding]\n"
+                'backend = "mistral_sdk"\n'
+                "batch_max_size = 128\n"
+                "batch_max_concurrency = 1\n"
+                f'model = "{model}"\n'
+                "\n"
+                "[memory]\n"
+                'embedding_backend = "mistral_sdk"\n'
+                f'embedding_model = "{model}"\n'
+                'persistence_backend = "local"\n'
+                "\n"
+                "[mcp]\n"
+                "strict_startup = false\n"
             ),
         ),
     ]
@@ -182,7 +202,7 @@ async def _assert_upstream_embedding_ready(
                 last_error = (
                     f"upstream /v1/embeddings status={probe_resp.status_code}, body={body_preview}"
                 )
-            except Exception as exc:  # noqa: BLE001 - keep probe failure message explicit
+            except Exception as exc:
                 last_error = str(exc)
 
             if attempt < warmup_attempts:
@@ -198,20 +218,22 @@ async def _assert_upstream_embedding_ready(
 def _ensure_agent_binary(agent_bin: Path) -> None:
     if agent_bin.exists():
         return
+    env = prepare_cargo_subprocess_env(os.environ)
     subprocess.run(
         ["cargo", "build", "-p", "omni-agent", "--bin", "omni-agent"],
         cwd=_ROOT,
         check=True,
+        env=env,
     )
     if not agent_bin.exists():
         raise RuntimeError(f"omni-agent binary not found after build: {agent_bin}")
 
 
 def _write_role_conf(temp_root: Path, role: RoleConfig) -> Path:
-    conf_dir = temp_root / f"conf-{role.name}" / "omni-dev-fusion"
+    conf_dir = temp_root / f"conf-{role.name}" / "xiuxian-artisan-workshop"
     conf_dir.mkdir(parents=True, exist_ok=True)
-    settings_path = conf_dir / "settings.yaml"
-    settings_path.write_text(role.settings_yaml, encoding="utf-8")
+    settings_path = conf_dir / "xiuxian.toml"
+    settings_path.write_text(role.settings_toml, encoding="utf-8")
     return conf_dir.parent
 
 
@@ -240,7 +262,7 @@ def _start_gateway(
         str(conf_root),
         "gateway",
         "--bind",
-        f"127.0.0.1:{port}",
+        f"{_DEFAULT_LOCAL_HOST}:{port}",
         "--mcp-config",
         ".mcp.json",
     ]
@@ -383,7 +405,7 @@ async def _run_role_benchmark(
         warmup_retry_backoff_secs=warmup_retry_backoff_secs,
     )
     process = _start_gateway(agent_bin, conf_root, role.port, log_path)
-    base_url = f"http://127.0.0.1:{role.port}"
+    base_url = f"http://{_DEFAULT_LOCAL_HOST}:{role.port}"
     try:
         _wait_health(base_url, timeout_secs=health_timeout_secs)
         endpoint = f"{base_url}/v1/embeddings"
@@ -486,7 +508,7 @@ async def _main() -> int:
     parser.add_argument(
         "--upstream-base-url",
         type=str,
-        default=os.environ.get("OMNI_EMBED_UPSTREAM_BASE_URL", "http://127.0.0.1:11434"),
+        default=os.environ.get("OMNI_EMBED_UPSTREAM_BASE_URL", _default_upstream_base_url()),
         help="Embedding upstream base URL used by both roles.",
     )
     parser.add_argument(

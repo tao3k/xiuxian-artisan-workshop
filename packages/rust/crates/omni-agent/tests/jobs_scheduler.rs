@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Recurring job scheduler behavior tests for success/failure timing paths.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -87,7 +51,7 @@ async fn recurring_scheduler_submits_and_collects_successes() {
         },
     );
 
-    let outcome = run_recurring_schedule(
+    let outcome = match run_recurring_schedule(
         manager,
         completion_rx,
         RecurringScheduleConfig {
@@ -101,7 +65,10 @@ async fn recurring_scheduler_submits_and_collects_successes() {
         },
     )
     .await
-    .expect("schedule should complete");
+    {
+        Ok(outcome) => outcome,
+        Err(error) => panic!("schedule should complete: {error}"),
+    };
 
     assert_eq!(outcome.submitted, 2);
     assert_eq!(outcome.completed, 2);
@@ -126,7 +93,7 @@ async fn recurring_scheduler_tracks_failures() {
         },
     );
 
-    let outcome = run_recurring_schedule(
+    let outcome = match run_recurring_schedule(
         manager,
         completion_rx,
         RecurringScheduleConfig {
@@ -140,7 +107,10 @@ async fn recurring_scheduler_tracks_failures() {
         },
     )
     .await
-    .expect("schedule should complete");
+    {
+        Ok(outcome) => outcome,
+        Err(error) => panic!("schedule should complete: {error}"),
+    };
 
     assert_eq!(outcome.submitted, 1);
     assert_eq!(outcome.completed, 1);
@@ -165,7 +135,7 @@ async fn recurring_scheduler_rejects_empty_prompt() {
         },
     );
 
-    let error = run_recurring_schedule(
+    let Err(error) = run_recurring_schedule(
         manager,
         completion_rx,
         RecurringScheduleConfig {
@@ -176,7 +146,9 @@ async fn recurring_scheduler_rejects_empty_prompt() {
         },
     )
     .await
-    .expect_err("empty prompt should be rejected");
+    else {
+        panic!("empty prompt should be rejected");
+    };
 
     assert!(
         error

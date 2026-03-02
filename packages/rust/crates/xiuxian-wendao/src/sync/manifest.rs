@@ -5,7 +5,6 @@ use xxhash_rust::xxh3;
 
 use super::{SyncEngine, SyncManifest};
 
-#[allow(clippy::missing_errors_doc)]
 impl SyncEngine {
     /// Load manifest from disk.
     #[must_use]
@@ -20,6 +19,11 @@ impl SyncEngine {
     }
 
     /// Save manifest to disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`std::io::Error`] if parent directory creation, manifest serialization,
+    /// or file writing fails.
     pub fn save_manifest(&self, manifest: &SyncManifest) -> std::io::Result<()> {
         if let Some(parent) = self.manifest_path.parent() {
             std::fs::create_dir_all(parent)?;

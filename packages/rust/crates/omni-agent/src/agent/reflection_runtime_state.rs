@@ -1,10 +1,21 @@
 use super::Agent;
 use super::reflection::{
     PolicyHintDirective, ReflectiveRuntime, ReflectiveRuntimeError, ReflectiveRuntimeStage,
-    build_turn_reflection, derive_policy_hint,
+    build_turn_reflection, derive_policy_hint, render_turn_reflection_block,
+    render_turn_reflection_for_memory,
 };
 use crate::contracts::{OmegaFallbackPolicy, OmegaRoute};
 use crate::observability::SessionEvent;
+
+pub(super) struct ReflectionTurnReport<'a> {
+    pub(super) session_id: &'a str,
+    pub(super) turn_id: u64,
+    pub(super) route: OmegaRoute,
+    pub(super) user_message: &'a str,
+    pub(super) assistant_signal: &'a str,
+    pub(super) outcome: &'a str,
+    pub(super) tool_calls: u32,
+}
 
 impl Agent {
     pub(super) async fn take_reflection_policy_hint(
@@ -17,17 +28,20 @@ impl Agent {
             .remove(session_id)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(super) async fn reflect_turn_and_update_policy_hint(
         &self,
-        session_id: &str,
-        turn_id: u64,
-        route: OmegaRoute,
-        user_message: &str,
-        assistant_signal: &str,
-        outcome: &str,
-        tool_calls: u32,
+        report: ReflectionTurnReport<'_>,
     ) {
+        let ReflectionTurnReport {
+            session_id,
+            turn_id,
+            route,
+            user_message,
+            assistant_signal,
+            outcome,
+            tool_calls,
+        } = report;
+
         let mut runtime = ReflectiveRuntime::default();
         for stage in [
             ReflectiveRuntimeStage::Diagnose,
@@ -48,6 +62,8 @@ impl Agent {
             outcome,
             tool_calls,
         );
+        let reflection_block = render_turn_reflection_block(&reflection);
+        let reflection_memory = render_turn_reflection_for_memory(&reflection);
         let Some(policy_hint) = derive_policy_hint(&reflection, turn_id) else {
             return;
         };
@@ -69,6 +85,8 @@ impl Agent {
             fallback_override = fallback_override.map(OmegaFallbackPolicy::as_str),
             tool_trust_class = tool_trust_class.as_str(),
             reason = %reason,
+            reflection_block = %reflection_block,
+            reflection_memory = %reflection_memory,
             "reflection policy hint stored for next turn"
         );
     }

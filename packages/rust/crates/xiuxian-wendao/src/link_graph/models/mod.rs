@@ -23,5 +23,6 @@ pub use records::{
     LinkGraphConfidenceLevel, LinkGraphDisplayHit, LinkGraphDocument, LinkGraphHit,
     LinkGraphMetadata, LinkGraphNeighbor, LinkGraphPassage, LinkGraphPlannedSearchPayload,
     LinkGraphPromotedOverlayTelemetry, LinkGraphRelatedPprDiagnostics, LinkGraphRetrievalBudget,
-    LinkGraphRetrievalMode, LinkGraphRetrievalPlanRecord, LinkGraphStats,
+    LinkGraphRetrievalMode, LinkGraphRetrievalPlanInput, LinkGraphRetrievalPlanRecord,
+    LinkGraphStats,
 };

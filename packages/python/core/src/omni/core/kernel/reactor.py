@@ -51,7 +51,7 @@ OmniEvent = dict[str, Any]
 
 
 class EventTopic(Enum):
-    """Core event topics matching Rust omni-events crate."""
+    """Core event topics matching Rust xiuxian-event crate."""
 
     FILE_CHANGED = "file/changed"
     FILE_CREATED = "file/created"

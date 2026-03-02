@@ -4,15 +4,14 @@
 //! This module does NOT parse NCL - it reads exported JSON.
 
 use pyo3::prelude::*;
-use serde::Deserialize;
+use pyo3::types::{PyDict, PyTuple};
 use std::path::Path;
 use std::time::Instant;
 use tokio::process::Command;
 
 /// Unified sandbox configuration (from NCL-exported JSON)
 #[pyclass]
-#[allow(clippy::unsafe_derive_deserialize)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct SandboxConfig {
     /// Unique skill identifier
     #[pyo3(get)]
@@ -62,40 +61,83 @@ pub struct SandboxConfig {
 #[pymethods]
 impl SandboxConfig {
     #[new]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        skill_id: String,
-        mode: String,
-        hostname: String,
-        cmd: Vec<String>,
-        env: Vec<String>,
-        mounts: Vec<MountConfig>,
-        rlimit_as: u64,
-        rlimit_cpu: u64,
-        rlimit_fsize: u64,
-        seccomp_mode: u32,
-        log_level: String,
-    ) -> Self {
-        SandboxConfig {
-            skill_id,
-            mode,
-            hostname,
-            cmd,
-            env,
-            mounts,
-            rlimit_as,
-            rlimit_cpu,
-            rlimit_fsize,
-            seccomp_mode,
-            log_level,
+    #[pyo3(signature = (*args, **kwargs))]
+    fn new(args: &Bound<'_, PyTuple>, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Self> {
+        if !args.is_empty() {
+            if let Some(dict) = kwargs
+                && !dict.is_empty()
+            {
+                return Err(pyo3::exceptions::PyTypeError::new_err(
+                    "SandboxConfig accepts either positional arguments or keyword arguments, not both.",
+                ));
+            }
+            return Self::from_positional_args(args);
         }
+
+        if let Some(dict) = kwargs
+            && !dict.is_empty()
+        {
+            return Self::from_keyword_args(dict);
+        }
+
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "SandboxConfig requires 11 positional arguments or named keyword arguments.",
+        ))
+    }
+}
+
+impl SandboxConfig {
+    fn from_positional_args(args: &Bound<'_, PyTuple>) -> PyResult<Self> {
+        if args.len() != 11 {
+            return Err(pyo3::exceptions::PyTypeError::new_err(format!(
+                "SandboxConfig expected 11 positional arguments, got {}.",
+                args.len()
+            )));
+        }
+
+        Ok(Self {
+            skill_id: args.get_item(0)?.extract()?,
+            mode: args.get_item(1)?.extract()?,
+            hostname: args.get_item(2)?.extract()?,
+            cmd: args.get_item(3)?.extract()?,
+            env: args.get_item(4)?.extract()?,
+            mounts: args.get_item(5)?.extract()?,
+            rlimit_as: args.get_item(6)?.extract()?,
+            rlimit_cpu: args.get_item(7)?.extract()?,
+            rlimit_fsize: args.get_item(8)?.extract()?,
+            seccomp_mode: args.get_item(9)?.extract()?,
+            log_level: args.get_item(10)?.extract()?,
+        })
+    }
+
+    fn from_keyword_args(kwargs: &Bound<'_, PyDict>) -> PyResult<Self> {
+        fn required<'py>(kwargs: &Bound<'py, PyDict>, key: &str) -> PyResult<Bound<'py, PyAny>> {
+            kwargs.get_item(key)?.ok_or_else(|| {
+                pyo3::exceptions::PyTypeError::new_err(format!(
+                    "SandboxConfig missing required argument: {key}."
+                ))
+            })
+        }
+
+        Ok(Self {
+            skill_id: required(kwargs, "skill_id")?.extract()?,
+            mode: required(kwargs, "mode")?.extract()?,
+            hostname: required(kwargs, "hostname")?.extract()?,
+            cmd: required(kwargs, "cmd")?.extract()?,
+            env: required(kwargs, "env")?.extract()?,
+            mounts: required(kwargs, "mounts")?.extract()?,
+            rlimit_as: required(kwargs, "rlimit_as")?.extract()?,
+            rlimit_cpu: required(kwargs, "rlimit_cpu")?.extract()?,
+            rlimit_fsize: required(kwargs, "rlimit_fsize")?.extract()?,
+            seccomp_mode: required(kwargs, "seccomp_mode")?.extract()?,
+            log_level: required(kwargs, "log_level")?.extract()?,
+        })
     }
 }
 
 /// Mount configuration
 #[pyclass]
-#[allow(clippy::unsafe_derive_deserialize)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct MountConfig {
     /// Source path
     #[pyo3(get)]

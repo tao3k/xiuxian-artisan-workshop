@@ -1,4 +1,4 @@
-//! QTable tests.
+//! `QTable` tests.
 
 use omni_memory::QTable;
 
@@ -6,12 +6,12 @@ use omni_memory::QTable;
 fn test_q_table_basic_update() {
     let q_table = QTable::new();
 
-    assert_eq!(q_table.get_q("ep-001"), 0.5);
+    assert!((q_table.get_q("ep-001") - 0.5).abs() < f32::EPSILON);
 
     let q_new = q_table.update("ep-001", 1.0);
-    assert_eq!(q_new, 0.6);
+    assert!((q_new - 0.6).abs() < f32::EPSILON);
 
-    assert_eq!(q_table.get_q("ep-001"), 0.6);
+    assert!((q_table.get_q("ep-001") - 0.6).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn test_q_table_negative_reward() {
     let q_table = QTable::new();
 
     let q_new = q_table.update("ep-001", 0.0);
-    assert_eq!(q_new, 0.4);
+    assert!((q_new - 0.4).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -52,7 +52,7 @@ fn test_batch_update() {
     let results = q_table.update_batch(&updates);
 
     assert_eq!(results.len(), 3);
-    assert_eq!(q_table.get_q("ep-001"), 0.6);
-    assert_eq!(q_table.get_q("ep-002"), 0.4);
-    assert_eq!(q_table.get_q("ep-003"), 0.5);
+    assert!((q_table.get_q("ep-001") - 0.6).abs() < f32::EPSILON);
+    assert!((q_table.get_q("ep-002") - 0.4).abs() < f32::EPSILON);
+    assert!((q_table.get_q("ep-003") - 0.5).abs() < f32::EPSILON);
 }

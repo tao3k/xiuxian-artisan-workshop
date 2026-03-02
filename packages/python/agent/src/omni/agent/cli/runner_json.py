@@ -21,8 +21,9 @@ from .json_output import normalize_result_for_json_output
 _DAEMON_ENV_KEY = "OMNI_SKILL_RUNNER_DAEMON"
 _DAEMON_SERVER_ENV_KEY = "OMNI_SKILL_RUNNER_DAEMON_SERVER"
 _DAEMON_SOCKET_ENV_KEY = "OMNI_SKILL_RUNNER_SOCKET"
+_DAEMON_REQUEST_TIMEOUT_ENV_KEY = "OMNI_SKILL_RUNNER_REQUEST_TIMEOUT"
 _DAEMON_BOOT_TIMEOUT_SECONDS = 3.0
-_DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
+_DEFAULT_DAEMON_REQUEST_TIMEOUT_SECONDS = 1800.0
 _DAEMON_OPERATION_RUN = "run"
 _DAEMON_OPERATION_PING = "ping"
 _DAEMON_OPERATION_SHUTDOWN = "shutdown"
@@ -56,6 +57,28 @@ def _verbose_enabled() -> bool:
 def _timing_enabled() -> bool:
     raw = os.environ.get(_TIMING_ENV_KEY, "").strip().lower()
     return raw in {"1", "true", "yes", "on"}
+
+
+def get_daemon_request_timeout_seconds() -> float:
+    """Resolve daemon socket request timeout in seconds."""
+    raw = os.environ.get(_DAEMON_REQUEST_TIMEOUT_ENV_KEY, "").strip()
+    if raw:
+        try:
+            return max(5.0, float(raw))
+        except ValueError:
+            pass
+
+    try:
+        from omni.foundation.config.settings import get_setting
+
+        configured = get_setting("mcp.timeout", _DEFAULT_DAEMON_REQUEST_TIMEOUT_SECONDS)
+        timeout = float(configured)
+        if timeout > 0:
+            return max(5.0, timeout)
+    except Exception:
+        pass
+
+    return _DEFAULT_DAEMON_REQUEST_TIMEOUT_SECONDS
 
 
 def _normalize_timing_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -207,7 +230,7 @@ def _request_runner_daemon(
     _set_last_daemon_timing({})
     serialized_request = json.dumps(request_payload, ensure_ascii=False, separators=(",", ":"))
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-        client.settimeout(_DAEMON_REQUEST_TIMEOUT_SECONDS)
+        client.settimeout(get_daemon_request_timeout_seconds())
         client.connect(str(socket_path))
         client.sendall(serialized_request.encode("utf-8"))
         client.sendall(b"\n")
@@ -591,6 +614,7 @@ def run_skills_json(
 
 
 __all__ = [
+    "get_daemon_request_timeout_seconds",
     "get_last_run_timing",
     "get_runner_daemon_status",
     "run_skills_json",

@@ -24,10 +24,10 @@ async fn main() -> anyhow::Result<()> {
         .map_or(("gateway", &[][..]), |(m, r)| (m.as_str(), r));
     if mode == "stdio" {
         let (session_id, mcp_config_path) = parse_stdio_args(rest);
-        run_stdio_mode(session_id, mcp_config_path).await
+        Box::pin(run_stdio_mode(session_id, mcp_config_path)).await
     } else {
         let (bind_addr, mcp_config_path) = parse_gateway_args(rest);
-        run_gateway(bind_addr, mcp_config_path).await
+        Box::pin(run_gateway(bind_addr, mcp_config_path)).await
     }
 }
 
@@ -83,7 +83,7 @@ async fn run_gateway(bind_addr: String, mcp_config_path: PathBuf) -> anyhow::Res
         ..AgentConfig::default()
     };
     let agent = Agent::from_config(config).await?;
-    run_http(agent, &bind_addr, None, None).await
+    Box::pin(run_http(agent, &bind_addr, None, None)).await
 }
 
 async fn run_stdio_mode(session_id: String, mcp_config_path: PathBuf) -> anyhow::Result<()> {
@@ -98,5 +98,5 @@ async fn run_stdio_mode(session_id: String, mcp_config_path: PathBuf) -> anyhow:
         ..AgentConfig::default()
     };
     let agent = Agent::from_config(config).await?;
-    run_stdio(agent, session_id).await
+    Box::pin(run_stdio(agent, session_id)).await
 }

@@ -1,37 +1,17 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
-fn test_batch_diff_computation() {
+fn test_batch_diff_computation() -> Result<(), Box<dyn std::error::Error>> {
     use xiuxian_wendao::{SyncEngine, SyncManifest};
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new()?;
 
     // Create many files
     for i in 0..50 {
         fs::write(
-            temp_dir.path().join(format!("file_{}.py", i)),
-            format!("content {}", i),
-        )
-        .unwrap();
+            temp_dir.path().join(format!("file_{i}.py")),
+            format!("content {i}"),
+        )?;
     }
 
     let manifest_path = temp_dir.path().join("manifest.json");
@@ -46,4 +26,5 @@ fn test_batch_diff_computation() {
     assert_eq!(diff.added.len(), 50);
     assert_eq!(diff.modified.len(), 0);
     assert_eq!(diff.unchanged, 0);
+    Ok(())
 }

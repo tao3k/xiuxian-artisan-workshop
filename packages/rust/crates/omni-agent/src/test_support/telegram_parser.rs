@@ -12,6 +12,11 @@ pub fn parse_help_command(input: &str) -> Option<super::types::OutputFormat> {
 }
 
 #[must_use]
+pub fn is_agenda_command(input: &str) -> bool {
+    telegram::is_agenda_command(input)
+}
+
+#[must_use]
 pub fn parse_background_prompt(input: &str) -> Option<String> {
     telegram::parse_background_prompt(input)
 }

@@ -2,6 +2,8 @@ use omni_types::VectorSearchResult;
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::f64_to_f32_saturating;
+
 use crate::{
     CONTENT_COLUMN, FILE_PATH_COLUMN, ID_COLUMN, INTENTS_COLUMN, METADATA_COLUMN,
     ROUTING_KEYWORDS_COLUMN, TOOL_NAME_COLUMN, VectorStore, VectorStoreError,
@@ -159,7 +161,6 @@ fn parse_search_metadata_value(
     parse_metadata_cell(arr.value(index))
 }
 
-#[allow(clippy::cast_possible_truncation)]
 fn parse_fts_score(score_col: LanceArrayRef<'_>, index: usize) -> f32 {
     let Some(col) = score_col else {
         return 0.0;
@@ -173,7 +174,7 @@ fn parse_fts_score(score_col: LanceArrayRef<'_>, index: usize) -> f32 {
         .as_any()
         .downcast_ref::<lance::deps::arrow_array::Float64Array>()
     {
-        arr.value(index) as f32
+        f64_to_f32_saturating(arr.value(index))
     } else {
         0.0
     }

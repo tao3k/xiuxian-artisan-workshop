@@ -1,4 +1,5 @@
 use crate::config::RuntimeSettings;
+use xiuxian_macros::{env_non_empty, string_first_non_empty};
 
 use super::minimax::{normalize_minimax_api_base, normalize_minimax_model};
 use super::{DEFAULT_MINIMAX_KEY_ENV, DEFAULT_OPENAI_KEY_ENV};
@@ -49,11 +50,13 @@ pub(in crate::llm) fn resolve_provider_settings(
     runtime_settings: &RuntimeSettings,
     requested_model: String,
 ) -> ProviderSettings {
+    let env_provider = env_non_empty!("OMNI_AGENT_LLM_PROVIDER");
+    let env_minimax_api_base = env_non_empty!("MINIMAX_API_BASE");
     resolve_provider_settings_with_env(
         runtime_settings,
         requested_model,
-        std::env::var("OMNI_AGENT_LLM_PROVIDER").ok().as_deref(),
-        std::env::var("MINIMAX_API_BASE").ok().as_deref(),
+        env_provider.as_deref(),
+        env_minimax_api_base.as_deref(),
     )
 }
 
@@ -82,19 +85,13 @@ pub(in crate::llm) fn resolve_provider_settings_with_env(
         }
     };
 
-    let api_key_env = runtime_settings
-        .inference
-        .api_key_env
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map_or_else(
-            || match mode {
-                LiteLlmProviderMode::OpenAi => DEFAULT_OPENAI_KEY_ENV.to_string(),
-                LiteLlmProviderMode::Minimax => DEFAULT_MINIMAX_KEY_ENV.to_string(),
-            },
-            ToString::to_string,
-        );
+    let api_key_env = string_first_non_empty!(
+        runtime_settings.inference.api_key_env.as_deref(),
+        match mode {
+            LiteLlmProviderMode::OpenAi => Some(DEFAULT_OPENAI_KEY_ENV),
+            LiteLlmProviderMode::Minimax => Some(DEFAULT_MINIMAX_KEY_ENV),
+        },
+    );
 
     let settings_model = runtime_settings
         .inference

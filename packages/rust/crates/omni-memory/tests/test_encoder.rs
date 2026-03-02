@@ -1,4 +1,4 @@
-//! IntentEncoder tests.
+//! `IntentEncoder` tests.
 
 use omni_memory::IntentEncoder;
 

@@ -1,4 +1,5 @@
 ---
+type: skill
 name: rust_engineering
 description: Use when analyzing Rust project structure, managing Cargo dependencies, building and testing Rust projects, or generating Rust code.
 metadata:

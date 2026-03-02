@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram runtime partition-mode behavior tests across session identities.
 
 use std::sync::Arc;
 
@@ -54,14 +18,14 @@ async fn runtime_partition_chat_user_isolates_users() -> Result<()> {
     run_partition_reset_status_flow(
         TelegramSessionPartition::ChatUser,
         SessionIdentity {
-            chat_id: -200,
-            user_id: 888,
-            thread_id: None,
+            chat: -200,
+            user: 888,
+            thread: None,
         },
         SessionIdentity {
-            chat_id: -200,
-            user_id: 999,
-            thread_id: None,
+            chat: -200,
+            user: 999,
+            thread: None,
         },
         false,
     )
@@ -73,14 +37,14 @@ async fn runtime_partition_chat_only_shares_users_in_same_chat() -> Result<()> {
     run_partition_reset_status_flow(
         TelegramSessionPartition::ChatOnly,
         SessionIdentity {
-            chat_id: -200,
-            user_id: 888,
-            thread_id: None,
+            chat: -200,
+            user: 888,
+            thread: None,
         },
         SessionIdentity {
-            chat_id: -200,
-            user_id: 999,
-            thread_id: None,
+            chat: -200,
+            user: 999,
+            thread: None,
         },
         true,
     )
@@ -92,14 +56,14 @@ async fn runtime_partition_chat_only_isolates_same_user_across_chats() -> Result
     run_partition_reset_status_flow(
         TelegramSessionPartition::ChatOnly,
         SessionIdentity {
-            chat_id: -200,
-            user_id: 888,
-            thread_id: None,
+            chat: -200,
+            user: 888,
+            thread: None,
         },
         SessionIdentity {
-            chat_id: -201,
-            user_id: 888,
-            thread_id: None,
+            chat: -201,
+            user: 888,
+            thread: None,
         },
         false,
     )
@@ -111,14 +75,14 @@ async fn runtime_partition_user_only_shares_across_chats() -> Result<()> {
     run_partition_reset_status_flow(
         TelegramSessionPartition::UserOnly,
         SessionIdentity {
-            chat_id: -200,
-            user_id: 888,
-            thread_id: None,
+            chat: -200,
+            user: 888,
+            thread: None,
         },
         SessionIdentity {
-            chat_id: -201,
-            user_id: 888,
-            thread_id: None,
+            chat: -201,
+            user: 888,
+            thread: None,
         },
         true,
     )
@@ -130,14 +94,14 @@ async fn runtime_partition_chat_thread_user_isolates_threads() -> Result<()> {
     run_partition_reset_status_flow(
         TelegramSessionPartition::ChatThreadUser,
         SessionIdentity {
-            chat_id: -200,
-            user_id: 888,
-            thread_id: Some(11),
+            chat: -200,
+            user: 888,
+            thread: Some(11),
         },
         SessionIdentity {
-            chat_id: -200,
-            user_id: 888,
-            thread_id: Some(22),
+            chat: -200,
+            user: 888,
+            thread: Some(22),
         },
         false,
     )
@@ -151,41 +115,27 @@ async fn runtime_partition_chat_user_concurrent_resets_stay_isolated() -> Result
     let channel_dyn: Arc<dyn Channel> = channel.clone();
     let job_manager = build_job_manager(agent.clone());
     let (foreground_tx, mut foreground_rx) = mpsc::channel::<ChannelMessage>(8);
+    let identity = |user| SessionIdentity {
+        chat: -200,
+        user,
+        thread: None,
+    };
 
-    let reset_user_888 = partitioned_inbound_message(
-        TelegramSessionPartition::ChatUser,
-        SessionIdentity {
-            chat_id: -200,
-            user_id: 888,
-            thread_id: None,
-        },
-        "/reset",
-    )?;
-    let reset_user_999 = partitioned_inbound_message(
-        TelegramSessionPartition::ChatUser,
-        SessionIdentity {
-            chat_id: -200,
-            user_id: 999,
-            thread_id: None,
-        },
-        "/reset",
-    )?;
+    let reset_user_888 =
+        partitioned_inbound_message(TelegramSessionPartition::ChatUser, identity(888), "/reset")?;
+    let reset_user_999 =
+        partitioned_inbound_message(TelegramSessionPartition::ChatUser, identity(999), "/reset")?;
     let session_888 = format!("{}:{}", reset_user_888.channel, reset_user_888.session_key);
     let session_999 = format!("{}:{}", reset_user_999.channel, reset_user_999.session_key);
     assert_ne!(session_888, session_999);
 
-    agent
-        .append_turn_for_session(&session_888, "u1", "a1")
-        .await?;
-    agent
-        .append_turn_for_session(&session_888, "u2", "a2")
-        .await?;
-    agent
-        .append_turn_for_session(&session_999, "u1", "a1")
-        .await?;
-    agent
-        .append_turn_for_session(&session_999, "u2", "a2")
-        .await?;
+    for session in [&session_888, &session_999] {
+        for (user_msg, assistant_msg) in [("u1", "a1"), ("u2", "a2")] {
+            agent
+                .append_turn_for_session(session, user_msg, assistant_msg)
+                .await?;
+        }
+    }
 
     let f1 = handle_inbound_message(
         reset_user_888,
@@ -205,45 +155,23 @@ async fn runtime_partition_chat_user_concurrent_resets_stay_isolated() -> Result
     assert!(handled_1);
     assert!(handled_2);
 
-    let status_888 = partitioned_inbound_message(
-        TelegramSessionPartition::ChatUser,
-        SessionIdentity {
-            chat_id: -200,
-            user_id: 888,
-            thread_id: None,
-        },
-        "/resume status",
-    )?;
-    let status_999 = partitioned_inbound_message(
-        TelegramSessionPartition::ChatUser,
-        SessionIdentity {
-            chat_id: -200,
-            user_id: 999,
-            thread_id: None,
-        },
-        "/resume status",
-    )?;
-
-    assert!(
-        handle_inbound_message(
-            status_888,
-            &channel_dyn,
-            &foreground_tx,
-            &job_manager,
-            &agent
-        )
-        .await
-    );
-    assert!(
-        handle_inbound_message(
-            status_999,
-            &channel_dyn,
-            &foreground_tx,
-            &job_manager,
-            &agent
-        )
-        .await
-    );
+    for status in [
+        partitioned_inbound_message(
+            TelegramSessionPartition::ChatUser,
+            identity(888),
+            "/resume status",
+        )?,
+        partitioned_inbound_message(
+            TelegramSessionPartition::ChatUser,
+            identity(999),
+            "/resume status",
+        )?,
+    ] {
+        assert!(
+            handle_inbound_message(status, &channel_dyn, &foreground_tx, &job_manager, &agent)
+                .await
+        );
+    }
 
     assert!(
         foreground_rx.try_recv().is_err(),

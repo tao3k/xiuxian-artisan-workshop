@@ -14,6 +14,9 @@ impl DiscordSettings {
             ingress_path: overlay.ingress_path.or(self.ingress_path),
             ingress_secret_token: overlay.ingress_secret_token.or(self.ingress_secret_token),
             session_partition: overlay.session_partition.or(self.session_partition),
+            session_partition_persist: overlay
+                .session_partition_persist
+                .or(self.session_partition_persist),
             inbound_queue_capacity: overlay
                 .inbound_queue_capacity
                 .or(self.inbound_queue_capacity),
@@ -21,6 +24,7 @@ impl DiscordSettings {
             foreground_max_in_flight_messages: overlay
                 .foreground_max_in_flight_messages
                 .or(self.foreground_max_in_flight_messages),
+            foreground_queue_mode: overlay.foreground_queue_mode.or(self.foreground_queue_mode),
         }
     }
 }
@@ -48,8 +52,7 @@ impl DiscordAclAllowSettings {
 }
 
 impl DiscordAclPrincipalSettings {
-    #[allow(clippy::unused_self)]
-    fn merge(self, overlay: Self) -> Self {
+    fn merge(_base: Self, overlay: Self) -> Self {
         overlay
     }
 }
@@ -122,9 +125,10 @@ fn merge_option_discord_principal_settings(
     match (base, overlay) {
         (None, None) => None,
         (Some(settings), None) | (None, Some(settings)) => Some(settings),
-        (Some(base_settings), Some(overlay_settings)) => {
-            Some(base_settings.merge(overlay_settings))
-        }
+        (Some(base_settings), Some(overlay_settings)) => Some(DiscordAclPrincipalSettings::merge(
+            base_settings,
+            overlay_settings,
+        )),
     }
 }
 

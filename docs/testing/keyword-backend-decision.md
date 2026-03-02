@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Tantivy vs Lance FTS: Decision (Canonical)"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - keyword
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Tantivy vs Lance FTS: Decision (Canonical)"
 ---
 
 # Tantivy vs Lance FTS: Decision (Canonical)

@@ -22,6 +22,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from omni.foundation.runtime.cargo_subprocess_env import prepare_cargo_subprocess_env
+
 
 @dataclass
 class RunResult:
@@ -55,7 +57,8 @@ def _resolve_binary(project_root: Path, binary: str | None, build: bool, release
         cmd = ["cargo", "build", "-p", "xiuxian-wendao", "--bin", "wendao"]
         if release:
             cmd.append("--release")
-        subprocess.run(cmd, cwd=project_root, check=True)
+        env = prepare_cargo_subprocess_env(os.environ)
+        subprocess.run(cmd, cwd=project_root, check=True, env=env)
     if not default_bin.exists():
         raise FileNotFoundError(f"wendao binary not found after build: {default_bin}")
     return default_bin
@@ -91,6 +94,8 @@ def _build_cmd(
 
 def _run_once(cmd: list[str], timeout_s: float) -> RunResult:
     start = time.perf_counter()
+    env = os.environ.copy()
+    env.pop("DYLD_LIBRARY_PATH", None)
     try:
         proc = subprocess.run(
             cmd,
@@ -98,6 +103,7 @@ def _run_once(cmd: list[str], timeout_s: float) -> RunResult:
             text=True,
             timeout=timeout_s,
             check=False,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         elapsed_ms = (time.perf_counter() - start) * 1000.0

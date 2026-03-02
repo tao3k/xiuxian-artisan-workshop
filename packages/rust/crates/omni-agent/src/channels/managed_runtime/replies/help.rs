@@ -15,7 +15,8 @@ pub(crate) fn format_slash_help() -> String {
         "- `/session memory [json]`: memory recall trigger/result/runtime status.".to_string(),
         "- `/session feedback up|down [json]`: adjust recall feedback bias.".to_string(),
         "- `/session admin [list|set|add|remove|clear] [json]`: delegated admins for current group/topic (admin).".to_string(),
-        "- `/session partition [mode|on|off] [json]`: session key mode (admin).".to_string(),
+        "- `/session partition|scope [mode|on|off] [json]`: session key mode (admin)."
+            .to_string(),
         "- `/feedback up|down [json]`: short alias of `/session feedback ...`.".to_string(),
         "- `/reset` or `/clear`: clear active session context (admin).".to_string(),
         "- `/resume`, `/resume status`, `/resume drop`: restore/check/drop saved snapshot.".to_string(),
@@ -48,7 +49,7 @@ pub(crate) fn format_slash_help_json() -> String {
                 {"usage": "/session memory [json]", "description": "Memory recall trigger/result/runtime status"},
                 {"usage": "/session feedback up|down [json]", "description": "Adjust recall feedback bias"},
                 {"usage": "/session admin [list|set|add|remove|clear] [json]", "description": "Delegated admins for current group/topic (admin)"},
-                {"usage": "/session partition [mode|on|off] [json]", "description": "Session partition mode (admin)"},
+                {"usage": "/session partition|scope [mode|on|off] [json]", "description": "Session partition mode (admin)"},
                 {"usage": "/feedback up|down [json]", "description": "Alias of /session feedback"},
                 {"usage": "/reset | /clear", "description": "Reset current session context (admin)"},
                 {"usage": "/resume | /resume status | /resume drop", "description": "Restore/check/drop saved context snapshot"},

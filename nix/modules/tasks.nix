@@ -140,6 +140,14 @@ in
       just rust-omni-agent-backend-role-contracts
     '';
 
+    "ci:rust-omni-agent-embedding-role-perf-medium-gate" = mkRustTask ''
+      just rust-omni-agent-embedding-role-perf-medium-gate
+    '';
+
+    "ci:rust-omni-agent-embedding-role-perf-heavy-gate" = mkRustTask ''
+      just rust-omni-agent-embedding-role-perf-heavy-gate
+    '';
+
     "ci:rust-fusion-snapshots" = mkRustTask ''
       just rust-fusion-snapshots
     '';
@@ -181,6 +189,24 @@ in
         "''${OMNI_SKILLS_TOOLS_REPORT_DIR:-.run/reports/skills-tools-benchmark}" \
         "''${OMNI_SKILLS_TOOLS_DETERMINISTIC_RUNS:-3}" \
         "''${OMNI_SKILLS_TOOLS_NETWORK_RUNS:-5}"
+    '';
+
+    "ci:mcp-tools-list-sweep" = mkPythonScriptTask ''
+      just benchmark-mcp-tools-list-sweep \
+        "''${OMNI_MCP_TOOLS_LIST_BASE_URL:-}" \
+        "''${OMNI_MCP_TOOLS_LIST_HOST:-}" \
+        "''${OMNI_MCP_TOOLS_LIST_PORT:-}" \
+        "''${OMNI_MCP_TOOLS_LIST_NO_EMBEDDING:-true}" \
+        "''${OMNI_MCP_TOOLS_LIST_HEALTH_TIMEOUT_SECS:-120}" \
+        "''${OMNI_MCP_TOOLS_LIST_TOTAL:-1000}" \
+        "''${OMNI_MCP_TOOLS_LIST_CONCURRENCY_VALUES:-40,80,120,160,200}" \
+        "''${OMNI_MCP_TOOLS_LIST_WARMUP_CALLS:-2}" \
+        "''${OMNI_MCP_TOOLS_LIST_TIMEOUT_SECS:-30}" \
+        "''${OMNI_MCP_TOOLS_LIST_P95_SLO_MS:-400}" \
+        "''${OMNI_MCP_TOOLS_LIST_P99_SLO_MS:-800}" \
+        "''${OMNI_MCP_TOOLS_LIST_STRICT_SNAPSHOT:-true}" \
+        "''${OMNI_MCP_TOOLS_LIST_WRITE_SNAPSHOT:-false}" \
+        "''${OMNI_MCP_TOOLS_LIST_REPORT_DIR:-.run/reports/mcp-tools-list-sweep}"
     '';
 
     "ci:knowledge-recall-gates" = mkPythonScriptTask ''
@@ -226,6 +252,10 @@ in
 
     "ci:memory-gate-a7" = mkRuntimeTask ''
       just memory-gate-a7
+    '';
+
+    "ci:native-runtime-smoke" = mkPythonScriptTask ''
+      just verify-native-runtime
     '';
 
     "ci:valkey-live" = mkRuntimeTask ''

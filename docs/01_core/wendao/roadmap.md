@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Wendao Plan Consolidation (2026)"
 category: "plans"
 tags:
@@ -8,6 +9,8 @@ tags:
   - execution
 saliency_base: 8.0
 decay_rate: 0.02
+metadata:
+  title: "Wendao Plan Consolidation (2026)"
 ---
 
 # Wendao Plan Consolidation (2026)
@@ -145,6 +148,25 @@ Conflict policy:
 
 - Default related retrieval behavior is PPR-only.
 - No compatibility ranking path is retained.
+
+7. W6 Markdown AST Configuration Parser (Done)
+
+- Implement a Rust-native Markdown AST traversal using the existing `comrak` crate (currently used in `xiuxian-wendao`) to extract Org-Mode style HTML properties (`<!-- id: "...", type: "..." -->`) and fenced code blocks (`jinja2`) bound to specific heading nodes.
+- Store extracted blocks (Personas, Templates, Skill Manuals) into the `xiuxian-wendao` memory index using the extracted `id` as the $O(1)$ primary key.
+- Provide a zero-export read interface so downstream engines (`xiuxian-qianhuan`) can pull configuration directly from the graph memory.
+- **Deep Dive**: See [[ID Resolution Mechanism|docs/01_core/wendao/architecture/id-resolution-mechanism.md]] for the $O(1)$ technical implementation details.
+- Evidence: `packages/rust/crates/xiuxian-wendao/src/enhancer/markdown_config.rs` implemented and verified via `cargo nextest`.
+
+8. W7 Unified HTTP Gateway Integration (In Progress)
+
+- Instead of `xiuxian-wendao` building its own isolated HTTP server, it will integrate with the centralized `xiuxian-zhenfa` (阵法) service.
+- **Router Registration:** Wendao will expose a standard trait (e.g., `ZhenfaRouter`) that `xiuxian-zhenfa` mounts onto its high-performance `axum` backend.
+- **Decoupling Qianhuan:** The zero-export interface (from W6) will be served over this central HTTP Matrix, allowing `omni-agent` and `xiuxian-qianhuan` to request Persona profiles, Jinja2 templates, and Skill Manuals via standard REST/JSON contracts instead of direct memory linking.
+- Evidence: `packages/rust/crates/xiuxian-zhenfa` core networking layer and contracts bootstrapped.
+
+- Instead of `xiuxian-wendao` building its own isolated HTTP server, it will integrate with the centralized `xiuxian-zhenfa` (阵法) service.
+- **Router Registration:** Wendao will expose a standard trait (e.g., `ZhenfaRouter`) that `xiuxian-zhenfa` mounts onto its high-performance `axum` backend.
+- **Decoupling Qianhuan:** The zero-export interface (from W6) will be served over this central HTTP Matrix, allowing `omni-agent` and `xiuxian-qianhuan` to request Persona profiles, Jinja2 templates, and Skill Manuals via standard REST/JSON contracts instead of direct memory linking.
 
 ## 4. Change Control Rules
 

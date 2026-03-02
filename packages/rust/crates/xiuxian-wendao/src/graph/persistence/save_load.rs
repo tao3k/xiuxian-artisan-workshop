@@ -120,7 +120,7 @@ impl KnowledgeGraph {
         if let Some(relations_arr) = value.get("relations").and_then(|row| row.as_array()) {
             for relation_val in relations_arr {
                 if let Some(relation) = relation_from_dict(relation_val) {
-                    self.add_relation(relation).ok();
+                    self.add_relation(&relation).ok();
                 }
             }
         }

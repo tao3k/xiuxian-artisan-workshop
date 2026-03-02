@@ -652,8 +652,8 @@ impl PyVectorStore {
     /// This scans the filesystem directly and returns all SkillIndexEntry data as JSON.
     /// Uses `SkillScanner::build_index_entry` for consistent tool deduplication.
     fn get_skill_index(&self, base_path: String) -> PyResult<String> {
-        use omni_scanner::{SkillScanner, ToolsScanner};
         use std::path::Path;
+        use xiuxian_skills::{SkillScanner, ToolsScanner};
 
         let skill_scanner = SkillScanner::new();
         let script_scanner = ToolsScanner::new();
@@ -669,14 +669,14 @@ impl PyVectorStore {
 
         // Build SkillIndexEntry for each skill with its tools
         // Reuse build_index_entry for consistent deduplication logic
-        let mut skill_entries: Vec<omni_scanner::SkillIndexEntry> = Vec::new();
+        let mut skill_entries: Vec<xiuxian_skills::SkillIndexEntry> = Vec::new();
 
         for metadata in metadatas {
             let skill_path = skills_path.join(&metadata.skill_name);
             let skill_scripts_path = &skill_path;
 
             // Scan tools for this skill (returns ToolRecord, not IndexToolEntry)
-            let tool_records: Vec<omni_scanner::ToolRecord> = match script_scanner.scan_scripts(
+            let tool_records: Vec<xiuxian_skills::ToolRecord> = match script_scanner.scan_scripts(
                 skill_scripts_path,
                 &metadata.skill_name,
                 &metadata.routing_keywords,

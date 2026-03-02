@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Documentation Workflow"
+---
+
 # Documentation Workflow
 
 > **TL;DR**: When code changes, docs MUST be updated. Use the Documentation Skill to manage knowledge entries.

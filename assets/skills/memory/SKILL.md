@@ -1,10 +1,11 @@
 ---
+type: skill
 name: memory
 description: "Use for short-term operational memory: track transient issues/workarounds, recall recent execution context, and support cleanup of stale entries."
 metadata:
-  author: omni-dev-fusion
+  author: xiuxian-artisan-workshop
   version: "1.0.0"
-  source: "https://github.com/tao3k/omni-dev-fusion/tree/main/assets/skills/memory"
+  source: "https://github.com/tao3k/xiuxian-artisan-workshop/tree/main/assets/skills/memory"
   routing_keywords:
     - "memory"
     - "remember"

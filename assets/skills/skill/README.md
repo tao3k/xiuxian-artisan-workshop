@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Skill Manager - Commands Guide"
+---
+
 # Skill Manager - Commands Guide
 
 This skill provides commands for discovering, installing, and managing other skills.

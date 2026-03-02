@@ -1,5 +1,6 @@
 //! Snapshot tests for data-layer behavior and API contracts.
 
+use anyhow::Result;
 use insta::assert_json_snapshot;
 use omni_vector::{
     ID_COLUMN, SearchOptions, TableColumnAlteration, TableColumnType, TableNewColumn, VectorStore,
@@ -13,7 +14,7 @@ fn round6(v: f64) -> String {
 
 #[test]
 fn snapshot_input_schema_normalization_contract_v1() {
-    let cases = vec![
+    let cases = [
         json!({"type":"object","properties":{"q":{"type":"string"}}}),
         json!("{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}"),
         json!(
@@ -23,36 +24,29 @@ fn snapshot_input_schema_normalization_contract_v1() {
         json!("not-json"),
     ];
 
-    let normalized: Vec<_> = cases
-        .iter()
-        .map(|c| normalize_input_schema_value(c))
-        .collect();
+    let normalized: Vec<_> = cases.iter().map(normalize_input_schema_value).collect();
 
     assert_json_snapshot!("input_schema_normalization_contract_v1", normalized);
 }
 
 #[test]
 fn snapshot_routing_keywords_resolution_contract_v1() {
-    let cases = vec![
+    let cases = [
         json!({"routing_keywords":["find","files"],"keywords":["legacy","noise"]}),
         json!({"keywords":["legacy","fallback"]}),
         json!({"routing_keywords":["find","find","  files  ",""]}),
         json!({}),
     ];
-    let resolved: Vec<_> = cases
-        .iter()
-        .map(|meta| resolve_routing_keywords(meta))
-        .collect();
+    let resolved: Vec<_> = cases.iter().map(resolve_routing_keywords).collect();
     assert_json_snapshot!("routing_keywords_resolution_contract_v1", resolved);
 }
 
 #[tokio::test]
-async fn snapshot_data_layer_contract_v1() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn snapshot_data_layer_contract_v1() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("data_layer_snapshot_store");
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(4))
-        .await
-        .unwrap();
+    let db_path_str = db_path.to_string_lossy();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(4)).await?;
     let table = "skills";
 
     store
@@ -66,8 +60,7 @@ async fn snapshot_data_layer_contract_v1() {
                 json!({"kind":"seed","rank":2}).to_string(),
             ],
         )
-        .await
-        .unwrap();
+        .await?;
 
     let merge_stats = store
         .merge_insert_documents(
@@ -81,8 +74,7 @@ async fn snapshot_data_layer_contract_v1() {
             ],
             ID_COLUMN,
         )
-        .await
-        .unwrap();
+        .await?;
 
     let mut results = store
         .search_optimized(
@@ -91,24 +83,27 @@ async fn snapshot_data_layer_contract_v1() {
             10,
             SearchOptions::default(),
         )
-        .await
-        .unwrap()
+        .await?
         .into_iter()
         .map(|r| {
             json!({
                 "id": r.id,
                 "content": r.content,
                 "kind": r.metadata.get("kind").and_then(|v| v.as_str()).unwrap_or(""),
-                "rank": r.metadata.get("rank").and_then(|v| v.as_i64()).unwrap_or_default(),
+                "rank": r
+                    .metadata
+                    .get("rank")
+                    .and_then(serde_json::Value::as_i64)
+                    .unwrap_or_default(),
                 "distance": round6(r.distance),
             })
         })
         .collect::<Vec<_>>();
     results.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
 
-    let info = store.get_table_info(table).await.unwrap();
-    let versions = store.list_versions(table).await.unwrap();
-    let fragment_stats = store.get_fragment_stats(table).await.unwrap();
+    let info = store.get_table_info(table).await?;
+    let versions = store.list_versions(table).await?;
+    let fragment_stats = store.get_fragment_stats(table).await?;
 
     let mut frag_view = fragment_stats
         .into_iter()
@@ -139,15 +134,16 @@ async fn snapshot_data_layer_contract_v1() {
     });
 
     assert_json_snapshot!("data_layer_contract_v1", view);
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_schema_evolution_guardrails_for_reserved_columns() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_schema_evolution_guardrails_for_reserved_columns() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("schema_guardrails_store");
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(4))
-        .await
-        .unwrap();
+    let db_path_str = db_path.to_string_lossy();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(4)).await?;
     let table = "skills";
 
     store
@@ -158,16 +154,17 @@ async fn test_schema_evolution_guardrails_for_reserved_columns() {
             vec!["one".to_string()],
             vec![json!({"kind":"seed"}).to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
-    let drop_err = store
+    let drop_result = store
         .drop_columns(table, vec!["metadata".to_string()])
-        .await
-        .unwrap_err();
+        .await;
+    let Err(drop_err) = drop_result else {
+        panic!("dropping reserved metadata column should fail");
+    };
     assert!(drop_err.to_string().contains("reserved"));
 
-    let alter_err = store
+    let alter_result = store
         .alter_columns(
             table,
             vec![TableColumnAlteration::Rename {
@@ -175,18 +172,21 @@ async fn test_schema_evolution_guardrails_for_reserved_columns() {
                 new_name: "id2".to_string(),
             }],
         )
-        .await
-        .unwrap_err();
+        .await;
+    let Err(alter_err) = alter_result else {
+        panic!("renaming reserved id column should fail");
+    };
     assert!(alter_err.to_string().contains("reserved"));
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn snapshot_schema_evolution_pipeline_v1() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn snapshot_schema_evolution_pipeline_v1() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("schema_pipeline_store");
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(4))
-        .await
-        .unwrap();
+    let db_path_str = db_path.to_string_lossy();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(4)).await?;
     let table = "skills";
 
     store
@@ -197,10 +197,9 @@ async fn snapshot_schema_evolution_pipeline_v1() {
             vec!["one".to_string()],
             vec![json!({"kind":"seed"}).to_string()],
         )
-        .await
-        .unwrap();
+        .await?;
 
-    let version_seed = store.get_dataset_version(table).await.unwrap();
+    let version_seed = store.get_dataset_version(table).await?;
 
     store
         .add_columns(
@@ -211,10 +210,9 @@ async fn snapshot_schema_evolution_pipeline_v1() {
                 nullable: true,
             }],
         )
-        .await
-        .unwrap();
-    let version_added = store.get_dataset_version(table).await.unwrap();
-    let ds_added = store.checkout_version(table, version_added).await.unwrap();
+        .await?;
+    let version_added = store.get_dataset_version(table).await?;
+    let ds_added = store.checkout_version(table, version_added).await?;
     assert!(ds_added.schema().field("custom_note").is_some());
 
     store
@@ -225,25 +223,17 @@ async fn snapshot_schema_evolution_pipeline_v1() {
                 new_name: "custom_label".to_string(),
             }],
         )
-        .await
-        .unwrap();
-    let version_renamed = store.get_dataset_version(table).await.unwrap();
-    let ds_renamed = store
-        .checkout_version(table, version_renamed)
-        .await
-        .unwrap();
+        .await?;
+    let version_renamed = store.get_dataset_version(table).await?;
+    let ds_renamed = store.checkout_version(table, version_renamed).await?;
     assert!(ds_renamed.schema().field("custom_note").is_none());
     assert!(ds_renamed.schema().field("custom_label").is_some());
 
     store
         .drop_columns(table, vec!["custom_label".to_string()])
-        .await
-        .unwrap();
-    let version_dropped = store.get_dataset_version(table).await.unwrap();
-    let ds_dropped = store
-        .checkout_version(table, version_dropped)
-        .await
-        .unwrap();
+        .await?;
+    let version_dropped = store.get_dataset_version(table).await?;
+    let ds_dropped = store.checkout_version(table, version_dropped).await?;
     assert!(ds_dropped.schema().field("custom_label").is_none());
 
     let view = json!({
@@ -261,15 +251,16 @@ async fn snapshot_schema_evolution_pipeline_v1() {
     });
 
     assert_json_snapshot!("schema_evolution_pipeline_v1", view);
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn snapshot_lance_fts_contract_v1() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn snapshot_lance_fts_contract_v1() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("fts_snapshot_store");
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(4))
-        .await
-        .unwrap();
+    let db_path_str = db_path.to_string_lossy();
+    let store = VectorStore::new(db_path_str.as_ref(), Some(4)).await?;
     let table = "tools";
 
     store
@@ -300,14 +291,13 @@ async fn snapshot_lance_fts_contract_v1() {
                 .to_string(),
             ],
         )
-        .await
-        .unwrap();
-    store.create_fts_index(table).await.unwrap();
+        .await?;
+    store.create_fts_index(table).await?;
 
-    let mut commit_hits = store.search_fts(table, "commit", 5, None).await.unwrap();
+    let mut commit_hits = store.search_fts(table, "commit", 5, None).await?;
     commit_hits.sort_by(|a, b| a.tool_name.cmp(&b.tool_name));
 
-    let mut history_hits = store.search_fts(table, "history", 5, None).await.unwrap();
+    let mut history_hits = store.search_fts(table, "history", 5, None).await?;
     history_hits.sort_by(|a, b| a.tool_name.cmp(&b.tool_name));
 
     let view = json!({
@@ -322,4 +312,6 @@ async fn snapshot_lance_fts_contract_v1() {
     });
 
     assert_json_snapshot!("lance_fts_contract_v1", view);
+
+    Ok(())
 }

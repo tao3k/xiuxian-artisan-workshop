@@ -86,8 +86,7 @@ fn resolve_authorization_for_identities<R: ControlCommandAuthRule>(
 }
 
 impl DiscordChannel {
-    #[allow(clippy::unused_self)]
-    pub(in super::super) fn normalize_identity(&self, identity: &str) -> String {
+    pub(in super::super) fn normalize_identity(identity: &str) -> String {
         normalize_discord_identity(identity)
     }
 

@@ -1,7 +1,8 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Neighbor direction relative to the queried note.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum LinkGraphDirection {
     /// Points to current note.
@@ -25,7 +26,7 @@ impl LinkGraphDirection {
 }
 
 /// Search strategy used by link-graph search.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum LinkGraphMatchStrategy {
     /// Default lexical ranking (token/substring aware).
@@ -53,7 +54,7 @@ impl LinkGraphMatchStrategy {
 }
 
 /// Schema-first sort field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum LinkGraphSortField {
     /// Relevance score.
@@ -75,7 +76,7 @@ pub enum LinkGraphSortField {
 }
 
 /// Schema-first sort order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum LinkGraphSortOrder {
     /// Ascending order.
@@ -85,7 +86,7 @@ pub enum LinkGraphSortOrder {
 }
 
 /// Related filter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum LinkGraphPprSubgraphMode {
     /// Let engine choose when to partition subgraphs.
@@ -97,7 +98,7 @@ pub enum LinkGraphPprSubgraphMode {
 }
 
 /// Result scope for doc/section level retrieval.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum LinkGraphScope {
     /// Return document-level hits only.
@@ -109,7 +110,7 @@ pub enum LinkGraphScope {
 }
 
 /// Edge type filters for tree-aware traversal/ranking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum LinkGraphEdgeType {
     /// Structural links (for example wiki-links, markdown references).

@@ -1,6 +1,6 @@
 """TUI Bridge - Python interface for Rust TUI engine.
 
-Provides high-level TUI operations through the Rust omni-tui crate.
+Provides high-level TUI operations through the Rust xiuxian-tui crate.
 """
 
 from __future__ import annotations

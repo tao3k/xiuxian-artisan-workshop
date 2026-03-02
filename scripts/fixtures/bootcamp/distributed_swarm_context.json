@@ -1,0 +1,4 @@
+{
+  "trigger": "distributed_swarm_gate",
+  "raw_facts": "Validate role-aware distributed synchronization over shared checkpoint."
+}

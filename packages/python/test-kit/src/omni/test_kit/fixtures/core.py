@@ -69,8 +69,6 @@ def mock_rust_bridge():
         # Add common functions used in tests
         mock_module.get_file_hash = lambda x: "mock_hash"
         mock_module.scan_directory = lambda x: []
-        mock_module.PyCheckpointStore = MagicMock()
-        mock_module.create_checkpoint_store = MagicMock()
 
         sys.modules["omni_core_rs"] = mock_module
         try:

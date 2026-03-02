@@ -6,9 +6,15 @@ from __future__ import annotations
 import concurrent.futures
 import threading
 import time
-from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
+
+from mcp_startup_stress_flow_run_health import (
+    prepare_health_preflight,
+    start_health_sampler,
+    stop_health_sampler,
+)
+from mcp_startup_stress_flow_run_report import build_run_report
 
 
 def run_stress(
@@ -25,13 +31,7 @@ def run_stress(
     """Execute full stress run including optional restart and health sampling."""
     started_dt = datetime.now(UTC)
     started = time.monotonic()
-    health_preflight = None
-
-    if cfg.health_url:
-        ok, detail = check_health_fn(cfg.health_url)
-        health_preflight = {"url": cfg.health_url, "ok": ok, "detail": detail}
-        if cfg.strict_health_check and not ok:
-            raise RuntimeError(f"health check failed before stress: {detail}")
+    health_preflight = prepare_health_preflight(cfg, check_health_fn=check_health_fn)
 
     results: list[Any] = []
     health_samples: list[Any] = []
@@ -39,26 +39,14 @@ def run_stress(
     health_stop = threading.Event()
     restart_events: list[dict[str, object]] = []
 
-    health_thread: threading.Thread | None = None
-    if cfg.health_url and cfg.health_probe_interval_secs > 0:
-        health_url = cfg.health_url
-
-        def _health_loop() -> None:
-            assert health_url is not None
-            while not health_stop.is_set():
-                sample = collect_health_sample_fn(
-                    health_url,
-                    cfg.health_probe_timeout_secs,
-                    health_sample_cls=health_sample_cls,
-                )
-                with health_samples_lock:
-                    health_samples.append(sample)
-                if cfg.health_probe_interval_secs <= 0:
-                    return
-                health_stop.wait(cfg.health_probe_interval_secs)
-
-        health_thread = threading.Thread(target=_health_loop, daemon=True)
-        health_thread.start()
+    health_thread = start_health_sampler(
+        cfg,
+        health_sample_cls=health_sample_cls,
+        collect_health_sample_fn=collect_health_sample_fn,
+        health_samples=health_samples,
+        health_samples_lock=health_samples_lock,
+        health_stop=health_stop,
+    )
 
     try:
         for round_index in range(1, cfg.rounds + 1):
@@ -95,36 +83,21 @@ def run_stress(
                 if elapsed < cfg.cooldown_secs:
                     time.sleep(cfg.cooldown_secs - elapsed)
     finally:
-        health_stop.set()
-        if health_thread is not None:
-            health_thread.join(timeout=max(1.0, cfg.health_probe_timeout_secs + 1.0))
-
-    finished_dt = datetime.now(UTC)
+        stop_health_sampler(
+            cfg,
+            health_stop=health_stop,
+            health_thread=health_thread,
+        )
     with health_samples_lock:
         health_rows = list(health_samples)
     summary = summarize_fn(results, health_rows)
-    return {
-        "started_at": started_dt.isoformat(),
-        "finished_at": finished_dt.isoformat(),
-        "duration_ms": int((time.monotonic() - started) * 1000),
-        "config": {
-            "rounds": cfg.rounds,
-            "parallel": cfg.parallel,
-            "startup_timeout_secs": cfg.startup_timeout_secs,
-            "cooldown_secs": cfg.cooldown_secs,
-            "executable": str(cfg.executable),
-            "mcp_config": str(cfg.mcp_config),
-            "bind_addr": cfg.bind_addr,
-            "rust_log": cfg.rust_log,
-            "health_url": cfg.health_url,
-            "health_probe_interval_secs": cfg.health_probe_interval_secs,
-            "health_probe_timeout_secs": cfg.health_probe_timeout_secs,
-            "restart_mcp_cmd": cfg.restart_mcp_cmd,
-            "restart_mcp_settle_secs": cfg.restart_mcp_settle_secs,
-        },
-        "health_preflight": health_preflight,
-        "restart_events": restart_events,
-        "summary": summary,
-        "results": [asdict(row) for row in results],
-        "health_samples": [asdict(row) for row in health_rows[-200:]],
-    }
+    return build_run_report(
+        cfg,
+        started_dt=started_dt,
+        started_monotonic=started,
+        health_preflight=health_preflight,
+        restart_events=restart_events,
+        summary=summary,
+        results=results,
+        health_rows=health_rows,
+    )

@@ -9,8 +9,7 @@ impl KnowledgeGraph {
     /// # Errors
     ///
     /// Returns [`GraphError::InvalidRelation`] if source/target entities do not exist.
-    #[allow(clippy::needless_pass_by_value)]
-    pub fn add_relation(&self, relation: Relation) -> Result<(), GraphError> {
+    pub fn add_relation(&self, relation: &Relation) -> Result<(), GraphError> {
         let mut relations = write_lock(&self.relations);
         let mut outgoing = write_lock(&self.outgoing_relations);
         let mut incoming = write_lock(&self.incoming_relations);

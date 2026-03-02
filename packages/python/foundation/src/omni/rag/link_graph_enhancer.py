@@ -108,7 +108,7 @@ class EnrichedNote:
 
 
 # ---------------------------------------------------------------------------
-# Frontmatter parser (Python fallback for omni-scanner)
+# Frontmatter parser (Python fallback for xiuxian-skills)
 # ---------------------------------------------------------------------------
 
 _FM_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)

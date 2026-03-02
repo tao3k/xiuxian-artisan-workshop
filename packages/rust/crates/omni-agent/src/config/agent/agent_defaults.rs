@@ -82,7 +82,7 @@ impl Default for AgentConfig {
 }
 
 /// Default `LiteLLM` proxy path (when using `litellm --port 4000`).
-pub const LITELLM_DEFAULT_URL: &str = "http://127.0.0.1:4000/v1/chat/completions";
+pub const LITELLM_DEFAULT_URL: &str = "http://localhost:4000/v1/chat/completions";
 
 impl AgentConfig {
     /// Build config that uses a `LiteLLM` proxy as the inference endpoint.
@@ -117,7 +117,7 @@ impl AgentConfig {
     }
 
     /// Resolve API key: config value, or env (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`).
-    /// When inference goes to our own MCP server (127.0.0.1 / localhost), returns None
+    /// When inference goes to our own MCP server (loopback host), returns None
     /// so we do not send a key — the server holds the key and forwards to the real LLM.
     #[must_use]
     pub fn resolve_api_key(&self) -> Option<String> {

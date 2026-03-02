@@ -7,8 +7,6 @@ mod py_index;
 mod py_stats;
 mod py_symbol;
 mod registration;
-#[cfg(test)]
-mod tests;
 
 pub use py_index::PyUnifiedSymbolIndex;
 pub use py_stats::PyUnifiedIndexStats;

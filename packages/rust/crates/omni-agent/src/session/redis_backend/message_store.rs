@@ -1,21 +1,174 @@
+use std::borrow::Cow;
+
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::observability::SessionEvent;
 
-use super::super::message::ChatMessage;
+use super::super::message::{ChatMessage, FunctionCall, ToolCallOut};
 use super::RedisSessionBackend;
 
 const SESSION_CONTEXT_BACKUP_META_PREFIX: &str = "__session_context_backup_meta__:";
+const COMPACT_CHAT_MESSAGE_VERSION: u8 = 1;
 
 #[derive(Debug, Deserialize)]
 struct LegacySessionContextBackupMetadataPayload {
-    #[allow(dead_code)]
     messages: usize,
-    #[allow(dead_code)]
     summary_segments: usize,
-    #[allow(dead_code)]
     saved_at_unix_ms: u64,
+}
+
+#[derive(Debug, Serialize)]
+struct CompactChatMessagePayload<'a> {
+    #[serde(rename = "v")]
+    version: u8,
+    #[serde(rename = "r")]
+    role: &'a str,
+    #[serde(rename = "c", skip_serializing_if = "Option::is_none")]
+    content: Option<Cow<'a, str>>,
+    #[serde(rename = "tc", skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<CompactToolCallPayload<'a>>>,
+    #[serde(rename = "ti", skip_serializing_if = "Option::is_none")]
+    tool_call_id: Option<&'a str>,
+    #[serde(rename = "n", skip_serializing_if = "Option::is_none")]
+    name: Option<&'a str>,
+}
+
+#[derive(Debug, Serialize)]
+struct CompactToolCallPayload<'a> {
+    #[serde(rename = "i")]
+    id: &'a str,
+    #[serde(rename = "t")]
+    typ: &'a str,
+    #[serde(rename = "f")]
+    function: CompactFunctionCallPayload<'a>,
+}
+
+#[derive(Debug, Serialize)]
+struct CompactFunctionCallPayload<'a> {
+    #[serde(rename = "n")]
+    name: &'a str,
+    #[serde(rename = "a")]
+    arguments: &'a str,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompactChatMessagePayloadOwned {
+    #[serde(rename = "v", default)]
+    version: Option<u8>,
+    #[serde(rename = "r")]
+    role: String,
+    #[serde(rename = "c")]
+    content: Option<String>,
+    #[serde(rename = "tc")]
+    tool_calls: Option<Vec<CompactToolCallPayloadOwned>>,
+    #[serde(rename = "ti")]
+    tool_call_id: Option<String>,
+    #[serde(rename = "n")]
+    name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompactToolCallPayloadOwned {
+    #[serde(rename = "i")]
+    id: String,
+    #[serde(rename = "t")]
+    typ: String,
+    #[serde(rename = "f")]
+    function: CompactFunctionCallPayloadOwned,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompactFunctionCallPayloadOwned {
+    #[serde(rename = "n")]
+    name: String,
+    #[serde(rename = "a")]
+    arguments: String,
+}
+
+impl From<CompactChatMessagePayloadOwned> for ChatMessage {
+    fn from(value: CompactChatMessagePayloadOwned) -> Self {
+        let _version = value.version.unwrap_or(COMPACT_CHAT_MESSAGE_VERSION);
+        let tool_calls = value.tool_calls.map(|calls| {
+            calls
+                .into_iter()
+                .map(|call| ToolCallOut {
+                    id: call.id,
+                    typ: call.typ,
+                    function: FunctionCall {
+                        name: call.function.name,
+                        arguments: call.function.arguments,
+                    },
+                })
+                .collect::<Vec<_>>()
+        });
+        Self {
+            role: value.role,
+            content: value.content,
+            tool_calls,
+            tool_call_id: value.tool_call_id,
+            name: value.name,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct EncodedChatMessagePayload {
+    pub(super) payload: String,
+    pub(super) content_truncated: bool,
+}
+
+fn maybe_truncate_content_to_chars(
+    content: &str,
+    max_chars: Option<usize>,
+) -> (Cow<'_, str>, bool) {
+    let Some(max_chars) = max_chars.filter(|value| *value > 0) else {
+        return (Cow::Borrowed(content), false);
+    };
+    if content.chars().count() <= max_chars {
+        return (Cow::Borrowed(content), false);
+    }
+    let truncated = content.chars().take(max_chars).collect::<String>();
+    (Cow::Owned(truncated), true)
+}
+
+pub(super) fn encode_chat_message_payload(
+    message: &ChatMessage,
+    max_content_chars: Option<usize>,
+) -> Result<EncodedChatMessagePayload> {
+    let mut content_truncated = false;
+    let content = message.content.as_deref().map(|text| {
+        let (normalized, truncated) = maybe_truncate_content_to_chars(text, max_content_chars);
+        content_truncated = truncated;
+        normalized
+    });
+    let tool_calls = message.tool_calls.as_ref().map(|calls| {
+        calls
+            .iter()
+            .map(|call| CompactToolCallPayload {
+                id: call.id.as_str(),
+                typ: call.typ.as_str(),
+                function: CompactFunctionCallPayload {
+                    name: call.function.name.as_str(),
+                    arguments: call.function.arguments.as_str(),
+                },
+            })
+            .collect::<Vec<_>>()
+    });
+    let compact_payload = CompactChatMessagePayload {
+        version: COMPACT_CHAT_MESSAGE_VERSION,
+        role: message.role.as_str(),
+        content,
+        tool_calls,
+        tool_call_id: message.tool_call_id.as_deref(),
+        name: message.name.as_deref(),
+    };
+    let payload = serde_json::to_string(&compact_payload)
+        .context("failed to serialize compact chat message")?;
+    Ok(EncodedChatMessagePayload {
+        payload,
+        content_truncated,
+    })
 }
 
 impl RedisSessionBackend {
@@ -28,11 +181,17 @@ impl RedisSessionBackend {
             return Ok(());
         }
         let key = self.messages_key(session_id);
-        let encoded: Vec<String> = messages
-            .iter()
-            .map(serde_json::to_string)
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .context("failed to encode chat messages for redis")?;
+        let mut encoded = Vec::with_capacity(messages.len());
+        let mut content_truncated_messages = 0usize;
+        for message in messages {
+            let encoded_message =
+                encode_chat_message_payload(message, self.message_content_max_chars)
+                    .context("failed to encode chat messages for redis")?;
+            if encoded_message.content_truncated {
+                content_truncated_messages = content_truncated_messages.saturating_add(1);
+            }
+            encoded.push(encoded_message.payload);
+        }
         let ttl_secs = self.ttl_secs;
 
         self.run_pipeline::<(), _>("append_messages", || {
@@ -53,6 +212,8 @@ impl RedisSessionBackend {
             event = SessionEvent::SessionMessagesAppended.as_str(),
             session_id,
             appended_messages = encoded.len(),
+            content_truncated_messages,
+            message_content_max_chars = ?self.message_content_max_chars,
             ttl_secs = ?ttl_secs,
             "valkey session messages appended"
         );
@@ -65,11 +226,17 @@ impl RedisSessionBackend {
         messages: &[ChatMessage],
     ) -> Result<usize> {
         let key = self.messages_key(session_id);
-        let encoded: Vec<String> = messages
-            .iter()
-            .map(serde_json::to_string)
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .context("failed to encode chat messages for redis replace")?;
+        let mut encoded = Vec::with_capacity(messages.len());
+        let mut content_truncated_messages = 0usize;
+        for message in messages {
+            let encoded_message =
+                encode_chat_message_payload(message, self.message_content_max_chars)
+                    .context("failed to encode chat messages for redis replace")?;
+            if encoded_message.content_truncated {
+                content_truncated_messages = content_truncated_messages.saturating_add(1);
+            }
+            encoded.push(encoded_message.payload);
+        }
         let ttl_secs = self.ttl_secs.unwrap_or(0);
         let message_count = encoded.len();
         let message_count_i64 = i64::try_from(message_count)
@@ -108,6 +275,8 @@ return count
             event = SessionEvent::SessionMessagesReplaced.as_str(),
             session_id,
             replaced_messages = replaced_count,
+            content_truncated_messages,
+            message_content_max_chars = ?self.message_content_max_chars,
             ttl_secs = ?self.ttl_secs,
             "valkey session messages replaced atomically"
         );
@@ -186,24 +355,38 @@ return count
     }
 }
 
-fn decode_chat_message_payload(
+pub(super) fn decode_chat_message_payload(
     session_id: &str,
     payload: &str,
 ) -> std::result::Result<ChatMessage, serde_json::Error> {
     match serde_json::from_str::<ChatMessage>(payload) {
         Ok(message) => Ok(message),
-        Err(chat_message_error) if session_id.starts_with(SESSION_CONTEXT_BACKUP_META_PREFIX) => {
-            match serde_json::from_str::<LegacySessionContextBackupMetadataPayload>(payload) {
-                Ok(_) => Ok(ChatMessage {
-                    role: "system".to_string(),
-                    content: Some(payload.to_string()),
-                    tool_calls: None,
-                    tool_call_id: None,
-                    name: None,
-                }),
-                Err(_) => Err(chat_message_error),
+        Err(chat_message_error) => {
+            if let Ok(compact) = serde_json::from_str::<CompactChatMessagePayloadOwned>(payload) {
+                return Ok(compact.into());
             }
+            if session_id.starts_with(SESSION_CONTEXT_BACKUP_META_PREFIX) {
+                let metadata =
+                    serde_json::from_str::<LegacySessionContextBackupMetadataPayload>(payload);
+                if let Ok(metadata) = metadata {
+                    tracing::debug!(
+                        event = SessionEvent::ContextBackupCaptured.as_str(),
+                        session_id,
+                        legacy_messages = metadata.messages,
+                        legacy_summary_segments = metadata.summary_segments,
+                        legacy_saved_at_unix_ms = metadata.saved_at_unix_ms,
+                        "decoded legacy session context backup metadata payload"
+                    );
+                    return Ok(ChatMessage {
+                        role: "system".to_string(),
+                        content: Some(payload.to_string()),
+                        tool_calls: None,
+                        tool_call_id: None,
+                        name: None,
+                    });
+                }
+            }
+            Err(chat_message_error)
         }
-        Err(chat_message_error) => Err(chat_message_error),
     }
 }

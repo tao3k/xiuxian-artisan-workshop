@@ -4,11 +4,10 @@ use crate::agent::SessionContextBudgetSnapshot;
 
 use super::class_format::{compute_largest_bottlenecks, format_context_budget_class_json};
 
-#[allow(clippy::large_types_passed_by_value)]
 pub(in super::super::super) fn format_context_budget_snapshot_json(
-    snapshot: SessionContextBudgetSnapshot,
+    snapshot: &SessionContextBudgetSnapshot,
 ) -> String {
-    let (largest_drop, largest_trunc) = compute_largest_bottlenecks(&snapshot);
+    let (largest_drop, largest_trunc) = compute_largest_bottlenecks(snapshot);
 
     json!({
         "kind": "session_budget",
@@ -29,9 +28,9 @@ pub(in super::super::super) fn format_context_budget_snapshot_json(
             "dropped": snapshot.dropped_tokens,
         },
         "classes": {
-            "non_system": format_context_budget_class_json(snapshot.non_system),
-            "regular_system": format_context_budget_class_json(snapshot.regular_system),
-            "summary_system": format_context_budget_class_json(snapshot.summary_system),
+            "non_system": format_context_budget_class_json(&snapshot.non_system),
+            "regular_system": format_context_budget_class_json(&snapshot.regular_system),
+            "summary_system": format_context_budget_class_json(&snapshot.summary_system),
         },
         "bottlenecks": {
             "largest_dropped_tokens": {"class": largest_drop.0, "tokens": largest_drop.1},

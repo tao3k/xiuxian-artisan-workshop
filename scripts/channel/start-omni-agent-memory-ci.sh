@@ -16,7 +16,7 @@ Options:
   --agent-bin <path>             Prebuilt omni-agent binary path (default: auto-detect target/debug/omni-agent)
   --no-agent-bin-default         Do not auto-attach --agent-bin even when target/debug/omni-agent exists
   --ensure-mcp                   Ensure configured MCP SSE server is healthy before launching gate
-  --mcp-host <host>              MCP SSE host for health/restart checks (default: 127.0.0.1)
+  --mcp-host <host>              MCP SSE host for health/restart checks (default: resolved from settings)
   --mcp-port <port>              MCP SSE port for health/restart checks (default: resolve from settings)
   --foreground                   Run in foreground (block until gate exits)
   --log-file <path>              Background log file path
@@ -42,6 +42,10 @@ resolve_path() {
 
 resolve_mcp_port_from_settings() {
   "$PYTHON_BIN" scripts/channel/resolve_mcp_port_from_settings.py
+}
+
+resolve_mcp_host_from_settings() {
+  "$PYTHON_BIN" scripts/channel/resolve_mcp_endpoint.py --field host
 }
 
 mcp_health_ok() {
@@ -71,7 +75,7 @@ fi
 AUTO_AGENT_BIN="true"
 AGENT_BIN=""
 ENSURE_MCP="false"
-MCP_HOST="127.0.0.1"
+MCP_HOST=""
 MCP_PORT=""
 PROFILE=""
 PROFILE_TITLE=""
@@ -199,6 +203,9 @@ mkdir -p "$REPORTS_DIR" "$LOGS_DIR" "$STATE_DIR" "$(dirname "$LATEST_FAILURE_JSO
 
 if [[ -z $MCP_PORT ]]; then
   MCP_PORT="$(resolve_mcp_port_from_settings)"
+fi
+if [[ -z $MCP_HOST ]]; then
+  MCP_HOST="$(resolve_mcp_host_from_settings)"
 fi
 if [[ -n $MCP_PORT ]]; then
   if ! [[ $MCP_PORT =~ ^[0-9]+$ ]] || ((MCP_PORT < 1 || MCP_PORT > 65535)); then

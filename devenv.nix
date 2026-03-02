@@ -104,8 +104,12 @@ in
   # };
 
   enterShell = ''
-    export PATH="$PATH:$DEVENV_ROOT/.venv/bin"
+    export PATH="$DEVENV_ROOT/.devenv/profile/bin:$DEVENV_ROOT/.venv/bin:$PATH"
     export OLLAMA_MODELS="''${OLLAMA_MODELS:-''${PRJ_DATA_HOME:-$DEVENV_ROOT/.data}/models}"
+    ${lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
+      unset SDKROOT
+      export SDKROOT="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+    ''}
   '';
   # https://devenv.sh/tests/
   enterTest = "";

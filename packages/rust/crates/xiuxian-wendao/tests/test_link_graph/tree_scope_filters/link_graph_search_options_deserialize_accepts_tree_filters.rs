@@ -1,26 +1,8 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
 #[test]
-fn test_link_graph_search_options_deserialize_accepts_tree_filters() {
+fn test_link_graph_search_options_deserialize_accepts_tree_filters()
+-> Result<(), Box<dyn std::error::Error>> {
     let payload = json!({
         "match_strategy": "fts",
         "case_sensitive": false,
@@ -35,8 +17,7 @@ fn test_link_graph_search_options_deserialize_accepts_tree_filters() {
             "min_section_words": 12
         }
     });
-    let parsed: LinkGraphSearchOptions =
-        serde_json::from_value(payload).expect("tree filters should deserialize");
+    let parsed: LinkGraphSearchOptions = serde_json::from_value(payload)?;
     assert_eq!(parsed.filters.scope, Some(LinkGraphScope::Mixed));
     assert_eq!(
         parsed.filters.edge_types,
@@ -47,4 +28,5 @@ fn test_link_graph_search_options_deserialize_accepts_tree_filters() {
     assert_eq!(parsed.filters.collapse_to_doc, Some(true));
     assert_eq!(parsed.filters.per_doc_section_cap, Some(5));
     assert_eq!(parsed.filters.min_section_words, Some(12));
+    Ok(())
 }

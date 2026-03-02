@@ -86,6 +86,9 @@ impl EmbeddingClient {
             timeout_secs: self.timeout_secs,
             max_in_flight: self.max_in_flight,
             in_flight_gate: self.in_flight_gate.clone(),
+            mistral_sdk_hf_cache_path: self.mistral_sdk_hf_cache_path.clone(),
+            mistral_sdk_hf_revision: self.mistral_sdk_hf_revision.clone(),
+            mistral_sdk_max_num_seqs: self.mistral_sdk_max_num_seqs,
             #[cfg(feature = "agent-provider-litellm")]
             litellm_api_key: self.litellm_api_key.clone(),
         }

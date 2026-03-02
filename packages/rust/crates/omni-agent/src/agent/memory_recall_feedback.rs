@@ -1,4 +1,8 @@
 use super::memory_recall::MemoryRecallPlan;
+use omni_memory::{
+    RecallFeedbackOutcome, RecallPlanTuning, apply_feedback_to_plan_tuning,
+    update_feedback_bias as update_feedback_bias_model,
+};
 
 const FAILURE_KEYWORDS: [&str; 10] = [
     "error",
@@ -23,33 +27,10 @@ pub(super) const RECALL_FEEDBACK_SOURCE_TOOL: &str = "tool_execution";
 pub(super) const RECALL_FEEDBACK_SOURCE_ASSISTANT: &str = "assistant_heuristic";
 pub(super) const RECALL_FEEDBACK_SOURCE_COMMAND: &str = "session_feedback_command";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RecallOutcome {
-    Success,
-    Failure,
-}
+pub(super) type RecallOutcome = RecallFeedbackOutcome;
 
-impl RecallOutcome {
-    pub(super) fn as_memory_label(self) -> &'static str {
-        match self {
-            Self::Success => "completed",
-            Self::Failure => "error",
-        }
-    }
-
-    pub(super) fn as_feedback_delta(self) -> f32 {
-        match self {
-            Self::Success => 1.0,
-            Self::Failure => -1.0,
-        }
-    }
-
-    pub(super) fn as_str(self) -> &'static str {
-        match self {
-            Self::Success => "success",
-            Self::Failure => "failure",
-        }
-    }
+pub(super) fn update_feedback_bias(previous: f32, outcome: RecallOutcome) -> f32 {
+    update_feedback_bias_model(previous, outcome)
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -136,46 +117,25 @@ pub(super) fn resolve_feedback_outcome(
     )
 }
 
-pub(super) fn update_feedback_bias(previous: f32, outcome: RecallOutcome) -> f32 {
-    let previous = previous.clamp(-1.0, 1.0);
-    let delta = outcome.as_feedback_delta();
-    ((previous * 0.85) + (delta * 0.15)).clamp(-1.0, 1.0)
-}
-
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub(super) fn apply_feedback_to_plan(
     mut plan: MemoryRecallPlan,
     feedback_bias: f32,
 ) -> MemoryRecallPlan {
-    let feedback_bias = feedback_bias.clamp(-1.0, 1.0);
-    if feedback_bias <= -0.25 {
-        let strength = (-feedback_bias).min(1.0);
-        let extra_k2 = if strength >= 0.7 { 2 } else { 1 };
-        let extra_k1 = extra_k2 * 3;
-        plan.k2 = plan.k2.saturating_add(extra_k2);
-        plan.k1 = plan.k1.saturating_add(extra_k1).max(plan.k2);
-        plan.lambda = (plan.lambda - (0.06 * strength)).clamp(0.0, 1.0);
-        plan.min_score = (plan.min_score - (0.05 * strength)).clamp(0.01, 1.0);
-        plan.max_context_chars = plan
-            .max_context_chars
-            .saturating_add((240.0 * strength) as usize)
-            .clamp(320, 2_400);
-    } else if feedback_bias >= 0.35 {
-        let strength = feedback_bias.min(1.0);
-        let reduce_k2 = if strength >= 0.7 { 2 } else { 1 };
-        let reduce_k1 = reduce_k2 * 2;
-        plan.k2 = plan.k2.saturating_sub(reduce_k2).max(1);
-        plan.k1 = plan.k1.saturating_sub(reduce_k1).max(plan.k2);
-        plan.lambda = (plan.lambda + (0.05 * strength)).clamp(0.0, 1.0);
-        plan.min_score = (plan.min_score + (0.04 * strength)).clamp(0.01, 0.35);
-        plan.max_context_chars = plan
-            .max_context_chars
-            .saturating_sub((160.0 * strength) as usize)
-            .clamp(320, 2_400);
-    }
-
-    plan.k1 = plan.k1.max(1);
-    plan.k2 = plan.k2.max(1).min(plan.k1);
+    let tuned = apply_feedback_to_plan_tuning(
+        RecallPlanTuning {
+            k1: plan.k1,
+            k2: plan.k2,
+            lambda: plan.lambda,
+            min_score: plan.min_score,
+            max_context_chars: plan.max_context_chars,
+        },
+        feedback_bias,
+    );
+    plan.k1 = tuned.k1.max(1);
+    plan.k2 = tuned.k2.max(1).min(plan.k1);
+    plan.lambda = tuned.lambda;
+    plan.min_score = tuned.min_score;
+    plan.max_context_chars = tuned.max_context_chars;
     plan
 }
 
@@ -202,7 +162,3 @@ fn parse_feedback_token(token: &str) -> Option<RecallOutcome> {
     }
     None
 }
-
-#[cfg(test)]
-#[path = "../../tests/agent/memory_recall_feedback.rs"]
-mod tests;

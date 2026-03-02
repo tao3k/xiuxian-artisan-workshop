@@ -57,6 +57,8 @@ impl LinkGraphIndex {
                         stem: doc.stem.clone(),
                         title: doc.title.clone(),
                         path: doc.path.clone(),
+                        doc_type: doc.doc_type.clone(),
+                        tags: doc.tags.clone(),
                         score: injected_score,
                         best_section: None,
                         match_reason: Some("agentic_provisional_injection".to_string()),

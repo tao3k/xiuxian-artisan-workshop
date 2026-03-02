@@ -36,6 +36,7 @@ impl SessionStore {
                     event = SessionEvent::SessionBackendEnabled.as_str(),
                     key_prefix = %backend.key_prefix(),
                     ttl_secs = ?backend.ttl_secs(),
+                    message_content_max_chars = ?backend.runtime_snapshot().message_content_max_chars,
                     "session store backend enabled: valkey"
                 );
                 Some(Arc::new(backend))

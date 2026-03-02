@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Keyword Backend Detailed Comparison (V3 Skill-Based)"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - keyword
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Keyword Backend Detailed Comparison (V3 Skill-Based)"
 ---
 
 # Keyword Backend Detailed Comparison (V3 Skill-Based)

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Spec: XML-Q&A Schema Augmentation for Skill Commands"
+---
+
 # Spec: XML-Q&A Schema Augmentation for Skill Commands
 
 > **Status**: Draft

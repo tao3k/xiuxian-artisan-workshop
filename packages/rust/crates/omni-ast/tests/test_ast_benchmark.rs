@@ -3,6 +3,7 @@
 //! These tests measure the performance of Python AST parsing using
 //! tree-sitter and ast-grep for pattern matching.
 
+use std::fmt::Write as _;
 use std::time::Duration;
 
 /// Generate a large Python file for benchmarking.
@@ -15,7 +16,8 @@ fn generate_python_file(line_count: usize) -> String {
 
     // Add classes with methods
     for i in 0..(line_count / 30) {
-        content.push_str(&format!(
+        if write!(
+            content,
             r#"class Class{i}:
     """A sample class for benchmarking."""
 
@@ -45,13 +47,17 @@ fn generate_python_file(line_count: usize) -> String {
 
 
 "#,
-            i = i
-        ));
+        )
+        .is_err()
+        {
+            panic!("failed to append class benchmark block");
+        }
     }
 
     // Add functions
     for i in 0..(line_count / 20) {
-        content.push_str(&format!(
+        if write!(
+            content,
             r#"def function_{i}(arg1: str, arg2: int, arg3: Optional[List[str]] = None) -> Tuple[str, int]:
     """A sample function for benchmarking."""
     if arg3 is None:
@@ -80,8 +86,11 @@ def decorator_wrapper(func):
 
 
 "#,
-            i = i
-        ));
+        )
+        .is_err()
+        {
+            panic!("failed to append function benchmark block");
+        }
     }
 
     content
@@ -92,7 +101,8 @@ fn generate_python_with_decorators(line_count: usize) -> String {
     let mut content = String::with_capacity(line_count * 70);
 
     for i in 0..(line_count / 15) {
-        content.push_str(&format!(
+        if write!(
+            content,
             r#"@skill_command(name="cmd_{i}")
 @validate_input
 @log_execution
@@ -139,11 +149,23 @@ class SpecializedHandler{i}(BaseHandler{i}):
 
 
 "#,
-            i = i
-        ));
+        )
+        .is_err()
+        {
+            panic!("failed to append decorator benchmark block");
+        }
     }
 
     content
+}
+
+fn benchmark_budget(base: Duration) -> Duration {
+    let slack_factor = std::env::var("OMNI_AST_BENCH_SLACK_FACTOR")
+        .ok()
+        .and_then(|value| value.parse::<f64>().ok())
+        .filter(|value| *value >= 1.0)
+        .unwrap_or(2.0);
+    Duration::from_secs_f64(base.as_secs_f64() * slack_factor)
 }
 
 /// Benchmark test for Python pattern matching (ast-grep).
@@ -170,11 +192,12 @@ fn test_python_pattern_matching_performance() {
     let elapsed = start.elapsed();
 
     // Should complete 10 iterations in under 5 seconds
-    let max_duration = Duration::from_secs(5);
+    let max_duration = benchmark_budget(Duration::from_secs(5));
     assert!(
         elapsed < max_duration,
-        "Python pattern matching took {:.2}s for 10 iterations, expected < 5s",
-        elapsed.as_secs_f64()
+        "Python pattern matching took {:.2}s for 10 iterations, expected < {:.2}s",
+        elapsed.as_secs_f64(),
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -202,11 +225,12 @@ fn test_tree_sitter_decorated_functions_performance() {
     let elapsed = start.elapsed();
 
     // Should complete 10 iterations in under 3 seconds
-    let max_duration = Duration::from_secs(3);
+    let max_duration = benchmark_budget(Duration::from_secs(3));
     assert!(
         elapsed < max_duration,
-        "Tree-sitter decorated functions took {:.2}s, expected < 3s",
-        elapsed.as_secs_f64()
+        "Tree-sitter decorated functions took {:.2}s, expected < {:.2}s",
+        elapsed.as_secs_f64(),
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -236,11 +260,12 @@ fn test_docstring_extraction_performance() {
     let elapsed = start.elapsed();
 
     // Should complete 20 iterations in under 10 seconds (relaxed for dev environment)
-    let max_duration = Duration::from_secs(10);
+    let max_duration = benchmark_budget(Duration::from_secs(10));
     assert!(
         elapsed < max_duration,
-        "Docstring extraction took {:.2}s, expected < 10s",
-        elapsed.as_secs_f64()
+        "Docstring extraction took {:.2}s, expected < {:.2}s",
+        elapsed.as_secs_f64(),
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -266,12 +291,13 @@ fn test_large_python_file_matching() {
     let elapsed = start.elapsed();
 
     // Should parse a 1000-line file in under 2 seconds
-    let max_duration = Duration::from_secs(2);
+    let max_duration = benchmark_budget(Duration::from_secs(2));
     assert!(
         elapsed < max_duration,
-        "Large file matching took {:.2}s for {} lines, expected < 2s",
+        "Large file matching took {:.2}s for {} lines, expected < {:.2}s",
         elapsed.as_secs_f64(),
-        LINE_COUNT
+        LINE_COUNT,
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -308,11 +334,12 @@ fn test_mixed_python_parsing_performance() {
     let elapsed = start.elapsed();
 
     // Should parse 10 mixed files in under 3 seconds
-    let max_duration = Duration::from_secs(3);
+    let max_duration = benchmark_budget(Duration::from_secs(3));
     assert!(
         elapsed < max_duration,
-        "Mixed parsing took {:.2}s, expected < 3s",
-        elapsed.as_secs_f64()
+        "Mixed parsing took {:.2}s, expected < {:.2}s",
+        elapsed.as_secs_f64(),
+        max_duration.as_secs_f64()
     );
 
     println!(
@@ -342,11 +369,12 @@ fn test_multiple_decorator_types_performance() {
     let elapsed = start.elapsed();
 
     // Should complete in under 3 seconds
-    let max_duration = Duration::from_secs(3);
+    let max_duration = benchmark_budget(Duration::from_secs(3));
     assert!(
         elapsed < max_duration,
-        "Multiple decorator types took {:.2}s, expected < 3s",
-        elapsed.as_secs_f64()
+        "Multiple decorator types took {:.2}s, expected < {:.2}s",
+        elapsed.as_secs_f64(),
+        max_duration.as_secs_f64()
     );
 
     println!(

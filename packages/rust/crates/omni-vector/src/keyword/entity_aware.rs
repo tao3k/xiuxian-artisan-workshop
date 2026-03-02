@@ -46,8 +46,8 @@ pub enum EntityMatchType {
 }
 
 /// Cached entity data for efficient matching
-struct CachedEntity<'a> {
-    original: &'a EntityMatch,
+struct CachedEntity {
+    original: EntityMatch,
     name_lower: String,
 }
 
@@ -64,7 +64,6 @@ struct CachedEntity<'a> {
 ///
 /// Entity-aware results with boosted scores
 #[must_use]
-#[allow(clippy::needless_pass_by_value)]
 pub fn apply_entity_boost(
     results: Vec<HybridSearchResult>,
     entities: Vec<EntityMatch>,
@@ -73,10 +72,10 @@ pub fn apply_entity_boost(
 ) -> Vec<EntityAwareSearchResult> {
     // Pre-compute lowercase entity names for efficient matching
     let cached_entities: Vec<CachedEntity> = entities
-        .iter()
-        .map(|e| CachedEntity {
-            original: e,
-            name_lower: e.entity_name.to_lowercase(),
+        .into_iter()
+        .map(|entity| CachedEntity {
+            name_lower: entity.entity_name.to_lowercase(),
+            original: entity,
         })
         .collect();
 
@@ -133,7 +132,7 @@ pub fn apply_entity_boost(
 }
 
 fn build_entity_name_automaton(
-    cached_entities: &[CachedEntity<'_>],
+    cached_entities: &[CachedEntity],
 ) -> (Option<AhoCorasick>, Vec<usize>) {
     let mut patterns: Vec<&str> = Vec::new();
     let mut pattern_to_cached_idx: Vec<usize> = Vec::new();
@@ -154,7 +153,7 @@ fn build_entity_name_automaton(
 
 fn collect_metadata_entity_matches(
     metadata: &[serde_json::Value],
-    cached_entities: &[CachedEntity<'_>],
+    cached_entities: &[CachedEntity],
     entity_ac: Option<&AhoCorasick>,
     pattern_to_cached_idx: &[usize],
     matched_names: &mut HashSet<String>,
@@ -180,7 +179,7 @@ fn collect_metadata_entity_matches(
 
 fn collect_entity_matches_in_text(
     text_lower: &str,
-    cached_entities: &[CachedEntity<'_>],
+    cached_entities: &[CachedEntity],
     entity_ac: Option<&AhoCorasick>,
     pattern_to_cached_idx: &[usize],
     match_type_override: Option<&EntityMatchType>,
@@ -209,7 +208,7 @@ fn collect_entity_matches_in_text(
 }
 
 fn push_unique_entity_match(
-    cached: &CachedEntity<'_>,
+    cached: &CachedEntity,
     match_type_override: Option<&EntityMatchType>,
     matched_names: &mut HashSet<String>,
     matched_entities: &mut Vec<EntityMatch>,
@@ -326,8 +325,3 @@ pub const ENTITY_WEIGHT: f32 = 0.3;
 pub const ENTITY_CONFIDENCE_THRESHOLD: f32 = 0.7;
 /// Maximum number of entity matches per result
 pub const MAX_ENTITY_MATCHES: usize = 10;
-
-#[cfg(test)]
-mod tests {
-    include!("entity_aware_tests.rs");
-}

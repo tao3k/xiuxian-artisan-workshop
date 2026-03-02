@@ -11,6 +11,8 @@ Canonical implementations live in:
 """
 
 from omni.foundation.config.database import (
+    get_checkpoint_db_path,
+    get_checkpoint_table_name,
     get_knowledge_graph_scope_key,
     get_memory_db_path,
     get_vector_db_path,
@@ -44,6 +46,8 @@ __all__ = [
     "PRJ_PATH",
     "PRJ_RUNTIME",
     "get_cache_dir",
+    "get_checkpoint_db_path",
+    "get_checkpoint_table_name",
     "get_config_dir",
     "get_data_dir",
     "get_harvest_dir",

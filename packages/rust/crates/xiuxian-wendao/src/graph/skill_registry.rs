@@ -1,17 +1,18 @@
-//! Bulk skill entity registration (Bridge 4: Core 2 → Core 1).
-#![allow(clippy::doc_markdown)]
+//! Bulk skill entity registration (`Bridge 4`: `Core 2` -> `Core 1`).
 //!
-//! Accepts parsed skill docs and creates SKILL, TOOL, CONCEPT entities
-//! with CONTAINS and RELATED_TO relations in the KnowledgeGraph.
+//! Accepts parsed skill docs and creates `SKILL`, `TOOL`, `CONCEPT` entities
+//! with `CONTAINS` and `RELATED_TO` relations in the `KnowledgeGraph`.
 
 use super::{GraphError, KnowledgeGraph};
 use crate::entity::{Entity, EntityType, Relation, RelationType};
 use log::info;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 #[derive(Default)]
 struct SkillCollection {
     skills: HashMap<String, Vec<String>>,
+    skill_qianji_flows: HashMap<String, HashSet<String>>,
     tool_keywords: HashMap<String, HashSet<String>>,
     entities_added: usize,
 }
@@ -68,6 +69,70 @@ fn all_keywords(tool_keywords: &HashMap<String, HashSet<String>>) -> HashSet<Str
     keywords
 }
 
+fn qianji_flow_entity(flow_name: &str) -> Entity {
+    Entity::new(
+        format!(
+            "qianji_flow:{}",
+            flow_name
+                .to_ascii_lowercase()
+                .replace([' ', '.', '/', '\\'], "_")
+        ),
+        flow_name.to_string(),
+        EntityType::Other("QianjiFlow".to_string()),
+        format!("Qianji flow: {flow_name}"),
+    )
+}
+
+fn normalize_qianji_flow_target(raw_target: &str) -> Option<String> {
+    let target = raw_target.split('|').next()?.trim();
+    if target.is_empty() {
+        return None;
+    }
+
+    let normalized = target.strip_prefix("references/").unwrap_or(target).trim();
+    if normalized.is_empty() {
+        return None;
+    }
+
+    let basename = normalized.rsplit('/').next().unwrap_or(normalized).trim();
+    if basename.is_empty() {
+        return None;
+    }
+
+    let stem = Path::new(basename)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(basename)
+        .trim();
+    if stem.is_empty() {
+        return None;
+    }
+
+    Some(stem.to_string())
+}
+
+fn extract_qianji_flow_targets(content: &str) -> HashSet<String> {
+    let mut targets = HashSet::new();
+    let mut cursor = 0usize;
+    while let Some(open_rel) = content[cursor..].find("[[") {
+        let open = cursor + open_rel + 2;
+        let Some(close_rel) = content[open..].find("]]") else {
+            break;
+        };
+        let close = open + close_rel;
+        let body = content[open..close].trim();
+        let body_lower = body.to_ascii_lowercase();
+        if let Some(marker_pos) = body_lower.find("#qianji-flow") {
+            let target_raw = body[..marker_pos].trim();
+            if let Some(target) = normalize_qianji_flow_target(target_raw) {
+                targets.insert(target);
+            }
+        }
+        cursor = close + 2;
+    }
+    targets
+}
+
 /// A parsed skill document for bulk registration.
 #[derive(Debug, Clone, Default)]
 pub struct SkillDoc {
@@ -99,12 +164,20 @@ impl KnowledgeGraph {
         &self,
         doc: &SkillDoc,
         skills: &mut HashMap<String, Vec<String>>,
+        skill_qianji_flows: &mut HashMap<String, HashSet<String>>,
     ) -> Result<usize, GraphError> {
         if doc.skill_name.is_empty() {
             return Ok(0);
         }
         let was_added = self.add_entity(skill_entity(&doc.skill_name, &doc.content))?;
         skills.entry(doc.skill_name.clone()).or_default();
+        let flows = extract_qianji_flow_targets(&doc.content);
+        if !flows.is_empty() {
+            skill_qianji_flows
+                .entry(doc.skill_name.clone())
+                .or_default()
+                .extend(flows);
+        }
         Ok(usize::from(was_added))
     }
 
@@ -127,6 +200,7 @@ impl KnowledgeGraph {
         &self,
         doc: &SkillDoc,
         skills: &mut HashMap<String, Vec<String>>,
+        skill_qianji_flows: &mut HashMap<String, HashSet<String>>,
         tool_keywords: &mut HashMap<String, HashSet<String>>,
     ) -> Result<usize, GraphError> {
         let Some(tool_name) = resolved_tool_name(doc) else {
@@ -142,6 +216,13 @@ impl KnowledgeGraph {
                 .entry(doc.skill_name.clone())
                 .or_default()
                 .push(tool_name.clone());
+            let flows = extract_qianji_flow_targets(&doc.content);
+            if !flows.is_empty() {
+                skill_qianji_flows
+                    .entry(doc.skill_name.clone())
+                    .or_default()
+                    .extend(flows);
+            }
         }
 
         let keywords = normalized_keywords(&doc.routing_keywords);
@@ -157,10 +238,15 @@ impl KnowledgeGraph {
 
         for doc in docs {
             let added = match doc.doc_type.as_str() {
-                "skill" => self.register_skill_doc(doc, &mut collection.skills)?,
+                "skill" => self.register_skill_doc(
+                    doc,
+                    &mut collection.skills,
+                    &mut collection.skill_qianji_flows,
+                )?,
                 "command" => self.register_command_doc(
                     doc,
                     &mut collection.skills,
+                    &mut collection.skill_qianji_flows,
                     &mut collection.tool_keywords,
                 )?,
                 _ => 0,
@@ -184,7 +270,44 @@ impl KnowledgeGraph {
                     RelationType::Contains,
                     format!("{skill_name} contains {tool_name}"),
                 );
-                self.add_relation(relation)?;
+                self.add_relation(&relation)?;
+                relations_added = relations_added.saturating_add(1);
+            }
+        }
+        Ok(relations_added)
+    }
+
+    fn register_qianji_flow_entities(
+        &self,
+        skill_qianji_flows: &HashMap<String, HashSet<String>>,
+    ) -> Result<usize, GraphError> {
+        let mut entities_added = 0usize;
+        let mut all_flows = HashSet::new();
+        for flows in skill_qianji_flows.values() {
+            all_flows.extend(flows.iter().cloned());
+        }
+        for flow_name in all_flows {
+            entities_added = entities_added.saturating_add(usize::from(
+                self.add_entity(qianji_flow_entity(flow_name.as_str()))?,
+            ));
+        }
+        Ok(entities_added)
+    }
+
+    fn register_qianji_flow_relations(
+        &self,
+        skill_qianji_flows: &HashMap<String, HashSet<String>>,
+    ) -> Result<usize, GraphError> {
+        let mut relations_added = 0usize;
+        for (skill_name, flows) in skill_qianji_flows {
+            for flow_name in flows {
+                let relation = Relation::new(
+                    skill_name.clone(),
+                    flow_name.clone(),
+                    RelationType::Governs,
+                    format!("{skill_name} governs workflow {flow_name}"),
+                );
+                self.add_relation(&relation)?;
                 relations_added = relations_added.saturating_add(1);
             }
         }
@@ -222,7 +345,7 @@ impl KnowledgeGraph {
                     RelationType::RelatedTo,
                     format!("{tool_name} has keyword {keyword}"),
                 );
-                self.add_relation(relation)?;
+                self.add_relation(&relation)?;
                 relations_added = relations_added.saturating_add(1);
             }
         }
@@ -232,11 +355,12 @@ impl KnowledgeGraph {
     /// Batch-register skill docs as entities and relations.
     ///
     /// Creates:
-    /// - SKILL entities for each unique skill
-    /// - TOOL entities for each command
-    /// - CONTAINS relations: Skill → Tool
-    /// - CONCEPT entities for each routing keyword
-    /// - RELATED_TO relations: Tool → keyword:*
+    /// - `SKILL` entities for each unique skill
+    /// - `TOOL` entities for each command
+    /// - `CONTAINS` relations: `Skill` -> `Tool`
+    /// - `GOVERNS` relations: `Skill` -> `QianjiFlow` (when `#qianji-flow` is present)
+    /// - `CONCEPT` entities for each routing keyword
+    /// - `RELATED_TO` relations: `Tool` -> `keyword:*`
     ///
     /// Called during `omni sync` / `omni reindex`.
     ///
@@ -249,6 +373,9 @@ impl KnowledgeGraph {
     ) -> Result<SkillRegistrationResult, GraphError> {
         let mut collection = self.collect_skill_collection(docs)?;
         let mut relations_added = self.register_contains_relations(&collection.skills)?;
+        collection.entities_added +=
+            self.register_qianji_flow_entities(&collection.skill_qianji_flows)?;
+        relations_added += self.register_qianji_flow_relations(&collection.skill_qianji_flows)?;
         collection.entities_added += self.register_keyword_entities(&collection.tool_keywords)?;
         relations_added += self.register_keyword_relations(&collection.tool_keywords)?;
 

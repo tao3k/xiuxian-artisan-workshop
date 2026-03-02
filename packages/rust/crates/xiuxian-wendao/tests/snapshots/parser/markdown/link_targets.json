@@ -1,0 +1,22 @@
+{
+  "draft": [
+    {
+      "target": "zhixing/skills/agenda-management/references/draft_agenda.j2",
+      "reference_type": "template"
+    },
+    {
+      "target": "zhixing/skills/agenda-management/references/rules.md",
+      "reference_type": null
+    }
+  ],
+  "steward": [
+    {
+      "target": "zhixing/skills/agenda-management/references/steward.md",
+      "reference_type": "persona"
+    },
+    {
+      "target": "zhixing/skills/agenda-management/references/logo.png",
+      "reference_type": "attachment"
+    }
+  ]
+}

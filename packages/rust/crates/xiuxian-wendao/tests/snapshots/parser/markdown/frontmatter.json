@@ -1,0 +1,9 @@
+{
+  "title": null,
+  "description": "Markdown parser snapshot fixture",
+  "name": "parser-snapshot-skill",
+  "category": null,
+  "tags": ["parser", "markdown"],
+  "routing_keywords": ["planner", "execution"],
+  "intents": ["Build resilient schedule", "Critique agenda quality"]
+}

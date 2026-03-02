@@ -19,7 +19,7 @@ def get_harvest_dir(category: str = "") -> Path:
     """Get the harvested knowledge directory path.
 
     System default: packages/conf/references.yaml.
-    User override: $PRJ_CONFIG_HOME/omni-dev-fusion/references.yaml.
+    User override: $PRJ_CONFIG_HOME/xiuxian-artisan-workshop/references.yaml.
     Resolved via `ReferenceLibrary` -> `harvested_knowledge.dir`.
 
     Args:

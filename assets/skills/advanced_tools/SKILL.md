@@ -1,4 +1,5 @@
 ---
+type: skill
 title: "Advanced Tools Skill (Batch Replace, Smart Search, Smart Find)"
 category: "workflows"
 tags:

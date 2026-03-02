@@ -111,6 +111,18 @@ pub enum RelationType {
     #[serde(rename = "CONTAINS")]
     /// Container/content relation.
     Contains,
+    #[serde(rename = "REFERENCES")]
+    /// Semantic reference relation between skill definitions and target entities.
+    References,
+    #[serde(rename = "GOVERNS")]
+    /// Governing relation between one skill and controlled tools/intents/workflows.
+    Governs,
+    #[serde(rename = "MANIFESTS")]
+    /// Manifestation relation between one skill and persona entities.
+    Manifests,
+    #[serde(rename = "ATTACHED_TO")]
+    /// Attachment relation between one skill and binary/reference assets.
+    AttachedTo,
     #[serde(rename = "OTHER")]
     /// A custom relation represented by free-form text.
     Other(String),
@@ -131,6 +143,10 @@ impl std::fmt::Display for RelationType {
             RelationType::Implements => write!(f, "IMPLEMENTS"),
             RelationType::Extends => write!(f, "EXTENDS"),
             RelationType::Contains => write!(f, "CONTAINS"),
+            RelationType::References => write!(f, "REFERENCES"),
+            RelationType::Governs => write!(f, "GOVERNS"),
+            RelationType::Manifests => write!(f, "MANIFESTS"),
+            RelationType::AttachedTo => write!(f, "ATTACHED_TO"),
             RelationType::Other(s) => write!(f, "OTHER({s})"),
         }
     }

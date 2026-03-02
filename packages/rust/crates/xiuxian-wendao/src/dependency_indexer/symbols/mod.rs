@@ -7,6 +7,3 @@ mod model;
 pub use extract::extract_symbols;
 pub use index::SymbolIndex;
 pub use model::{ExternalSymbol, SymbolKind};
-
-#[cfg(test)]
-mod tests;

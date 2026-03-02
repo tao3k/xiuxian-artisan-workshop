@@ -1,30 +1,11 @@
-#![allow(
-    missing_docs,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::implicit_clone,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_truncation,
-    clippy::manual_string_new,
-    clippy::needless_raw_string_hashes,
-    clippy::format_push_string,
-    clippy::map_unwrap_or,
-    clippy::unnecessary_to_owned,
-    clippy::too_many_lines
-)]
 use super::*;
 
-#[tokio::test]
-async fn test_save_and_load_valkey_roundtrip() {
+#[test]
+fn test_save_and_load_valkey_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     if !has_valkey() {
-        return;
+        return Ok(());
     }
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new()?;
     let scope_key = temp_dir
         .path()
         .join("knowledge")
@@ -51,8 +32,8 @@ async fn test_save_and_load_valkey_roundtrip() {
     );
     entity2.vector = Some(vec![0.1; 128]);
 
-    graph.add_entity(entity1).unwrap();
-    graph.add_entity(entity2).unwrap();
+    assert!(graph.add_entity(entity1).is_ok());
+    assert!(graph.add_entity(entity2).is_ok());
 
     let relation = Relation::new(
         "Claude Code".to_string(),
@@ -61,13 +42,13 @@ async fn test_save_and_load_valkey_roundtrip() {
         "Claude Code uses Python".to_string(),
     )
     .with_confidence(0.8);
-    graph.add_relation(relation).unwrap();
+    assert!(graph.add_relation(&relation).is_ok());
 
-    graph.save_to_valkey(&scope_key, 128).await.unwrap();
+    graph.save_to_valkey(&scope_key, 128)?;
 
     // Load into new graph
     let mut graph2 = KnowledgeGraph::new();
-    graph2.load_from_valkey(&scope_key).await.unwrap();
+    graph2.load_from_valkey(&scope_key)?;
 
     // Verify entity counts
     let stats = graph2.get_stats();
@@ -75,36 +56,44 @@ async fn test_save_and_load_valkey_roundtrip() {
     assert_eq!(stats.total_relations, 1, "Should have 1 relation");
 
     // Verify entity data
-    let python = graph2.get_entity_by_name("Python").unwrap();
+    let python = graph2
+        .get_entity_by_name("Python")
+        .ok_or_else(|| std::io::Error::other("Python entity should exist"))?;
     assert_eq!(python.aliases.len(), 2);
     assert!(python.aliases.contains(&"py".to_string()));
-    assert_eq!(python.confidence, 0.95);
+    assert!((f64::from(python.confidence) - 0.95_f64).abs() < 1e-9_f64);
     assert!(
         python.vector.is_none(),
         "Python entity should have no vector"
     );
 
-    let claude = graph2.get_entity_by_name("Claude Code").unwrap();
+    let claude = graph2
+        .get_entity_by_name("Claude Code")
+        .ok_or_else(|| std::io::Error::other("Claude Code entity should exist"))?;
     assert!(
         claude.vector.is_some(),
         "Claude entity should have a vector"
     );
-    assert_eq!(claude.vector.as_ref().unwrap().len(), 128);
+    let Some(vector) = claude.vector.as_ref() else {
+        panic!("Claude vector should exist");
+    };
+    assert_eq!(vector.len(), 128);
 
     // Verify relation data
     let rels = graph2.get_relations(None, None);
     assert_eq!(rels.len(), 1);
     assert_eq!(rels[0].source, "Claude Code");
     assert_eq!(rels[0].target, "Python");
-    assert_eq!(rels[0].confidence, 0.8);
+    assert!((f64::from(rels[0].confidence) - 0.8_f64).abs() < 1e-9_f64);
+    Ok(())
 }
 
-#[tokio::test]
-async fn test_valkey_persistence_with_skill_registration() {
+#[test]
+fn test_valkey_persistence_with_skill_registration() -> Result<(), Box<dyn std::error::Error>> {
     if !has_valkey() {
-        return;
+        return Ok(());
     }
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new()?;
     let scope_key = temp_dir
         .path()
         .join("knowledge")
@@ -131,14 +120,14 @@ async fn test_valkey_persistence_with_skill_registration() {
             routing_keywords: vec!["commit".to_string(), "git".to_string()],
         },
     ];
-    graph.register_skill_entities(&docs).unwrap();
+    graph.register_skill_entities(&docs)?;
 
     let stats_before = graph.get_stats();
 
-    graph.save_to_valkey(&scope_key, 1024).await.unwrap();
+    graph.save_to_valkey(&scope_key, 1024)?;
 
     let mut graph2 = KnowledgeGraph::new();
-    graph2.load_from_valkey(&scope_key).await.unwrap();
+    graph2.load_from_valkey(&scope_key)?;
 
     let stats_after = graph2.get_stats();
     assert_eq!(stats_before.total_entities, stats_after.total_entities);
@@ -150,4 +139,5 @@ async fn test_valkey_persistence_with_skill_registration() {
         !results.is_empty(),
         "Search should find git entities after Valkey roundtrip"
     );
+    Ok(())
 }

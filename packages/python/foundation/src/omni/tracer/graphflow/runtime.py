@@ -2,10 +2,10 @@
 # Graphflow Runtime - UltraRAG Style
 # =============================================================================
 """
-UltraRAG-style execution tracing runtime with LangGraph.
+UltraRAG-style execution tracing runtime with native workflow engine.
 
 Features:
-- LangGraph state machine with typed schema
+- Native state machine with typed schema
 - Memory pool (analysis, reflections, draft, final)
 - Conditional edges (should we reflect again?)
 - Reflection loops
@@ -13,9 +13,9 @@ Features:
 - Rich execution tracing output
 
 Skill usage entrypoint:
-    omni skill run demo.run_langgraph '{"scenario": "simple"}'
-    omni skill run demo.run_langgraph '{"scenario": "loop"}'
-    omni skill run demo.run_langgraph '{"scenario": "complex"}'
+    omni skill run demo.run_graphflow '{"scenario": "simple"}'
+    omni skill run demo.run_graphflow '{"scenario": "loop"}'
+    omni skill run demo.run_graphflow '{"scenario": "complex"}'
 """
 
 from datetime import datetime
@@ -27,7 +27,7 @@ from .builders import (
     register_scenario_graph,
 )
 from .llm_service import get_llm_service
-from .tracer import LangGraphTracer
+from .tracer import GraphflowTracer
 from .types import DemoState
 from .ui import console, ultra_header, ultra_memory_pool, ultra_summary
 
@@ -41,7 +41,7 @@ async def run_graphflow_pipeline(
     quality_gate_require_tradeoff: bool | None = None,
     quality_gate_max_fail_streak: int | None = None,
 ) -> dict[str, object]:
-    """Run LangGraph demo with execution tracing.
+    """Run graphflow demo with execution tracing.
 
     Args:
         scenario: Pipeline type - "simple", "loop", or "complex"
@@ -57,10 +57,8 @@ async def run_graphflow_pipeline(
     """
     import time
 
-    from langgraph.checkpoint.memory import MemorySaver
-
-    # Lazy import langgraph to avoid triggering embedding during skill loading
-    from langgraph.graph import END, StateGraph
+    from ..pipeline_checkpoint import compile_workflow
+    from ..workflow_engine import END_NODE, NativeStateGraph
 
     timestamp = datetime.now().strftime("%H%M%S")
     trace_id = f"ultrarag_{scenario}_{timestamp}"
@@ -70,7 +68,7 @@ async def run_graphflow_pipeline(
     console.print(ultra_header(trace_id, thread_id, scenario))
 
     # Initialize tracer
-    tracer = LangGraphTracer(trace_id, thread_id, scenario)
+    tracer = GraphflowTracer(trace_id, thread_id, scenario)
     get_llm_service().reset_runtime_state()
 
     parameters = default_parameters_for_scenario(scenario)
@@ -132,21 +130,17 @@ async def run_graphflow_pipeline(
     # Memory pool initialization
     tracer.record_memory("topic", parameters["topic"], step="input", metadata={})
 
-    # Create LangGraph
-    workflow = StateGraph(DemoState)
-
-    register_scenario_graph(workflow, scenario, tracer, END)
+    # Create native workflow
+    workflow = NativeStateGraph(DemoState)
+    register_scenario_graph(workflow, scenario, tracer, END_NODE)
     initial_state = create_initial_state(parameters, scenario)
 
-    # Compile with checkpoint
-    checkpointer = MemorySaver()
-    app = workflow.compile(checkpointer=checkpointer)
+    # Compile with optional native workflow-state checkpointer
+    app = compile_workflow(workflow, use_memory_saver=True)
 
     # Execute
     start_time = time.time()
-    result = await app.ainvoke(
-        DemoState(**initial_state), config={"configurable": {"thread_id": thread_id}}
-    )
+    result = await app.ainvoke(initial_state, config={"configurable": {"thread_id": thread_id}})
     execution_time_ms = round((time.time() - start_time) * 1000, 2)
 
     # Finalize trace

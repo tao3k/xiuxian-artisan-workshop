@@ -14,6 +14,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 runtime = importlib.import_module("mcp_tools_list_observability_runtime")
 models = importlib.import_module("mcp_tools_list_observability_models")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def test_percentile_handles_empty_and_bounds() -> None:
@@ -25,8 +26,9 @@ def test_percentile_handles_empty_and_bounds() -> None:
 
 
 def test_normalize_base_url_trims_trailing_slash() -> None:
-    assert runtime.normalize_base_url("http://127.0.0.1:3002/") == "http://127.0.0.1:3002"
-    assert runtime.normalize_base_url("http://127.0.0.1:3002") == "http://127.0.0.1:3002"
+    base = endpoints.http_url(3002)
+    assert runtime.normalize_base_url(f"{base}/") == base
+    assert runtime.normalize_base_url(base) == base
 
 
 def test_scan_log_file_parses_tools_list_stats(tmp_path) -> None:
@@ -78,7 +80,7 @@ def test_run_sequential_profile_collects_stats() -> None:
     result = asyncio.run(
         runtime.run_sequential_profile(
             client=object(),
-            rpc_url="http://127.0.0.1:3002/",
+            rpc_url=f"{endpoints.http_url(3002)}/",
             sample_count=3,
             sleep_ms=0,
             start_id=100,
@@ -105,7 +107,7 @@ def test_run_benchmark_collects_errors_and_percentiles() -> None:
     result = asyncio.run(
         runtime.run_benchmark(
             client=object(),
-            rpc_url="http://127.0.0.1:3002/",
+            rpc_url=f"{endpoints.http_url(3002)}/",
             total=6,
             concurrency=3,
             start_id=1,

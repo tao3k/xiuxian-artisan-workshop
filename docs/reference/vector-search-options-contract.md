@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Vector Search Options Contract"
+---
+
 # Vector Search Options Contract
 
 _This file is auto-generated from `SearchOptionsContract` in `vector_schema.py`._

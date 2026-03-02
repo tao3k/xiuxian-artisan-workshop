@@ -1,7 +1,45 @@
 use super::super::enums::RelatedPprSubgraphModeArg;
 use clap::Args;
 
-#[allow(clippy::struct_excessive_bools)]
+#[derive(Args, Debug, Default)]
+pub(crate) struct SearchCaseOptions {
+    #[arg(long, default_value_t = false)]
+    pub case_sensitive: bool,
+}
+
+#[derive(Args, Debug, Default)]
+pub(crate) struct SearchLinkToOptions {
+    #[arg(long = "link-to-negate", default_value_t = false)]
+    pub link_to_negate: bool,
+    #[arg(long = "link-to-recursive", default_value_t = false)]
+    pub link_to_recursive: bool,
+}
+
+#[derive(Args, Debug, Default)]
+pub(crate) struct SearchLinkedByOptions {
+    #[arg(long = "linked-by-negate", default_value_t = false)]
+    pub linked_by_negate: bool,
+    #[arg(long = "linked-by-recursive", default_value_t = false)]
+    pub linked_by_recursive: bool,
+}
+
+#[derive(Args, Debug, Default)]
+pub(crate) struct SearchFilterFlags {
+    #[arg(long = "orphan", default_value_t = false)]
+    pub orphan: bool,
+    #[arg(long = "tagless", default_value_t = false)]
+    pub tagless: bool,
+    #[arg(long = "missing-backlink", default_value_t = false)]
+    pub missing_backlink: bool,
+}
+
+#[derive(Args, Debug, Default)]
+pub(crate) struct SearchVerbosityOptions {
+    /// Include aggregated monitor phases + bottleneck summary in response payload.
+    #[arg(long, default_value_t = false)]
+    pub verbose: bool,
+}
+
 #[derive(Args, Debug)]
 pub(crate) struct SearchArgs {
     pub query: String,
@@ -11,8 +49,8 @@ pub(crate) struct SearchArgs {
     pub match_strategy: String,
     #[arg(long = "sort-term", value_name = "TERM", num_args = 1..)]
     pub sort_terms: Vec<String>,
-    #[arg(long, default_value_t = false)]
-    pub case_sensitive: bool,
+    #[command(flatten)]
+    pub case_options: SearchCaseOptions,
     #[arg(long = "include-path", value_name = "PATH", num_args = 1..)]
     pub include_paths: Vec<String>,
     #[arg(long = "exclude-path", value_name = "PATH", num_args = 1..)]
@@ -25,18 +63,14 @@ pub(crate) struct SearchArgs {
     pub tags_not: Vec<String>,
     #[arg(long = "link-to", value_name = "NOTE", num_args = 1..)]
     pub link_to: Vec<String>,
-    #[arg(long = "link-to-negate", default_value_t = false)]
-    pub link_to_negate: bool,
-    #[arg(long = "link-to-recursive", default_value_t = false)]
-    pub link_to_recursive: bool,
+    #[command(flatten)]
+    pub link_to_options: SearchLinkToOptions,
     #[arg(long = "link-to-max-distance")]
     pub link_to_max_distance: Option<usize>,
     #[arg(long = "linked-by", value_name = "NOTE", num_args = 1..)]
     pub linked_by: Vec<String>,
-    #[arg(long = "linked-by-negate", default_value_t = false)]
-    pub linked_by_negate: bool,
-    #[arg(long = "linked-by-recursive", default_value_t = false)]
-    pub linked_by_recursive: bool,
+    #[command(flatten)]
+    pub linked_by_options: SearchLinkedByOptions,
     #[arg(long = "linked-by-max-distance")]
     pub linked_by_max_distance: Option<usize>,
     #[arg(long = "related", value_name = "NOTE", num_args = 1..)]
@@ -55,12 +89,8 @@ pub(crate) struct SearchArgs {
     pub mentions_of: Vec<String>,
     #[arg(long = "mentioned-by-notes", value_name = "NOTE", num_args = 1..)]
     pub mentioned_by_notes: Vec<String>,
-    #[arg(long = "orphan", default_value_t = false)]
-    pub orphan: bool,
-    #[arg(long = "tagless", default_value_t = false)]
-    pub tagless: bool,
-    #[arg(long = "missing-backlink", default_value_t = false)]
-    pub missing_backlink: bool,
+    #[command(flatten)]
+    pub filter_flags: SearchFilterFlags,
     #[arg(long = "created-after")]
     pub created_after: Option<i64>,
     #[arg(long = "created-before")]
@@ -86,7 +116,6 @@ pub(crate) struct SearchArgs {
     /// When omitted, runtime config default is used.
     #[arg(long = "provisional-limit")]
     pub provisional_limit: Option<usize>,
-    /// Include aggregated monitor phases + bottleneck summary in response payload.
-    #[arg(long, default_value_t = false)]
-    pub verbose: bool,
+    #[command(flatten)]
+    pub verbosity: SearchVerbosityOptions,
 }

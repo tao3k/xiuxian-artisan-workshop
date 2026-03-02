@@ -6,7 +6,10 @@ use crate::encoder::IntentEncoder;
 use crate::episode::Episode;
 use crate::persistence::atomic_write_text;
 use crate::q_table::QTable;
-use anyhow::Result;
+use crate::recall_feedback::{
+    RecallFeedbackOutcome, normalize_feedback_bias, update_feedback_bias,
+};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -28,6 +31,9 @@ pub struct MemoryStateSnapshot {
     pub episodes: Vec<Episode>,
     /// Persisted Q-table values keyed by episode id.
     pub q_values: HashMap<String, f32>,
+    /// Session-level recall feedback bias values keyed by normalized scope.
+    #[serde(default)]
+    pub recall_feedback_bias_by_scope: HashMap<String, f32>,
 }
 
 /// Episode store configuration.
@@ -85,6 +91,8 @@ pub struct EpisodeStore {
     config: StoreConfig,
     /// In-memory cache of episodes (loaded on init)
     episodes: std::sync::RwLock<Vec<Episode>>,
+    /// Session-level recall feedback bias values keyed by normalized scope.
+    recall_feedback_bias_by_scope: std::sync::RwLock<HashMap<String, f32>>,
 }
 
 impl EpisodeStore {
@@ -96,6 +104,7 @@ impl EpisodeStore {
             encoder: IntentEncoder::new(config.embedding_dim),
             config,
             episodes: std::sync::RwLock::new(Vec::new()),
+            recall_feedback_bias_by_scope: std::sync::RwLock::new(HashMap::new()),
         }
     }
 
@@ -117,6 +126,18 @@ impl EpisodeStore {
 
     fn write_episodes(&self) -> RwLockWriteGuard<'_, Vec<Episode>> {
         self.episodes
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn read_recall_feedback_bias_by_scope(&self) -> RwLockReadGuard<'_, HashMap<String, f32>> {
+        self.recall_feedback_bias_by_scope
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn write_recall_feedback_bias_by_scope(&self) -> RwLockWriteGuard<'_, HashMap<String, f32>> {
+        self.recall_feedback_bias_by_scope
             .write()
             .unwrap_or_else(PoisonError::into_inner)
     }
@@ -201,9 +222,12 @@ impl EpisodeStore {
     ///
     /// # Errors
     ///
-    /// This currently never returns an error and is modeled as `Result` for API compatibility.
-    #[allow(clippy::unnecessary_wraps)]
+    /// Returns an error when episode identifiers are empty after trimming.
     pub fn store(&self, mut episode: Episode) -> Result<String> {
+        if episode.id.trim().is_empty() {
+            bail!("episode id must not be empty");
+        }
+
         Self::normalize_episode_scope(&mut episode);
 
         // Initialize Q-value for the episode
@@ -222,8 +246,7 @@ impl EpisodeStore {
     ///
     /// # Errors
     ///
-    /// This currently never returns an error and is modeled as `Result` for API compatibility.
-    #[allow(clippy::unnecessary_wraps)]
+    /// Propagates validation errors from [`Self::store`].
     pub fn store_for_scope(&self, scope: &str, mut episode: Episode) -> Result<String> {
         episode.scope = Episode::normalize_scope(scope);
         self.store(episode)
@@ -256,6 +279,53 @@ impl EpisodeStore {
             ep.q_value = new_q;
         }
         new_q
+    }
+
+    /// Get session-level recall feedback bias for a scope.
+    #[must_use]
+    pub fn recall_feedback_bias_for_scope(&self, scope: &str) -> f32 {
+        let scope_key = Episode::normalize_scope(scope);
+        self.read_recall_feedback_bias_by_scope()
+            .get(scope_key.as_str())
+            .copied()
+            .map_or(0.0, normalize_feedback_bias)
+    }
+
+    /// Set recall feedback bias for a scope and return `(previous, updated)`.
+    #[must_use]
+    pub fn set_recall_feedback_bias_for_scope(&self, scope: &str, bias: f32) -> (f32, f32) {
+        let scope_key = Episode::normalize_scope(scope);
+        let updated = normalize_feedback_bias(bias);
+        let mut map = self.write_recall_feedback_bias_by_scope();
+        let previous = map
+            .get(scope_key.as_str())
+            .copied()
+            .map_or(0.0, normalize_feedback_bias);
+        map.insert(scope_key, updated);
+        (previous, updated)
+    }
+
+    /// Apply one recall feedback outcome to a scope and return `(previous, updated)`.
+    #[must_use]
+    pub fn apply_recall_feedback_for_scope(
+        &self,
+        scope: &str,
+        outcome: RecallFeedbackOutcome,
+    ) -> (f32, f32) {
+        let previous = self.recall_feedback_bias_for_scope(scope);
+        let updated = update_feedback_bias(previous, outcome);
+        self.set_recall_feedback_bias_for_scope(scope, updated)
+    }
+
+    /// Clear recall feedback bias for a scope.
+    ///
+    /// Returns `true` if an existing value was removed.
+    #[must_use]
+    pub fn clear_recall_feedback_bias_for_scope(&self, scope: &str) -> bool {
+        let scope_key = Episode::normalize_scope(scope);
+        self.write_recall_feedback_bias_by_scope()
+            .remove(scope_key.as_str())
+            .is_some()
     }
 
     /// Recall episodes by semantic similarity.
@@ -613,10 +683,16 @@ impl EpisodeStore {
         for episode in &mut episodes {
             episode.q_value = self.q_table.get_q(&episode.id);
         }
+        let recall_feedback_bias_by_scope = self
+            .read_recall_feedback_bias_by_scope()
+            .iter()
+            .map(|(scope, value)| (scope.clone(), normalize_feedback_bias(*value)))
+            .collect();
 
         MemoryStateSnapshot {
             episodes,
             q_values: self.q_table.snapshot_map(),
+            recall_feedback_bias_by_scope,
         }
     }
 
@@ -625,6 +701,7 @@ impl EpisodeStore {
         let MemoryStateSnapshot {
             mut episodes,
             q_values,
+            recall_feedback_bias_by_scope,
         } = snapshot;
         self.q_table.replace_map(q_values);
         for episode in &mut episodes {
@@ -632,6 +709,15 @@ impl EpisodeStore {
             Self::normalize_episode_scope(episode);
         }
         *self.write_episodes() = episodes;
+        *self.write_recall_feedback_bias_by_scope() = recall_feedback_bias_by_scope
+            .into_iter()
+            .map(|(scope, value)| {
+                (
+                    Episode::normalize_scope(scope.as_str()),
+                    normalize_feedback_bias(value),
+                )
+            })
+            .collect();
     }
 
     /// Path to the default episodes state file.
@@ -646,6 +732,13 @@ impl EpisodeStore {
         PathBuf::from(&self.config.path).join(format!("{}.q_table.json", self.config.table_name))
     }
 
+    /// Path to the default recall-feedback state file.
+    #[must_use]
+    pub fn recall_feedback_state_path(&self) -> PathBuf {
+        PathBuf::from(&self.config.path)
+            .join(format!("{}.recall_feedback.json", self.config.table_name))
+    }
+
     /// Save both episodes and Q-table using default state paths.
     ///
     /// # Errors
@@ -654,8 +747,10 @@ impl EpisodeStore {
     pub fn save_state(&self) -> Result<()> {
         let episodes_path = self.episodes_state_path();
         let q_table_path = self.q_table_state_path();
+        let recall_feedback_path = self.recall_feedback_state_path();
         self.save(episodes_path.to_string_lossy().as_ref())?;
         self.save_q_table(q_table_path.to_string_lossy().as_ref())?;
+        self.save_recall_feedback_state(recall_feedback_path.to_string_lossy().as_ref())?;
         Ok(())
     }
 
@@ -667,8 +762,10 @@ impl EpisodeStore {
     pub fn load_state(&self) -> Result<()> {
         let episodes_path = self.episodes_state_path();
         let q_table_path = self.q_table_state_path();
+        let recall_feedback_path = self.recall_feedback_state_path();
         self.load(episodes_path.to_string_lossy().as_ref())?;
         self.load_q_table(q_table_path.to_string_lossy().as_ref())?;
+        self.load_recall_feedback_state(recall_feedback_path.to_string_lossy().as_ref())?;
         Ok(())
     }
 
@@ -726,6 +823,47 @@ impl EpisodeStore {
     /// Returns an error if the Q-table file cannot be read or parsed.
     pub fn load_q_table(&self, path: &str) -> Result<()> {
         self.q_table.load(path)
+    }
+
+    /// Save session-level recall feedback state to disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if feedback state cannot be serialized or written.
+    pub fn save_recall_feedback_state(&self, path: &str) -> Result<()> {
+        let payload: HashMap<String, f32> = self
+            .read_recall_feedback_bias_by_scope()
+            .iter()
+            .map(|(scope, value)| (scope.clone(), normalize_feedback_bias(*value)))
+            .collect();
+        let json = serde_json::to_string_pretty(&payload)?;
+        atomic_write_text(Path::new(path), &json)?;
+        Ok(())
+    }
+
+    /// Load session-level recall feedback state from disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file exists but cannot be read or parsed.
+    pub fn load_recall_feedback_state(&self, path: &str) -> Result<()> {
+        if !std::path::Path::new(path).exists() {
+            log::info!("No existing recall-feedback state file at {path}");
+            return Ok(());
+        }
+        let json = std::fs::read_to_string(path)?;
+        let raw: HashMap<String, f32> = serde_json::from_str(&json)?;
+        let normalized: HashMap<String, f32> = raw
+            .into_iter()
+            .map(|(scope, value)| {
+                (
+                    Episode::normalize_scope(scope.as_str()),
+                    normalize_feedback_bias(value),
+                )
+            })
+            .collect();
+        *self.write_recall_feedback_bias_by_scope() = normalized;
+        Ok(())
     }
 
     /// Get `LanceDB` dataset path for this store.

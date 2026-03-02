@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "Omni-Dev-Fusion Technical Writing Standard"
+---
+
 # Omni-Dev-Fusion Technical Writing Standard
 
 > **The Grand Unification of Documentation**

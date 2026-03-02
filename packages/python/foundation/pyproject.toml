@@ -21,8 +21,6 @@ dependencies = [
     "jinja2>=3.1.0",
     # Database
     "lancedb>=0.17.0",
-    # Workflow Engine
-    "langgraph>=1.0.5",
     # Utils
     "pydantic>=2.7.0",
 ]

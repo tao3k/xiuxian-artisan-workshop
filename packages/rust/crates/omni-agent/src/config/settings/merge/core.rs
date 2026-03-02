@@ -23,6 +23,9 @@ impl AgentSettings {
     fn merge(self, overlay: Self) -> Self {
         Self {
             llm_backend: overlay.llm_backend.or(self.llm_backend),
+            agenda_validation_policy: overlay
+                .agenda_validation_policy
+                .or(self.agenda_validation_policy),
         }
     }
 }
@@ -44,30 +47,28 @@ impl InferenceSettings {
 impl McpSettings {
     fn merge(self, overlay: Self) -> Self {
         Self {
-            agent_pool_size: overlay.agent_pool_size.or(self.agent_pool_size),
-            agent_handshake_timeout_secs: overlay
-                .agent_handshake_timeout_secs
-                .or(self.agent_handshake_timeout_secs),
-            agent_connect_retries: overlay.agent_connect_retries.or(self.agent_connect_retries),
-            agent_strict_startup: overlay.agent_strict_startup.or(self.agent_strict_startup),
-            agent_connect_retry_backoff_ms: overlay
-                .agent_connect_retry_backoff_ms
-                .or(self.agent_connect_retry_backoff_ms),
-            agent_tool_timeout_secs: overlay
-                .agent_tool_timeout_secs
-                .or(self.agent_tool_timeout_secs),
-            agent_list_tools_cache_ttl_ms: overlay
-                .agent_list_tools_cache_ttl_ms
-                .or(self.agent_list_tools_cache_ttl_ms),
-            agent_discover_cache_enabled: overlay
-                .agent_discover_cache_enabled
-                .or(self.agent_discover_cache_enabled),
-            agent_discover_cache_key_prefix: overlay
-                .agent_discover_cache_key_prefix
-                .or(self.agent_discover_cache_key_prefix),
-            agent_discover_cache_ttl_secs: overlay
-                .agent_discover_cache_ttl_secs
-                .or(self.agent_discover_cache_ttl_secs),
+            pool_size: overlay.pool_size.or(self.pool_size),
+            handshake_timeout_secs: overlay
+                .handshake_timeout_secs
+                .or(self.handshake_timeout_secs),
+            connect_retries: overlay.connect_retries.or(self.connect_retries),
+            strict_startup: overlay.strict_startup.or(self.strict_startup),
+            connect_retry_backoff_ms: overlay
+                .connect_retry_backoff_ms
+                .or(self.connect_retry_backoff_ms),
+            tool_timeout_secs: overlay.tool_timeout_secs.or(self.tool_timeout_secs),
+            list_tools_cache_ttl_ms: overlay
+                .list_tools_cache_ttl_ms
+                .or(self.list_tools_cache_ttl_ms),
+            discover_cache_enabled: overlay
+                .discover_cache_enabled
+                .or(self.discover_cache_enabled),
+            discover_cache_key_prefix: overlay
+                .discover_cache_key_prefix
+                .or(self.discover_cache_key_prefix),
+            discover_cache_ttl_secs: overlay
+                .discover_cache_ttl_secs
+                .or(self.discover_cache_ttl_secs),
         }
     }
 }
@@ -92,6 +93,12 @@ impl SessionSettings {
                 .or(self.context_budget_strategy),
             summary_max_segments: overlay.summary_max_segments.or(self.summary_max_segments),
             summary_max_chars: overlay.summary_max_chars.or(self.summary_max_chars),
+            reset_idle_timeout_mins: overlay
+                .reset_idle_timeout_mins
+                .or(self.reset_idle_timeout_mins),
+            message_content_max_chars: overlay
+                .message_content_max_chars
+                .or(self.message_content_max_chars),
             valkey_url: overlay.valkey_url.or(self.valkey_url),
             redis_prefix: overlay.redis_prefix.or(self.redis_prefix),
             ttl_secs: overlay.ttl_secs.or(self.ttl_secs),
@@ -198,6 +205,11 @@ impl MistralSettings {
             startup_timeout_secs: overlay.startup_timeout_secs.or(self.startup_timeout_secs),
             probe_timeout_ms: overlay.probe_timeout_ms.or(self.probe_timeout_ms),
             probe_interval_ms: overlay.probe_interval_ms.or(self.probe_interval_ms),
+            sdk_hf_cache_path: overlay.sdk_hf_cache_path.or(self.sdk_hf_cache_path),
+            sdk_hf_revision: overlay.sdk_hf_revision.or(self.sdk_hf_revision),
+            sdk_embedding_max_num_seqs: overlay
+                .sdk_embedding_max_num_seqs
+                .or(self.sdk_embedding_max_num_seqs),
         }
     }
 }

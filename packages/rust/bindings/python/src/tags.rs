@@ -273,10 +273,10 @@ mod tests {
 
     #[test]
     fn test_parse_symbols() {
-        let outline = r#"// OUTLINE: test.py
+        let outline = r"// OUTLINE: test.py
 // Total symbols: 2
 L1    [class]     Agent class Agent
-L5    [function]  helper def helper()"#;
+L5    [function]  helper def helper()";
 
         let symbols = parse_symbols(outline);
         assert_eq!(symbols.len(), 2);

@@ -11,7 +11,7 @@ use rmcp::model::{CallToolResult, Content, Meta};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 /// Runtime snapshot for discover cache backend.
 #[derive(Debug, Clone)]
@@ -103,7 +103,8 @@ struct ValkeyDiscoverCache {
     client: redis::Client,
     key_prefix: String,
     ttl_secs: u64,
-    connection: Arc<Mutex<Option<redis::aio::MultiplexedConnection>>>,
+    connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+    reconnect_lock: Arc<Mutex<()>>,
 }
 
 impl ValkeyDiscoverCache {
@@ -118,7 +119,8 @@ impl ValkeyDiscoverCache {
             client,
             key_prefix: config.key_prefix,
             ttl_secs: config.ttl_secs,
-            connection: Arc::new(Mutex::new(None)),
+            connection: Arc::new(RwLock::new(None)),
+            reconnect_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -130,20 +132,31 @@ impl ValkeyDiscoverCache {
         self.ttl_secs
     }
 
-    async fn ensure_connection(
-        &self,
-        connection: &mut Option<redis::aio::MultiplexedConnection>,
-    ) -> Result<()> {
-        if connection.is_some() {
-            return Ok(());
+    async fn acquire_connection(&self) -> Result<redis::aio::MultiplexedConnection> {
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
         }
-        *connection = Some(
-            self.client
-                .get_multiplexed_async_connection()
-                .await
-                .context("failed to open redis connection for discover cache")?,
-        );
-        Ok(())
+
+        let _reconnect_guard = self.reconnect_lock.lock().await;
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
+        }
+
+        let connection = self
+            .client
+            .get_multiplexed_async_connection()
+            .await
+            .context("failed to open redis connection for discover cache")?;
+        {
+            let mut guard = self.connection.write().await;
+            *guard = Some(connection.clone());
+        }
+        Ok(connection)
+    }
+
+    async fn invalidate_connection(&self) {
+        let mut guard = self.connection.write().await;
+        *guard = None;
     }
 
     async fn run_command<T, F>(&self, operation: &'static str, build: F) -> Result<T>
@@ -153,12 +166,8 @@ impl ValkeyDiscoverCache {
     {
         let mut last_error: Option<anyhow::Error> = None;
         for attempt in 0..2 {
-            let mut conn_guard = self.connection.lock().await;
-            self.ensure_connection(&mut conn_guard).await?;
-            let conn = conn_guard
-                .as_mut()
-                .ok_or_else(|| anyhow::anyhow!("discover cache connection unavailable"))?;
-            let result: redis::RedisResult<T> = build().query_async(conn).await;
+            let mut conn = self.acquire_connection().await?;
+            let result: redis::RedisResult<T> = build().query_async(&mut conn).await;
             match result {
                 Ok(value) => return Ok(value),
                 Err(error) => {
@@ -169,7 +178,7 @@ impl ValkeyDiscoverCache {
                         error = %error,
                         "discover cache valkey command failed; reconnecting"
                     );
-                    *conn_guard = None;
+                    self.invalidate_connection().await;
                     last_error = Some(
                         anyhow::anyhow!(error).context("discover cache valkey command failed"),
                     );

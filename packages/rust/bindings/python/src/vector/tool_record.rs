@@ -1,7 +1,7 @@
 //! Tool Record - Python bindings for tool metadata
 
-use omni_scanner::ToolRecord;
 use pyo3::prelude::*;
+use xiuxian_skills::ToolRecord;
 
 /// Python wrapper for ToolRecord
 /// Represents a discovered tool from script scanning.

@@ -13,6 +13,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 module = importlib.import_module("agent_channel_blackbox_runtime")
+endpoints = importlib.import_module("channel_test_endpoints")
 
 
 def _base_cfg(log_file: Path) -> SimpleNamespace:
@@ -20,7 +21,7 @@ def _base_cfg(log_file: Path) -> SimpleNamespace:
         prompt="/session json",
         max_wait_secs=5,
         max_idle_secs=5,
-        webhook_url="http://127.0.0.1:18081/telegram/webhook",
+        webhook_url=endpoints.webhook_url(),
         log_file=log_file,
         chat_id=100,
         user_id=200,

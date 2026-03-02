@@ -28,6 +28,7 @@ use std::path::Path;
 use std::result::Result;
 
 use serde::Deserialize;
+use xiuxian_skills::parse_typed_frontmatter_from_markdown;
 
 /// Parsed skill manifest from SKILL.md YAML frontmatter.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -52,13 +53,17 @@ pub struct SkillManifest {
 }
 
 /// Skill Scanner - Extracts metadata from SKILL.md files.
-pub struct SkillScannerModule;
+pub struct SkillScannerModule {
+    skill_file_name: &'static str,
+}
 
 impl SkillScannerModule {
     /// Create a new skill scanner module.
     #[must_use]
     pub fn new() -> Self {
-        Self
+        Self {
+            skill_file_name: "SKILL.md",
+        }
     }
 
     /// Scan a single skill directory and extract its manifest.
@@ -69,12 +74,11 @@ impl SkillScannerModule {
     /// # Errors
     ///
     /// Returns an error if reading `SKILL.md` from disk fails.
-    #[allow(clippy::unused_self)]
     pub fn scan_skill(
         &self,
         skill_path: &Path,
     ) -> Result<Option<SkillManifest>, Box<dyn std::error::Error>> {
-        let skill_md_path = skill_path.join("SKILL.md");
+        let skill_md_path = skill_path.join(self.skill_file_name);
 
         if !skill_md_path.exists() {
             log::debug!("SKILL.md not found for skill: {}", skill_path.display());
@@ -101,7 +105,6 @@ impl SkillScannerModule {
     /// # Errors
     ///
     /// Returns an error if the base directory cannot be read.
-    #[allow(clippy::collapsible_if)]
     pub fn scan_all(
         &self,
         base_path: &Path,
@@ -117,10 +120,10 @@ impl SkillScannerModule {
             let entry = entry?;
             let path = entry.path();
 
-            if path.is_dir() {
-                if let Some(manifest) = self.scan_skill(&path)? {
-                    manifests.push(manifest);
-                }
+            if path.is_dir()
+                && let Some(manifest) = self.scan_skill(&path)?
+            {
+                manifests.push(manifest);
             }
         }
 
@@ -144,8 +147,10 @@ impl SkillScannerModule {
             .to_string_lossy()
             .to_string();
 
-        // Find YAML frontmatter (between first and second ---)
-        let Some(frontmatter) = extract_frontmatter(content) else {
+        // Parse YAML frontmatter (Anthropic official format)
+        let Some(frontmatter_parsed) =
+            parse_typed_frontmatter_from_markdown::<SkillFrontmatter>(content)?
+        else {
             log::warn!("No YAML frontmatter found in SKILL.md for: {skill_name}");
             return Ok(SkillManifest {
                 skill_name,
@@ -156,9 +161,6 @@ impl SkillScannerModule {
                 intents: Vec::new(),
             });
         };
-
-        // Parse YAML frontmatter (Anthropic official format)
-        let frontmatter_parsed: SkillFrontmatter = serde_yaml::from_str(&frontmatter)?;
 
         // Extract from metadata block (new format)
         let (version, routing_keywords, authors, intents) =
@@ -230,21 +232,6 @@ struct SkillMetadata {
     routing_keywords: Option<Vec<String>>,
     #[serde(default)]
     intents: Option<Vec<String>>,
-}
-
-/// Extract YAML frontmatter from markdown content.
-fn extract_frontmatter(content: &str) -> Option<String> {
-    let start_marker = "---";
-    let end_marker = "---";
-
-    // Find first --- marker
-    let start = content.find(start_marker)?;
-    let content_after_start = &content[start + start_marker.len()..];
-
-    // Find closing --- marker
-    let end = content_after_start.find(end_marker)?;
-
-    Some(content_after_start[..end].to_string())
 }
 
 impl Default for SkillScannerModule {

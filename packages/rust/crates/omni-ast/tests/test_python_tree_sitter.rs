@@ -2,6 +2,13 @@
 
 use omni_ast::TreeSitterPythonParser;
 
+fn some_ref_or_panic<'a, T>(value: Option<&'a T>, label: &str) -> &'a T {
+    match value {
+        Some(value) => value,
+        None => panic!("expected {label} to be present"),
+    }
+}
+
 #[test]
 fn test_parse_skill_discover_decorator() {
     // This is the actual skill.discover decorator from assets/skills/skill/scripts/discovery.py
@@ -51,7 +58,7 @@ def discover(intent: str, limit: int = 5) -> str:
     assert_eq!(func.name, "discover");
 
     // Verify decorator was parsed
-    let decorator = func.decorator.as_ref().expect("Should have decorator");
+    let decorator = some_ref_or_panic(func.decorator.as_ref(), "decorator");
     assert_eq!(decorator.name, "skill_command");
 
     // Verify decorator arguments
@@ -60,7 +67,7 @@ def discover(intent: str, limit: int = 5) -> str:
     assert_eq!(args.category, Some("system".to_string()));
 
     // The critical test: description should be extracted correctly
-    let desc = args.description.as_ref().expect("Should have description");
+    let desc = some_ref_or_panic(args.description.as_ref(), "description");
     assert!(
         desc.contains("CRITICAL"),
         "Description should contain CRITICAL"
@@ -110,8 +117,9 @@ def test_func():
 
     assert_eq!(funcs.len(), 1);
 
-    let args = &funcs[0].decorator.as_ref().unwrap().arguments;
-    let desc = args.description.as_ref().unwrap();
+    let decorator = some_ref_or_panic(funcs[0].decorator.as_ref(), "decorator");
+    let args = &decorator.arguments;
+    let desc = some_ref_or_panic(args.description.as_ref(), "description");
 
     // The description should contain the commas (not split on them)
     assert!(desc.contains("Multi-line"));
@@ -143,7 +151,10 @@ def bar(y: str, z: str = "default") -> str:
     assert_eq!(funcs[0].parameters.len(), 1);
     assert_eq!(funcs[0].parameters[0].name, "x");
     assert_eq!(
-        funcs[0].decorator.as_ref().unwrap().arguments.name,
+        some_ref_or_panic(funcs[0].decorator.as_ref(), "decorator")
+            .arguments
+            .name
+            .clone(),
         Some("foo".to_string())
     );
 
@@ -160,11 +171,11 @@ def bar(y: str, z: str = "default") -> str:
 
 #[test]
 fn test_parse_function_without_decorator() {
-    let code = r#"
+    let code = r"
 def regular_function(x: int) -> int:
     '''Not a skill command.'''
     return x * 2
-"#;
+";
 
     let mut parser = TreeSitterPythonParser::new();
     let funcs = parser.find_decorated_functions(code, "skill_command");

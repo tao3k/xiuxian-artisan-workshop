@@ -1,40 +1,4 @@
-#![allow(
-    missing_docs,
-    unused_imports,
-    dead_code,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::doc_markdown,
-    clippy::uninlined_format_args,
-    clippy::float_cmp,
-    clippy::field_reassign_with_default,
-    clippy::cast_lossless,
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap,
-    clippy::map_unwrap_or,
-    clippy::option_as_ref_deref,
-    clippy::unreadable_literal,
-    clippy::useless_conversion,
-    clippy::match_wildcard_for_single_variants,
-    clippy::redundant_closure_for_method_calls,
-    clippy::needless_raw_string_hashes,
-    clippy::manual_async_fn,
-    clippy::manual_let_else,
-    clippy::manual_assert,
-    clippy::manual_string_new,
-    clippy::too_many_lines,
-    clippy::too_many_arguments,
-    clippy::unnecessary_literal_bound,
-    clippy::needless_pass_by_value,
-    clippy::struct_field_names,
-    clippy::single_match_else,
-    clippy::similar_names,
-    clippy::format_collect,
-    clippy::async_yields_async,
-    clippy::assigning_clones
-)]
+//! Telegram runtime session-partition command tests with dynamic mode changes.
 
 use std::sync::Arc;
 use std::sync::{PoisonError, RwLock};
@@ -74,7 +38,7 @@ impl SwitchableMockChannel {
 
 #[async_trait]
 impl Channel for SwitchableMockChannel {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "switchable-mock"
     }
 
@@ -124,7 +88,7 @@ impl CommandScopedMockChannel {
 
 #[async_trait]
 impl Channel for CommandScopedMockChannel {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "command-scoped-mock"
     }
 
@@ -228,6 +192,37 @@ async fn runtime_handle_inbound_session_partition_status_and_toggle() -> Result<
 }
 
 #[tokio::test]
+async fn runtime_handle_inbound_session_scope_alias_updates_mode() -> Result<()> {
+    let agent = build_agent().await?;
+    let channel = Arc::new(SwitchableMockChannel::new("chat_user"));
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+    let job_manager = build_job_manager(agent.clone());
+    let (foreground_tx, mut foreground_rx) = mpsc::channel::<ChannelMessage>(8);
+
+    assert!(
+        handle_inbound_message(
+            inbound("/session scope on"),
+            &channel_dyn,
+            &foreground_tx,
+            &job_manager,
+            &agent,
+        )
+        .await
+    );
+    assert!(
+        foreground_rx.try_recv().is_err(),
+        "session scope command should not forward to foreground queue"
+    );
+
+    let sent = channel.sent_messages().await;
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0].0.contains("Session partition updated."));
+    assert!(sent[0].0.contains("requested_mode=chat"));
+    assert_eq!(channel.current_mode(), "chat");
+    Ok(())
+}
+
+#[tokio::test]
 async fn runtime_handle_inbound_session_partition_requires_admin() -> Result<()> {
     let agent = build_agent().await?;
     let channel = Arc::new(SwitchableMockChannel::new("chat_user"));
@@ -276,6 +271,28 @@ async fn runtime_handle_inbound_session_partition_uses_command_scoped_authorizat
     assert!(
         foreground_rx.try_recv().is_err(),
         "session partition command should not forward to foreground queue"
+    );
+
+    let sent = channel.sent_messages().await;
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0].0.contains("Session partition updated."));
+    Ok(())
+}
+
+#[tokio::test]
+async fn runtime_handle_inbound_session_scope_alias_uses_partition_acl_scope() -> Result<()> {
+    let agent = build_agent().await?;
+    let channel = Arc::new(CommandScopedMockChannel::new("chat_user"));
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+    let job_manager = build_job_manager(agent.clone());
+    let (foreground_tx, mut foreground_rx) = mpsc::channel::<ChannelMessage>(8);
+
+    let mut msg = inbound("/session scope on");
+    msg.sender = "777".to_string();
+    assert!(handle_inbound_message(msg, &channel_dyn, &foreground_tx, &job_manager, &agent).await);
+    assert!(
+        foreground_rx.try_recv().is_err(),
+        "session scope command should not forward to foreground queue"
     );
 
     let sent = channel.sent_messages().await;

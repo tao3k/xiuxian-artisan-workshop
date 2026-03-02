@@ -1,11 +1,10 @@
-//! One-shot schema migration: infer version from schema, apply v1→v2 (TOOL_NAME Utf8→Dictionary), etc.
+//! One-shot schema migration: infer version from schema, apply v1→v2 (`TOOL_NAME` Utf8→Dictionary), etc.
 //!
 //! Version history:
-//! - v1: Original schema (TOOL_NAME: Utf8)
-//! - v2: TOOL_NAME Dictionary; SKILL_NAME/CATEGORY already Dictionary
-//! - v3 (planned): routing_keywords/intents as List<Utf8>
+//! - v1: Original schema (`TOOL_NAME`: Utf8)
+//! - v2: `TOOL_NAME` Dictionary; `SKILL_NAME/CATEGORY` already Dictionary
+//! - v3 (planned): `routing_keywords/intents` as List<Utf8>
 //! - v4 (planned): metadata as Struct
-#![allow(clippy::doc_markdown)]
 
 use futures::TryStreamExt;
 use lance::dataset::WriteParams;
@@ -55,7 +54,7 @@ fn build_string_dictionary(
 /// Current target schema version. New tables are created at this version.
 pub const OMNI_SCHEMA_VERSION: u32 = 2;
 
-/// One migration step (from_version → to_version).
+/// One migration step (`from_version` → `to_version`).
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct MigrationItem {
     /// Schema version before this migration.
@@ -69,13 +68,13 @@ pub struct MigrationItem {
 /// Result of running migrations.
 #[derive(Debug, Default, serde::Serialize)]
 pub struct MigrateResult {
-    /// Pairs (from_version, to_version) for each applied migration.
+    /// Pairs (`from_version`, `to_version`) for each applied migration.
     pub applied: Vec<(u32, u32)>,
     /// Total rows processed across all batches.
     pub rows_processed: u64,
 }
 
-/// Infer schema version from a dataset's schema (by inspecting TOOL_NAME column type).
+/// Infer schema version from a dataset's schema (by inspecting `TOOL_NAME` column type).
 #[must_use]
 pub fn schema_version_from_schema(schema: &lance::deps::arrow_schema::Schema) -> u32 {
     let Ok(field) = schema.field_with_name(TOOL_NAME_COLUMN) else {
@@ -87,7 +86,7 @@ pub fn schema_version_from_schema(schema: &lance::deps::arrow_schema::Schema) ->
     }
 }
 
-/// Write params for migration (same as default writer in writer_impl).
+/// Write params for migration (same as default writer in `writer_impl`).
 fn migration_write_params() -> WriteParams {
     WriteParams {
         data_storage_version: Some(lance_file::version::LanceFileVersion::V2_1),
@@ -95,7 +94,7 @@ fn migration_write_params() -> WriteParams {
     }
 }
 
-/// Convert a single RecordBatch from v1 (TOOL_NAME Utf8) to v2 (TOOL_NAME Dictionary).
+/// Convert a single `RecordBatch` from v1 (`TOOL_NAME` Utf8) to v2 (`TOOL_NAME` Dictionary).
 /// Other columns are passed through by reference. Caller must ensure `batch` has all 10 columns.
 fn migrate_batch_v1_to_v2(
     batch: &RecordBatch,
@@ -172,7 +171,7 @@ fn migrate_batch_v1_to_v2(
 }
 
 impl crate::VectorStore {
-    /// List pending migrations for a table (based on current schema version vs OMNI_SCHEMA_VERSION).
+    /// List pending migrations for a table (based on current schema version vs `OMNI_SCHEMA_VERSION`).
     ///
     /// # Errors
     ///
@@ -292,7 +291,7 @@ impl crate::VectorStore {
         }
 
         {
-            let mut cache = self.datasets.lock().await;
+            let mut cache = self.datasets.write().await;
             cache.insert(table_name.to_string(), dataset);
         }
 

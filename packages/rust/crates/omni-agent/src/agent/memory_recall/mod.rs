@@ -38,7 +38,3 @@ pub(crate) struct MemoryRecallPlan {
     pub window_pressure: f32,
     pub effective_budget_tokens: Option<usize>,
 }
-
-#[cfg(test)]
-#[path = "../../../tests/agent/memory_recall.rs"]
-mod tests;

@@ -82,13 +82,18 @@ pub(super) fn register_skill_entities_json(
 
 pub(super) fn query_tool_relevance(
     graph: &PyKnowledgeGraph,
-    query_terms: &[String],
+    query_terms: Vec<String>,
     max_hops: usize,
     limit: usize,
 ) -> PyResult<String> {
+    let query_terms: Vec<String> = query_terms
+        .into_iter()
+        .map(|term| term.trim().to_string())
+        .filter(|term| !term.is_empty())
+        .collect();
     let results = graph
         .inner
-        .query_tool_relevance(query_terms, max_hops, limit);
+        .query_tool_relevance(&query_terms, max_hops, limit);
     let json_arr: Vec<Value> = results
         .iter()
         .map(|(name, score)| json!([name, score]))

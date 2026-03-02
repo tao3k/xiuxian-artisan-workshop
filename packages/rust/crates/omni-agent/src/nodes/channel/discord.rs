@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use omni_agent::{
     DiscordCommandAdminRule, DiscordControlCommandPolicy, DiscordIngressRunRequest,
-    DiscordRuntimeConfig, DiscordSessionPartition, DiscordSlashCommandPolicy, RuntimeSettings,
-    build_discord_acl_overrides, run_discord_gateway, run_discord_ingress,
+    DiscordRuntimeConfig, DiscordSessionPartition, DiscordSlashCommandPolicy, ForegroundQueueMode,
+    RuntimeSettings, build_discord_acl_overrides, run_discord_gateway, run_discord_ingress,
 };
+use xiuxian_macros::env_non_empty;
 
 use crate::cli::DiscordRuntimeMode;
 use crate::resolve::{
@@ -70,7 +71,7 @@ fn resolve_discord_runtime_launch_config(
     } = req;
 
     let bot_token = bot_token
-        .or_else(|| std::env::var("DISCORD_BOT_TOKEN").ok())
+        .or_else(|| env_non_empty!("DISCORD_BOT_TOKEN"))
         .ok_or_else(|| anyhow::anyhow!("--bot-token or DISCORD_BOT_TOKEN required"))?;
     let raw_partition = resolve_string(
         session_partition,
@@ -99,6 +100,11 @@ fn resolve_discord_runtime_launch_config(
         runtime_settings.discord.foreground_max_in_flight_messages,
         DISCORD_DEFAULT_FOREGROUND_MAX_IN_FLIGHT_MESSAGES,
     );
+    let foreground_queue_mode = resolve_foreground_queue_mode(
+        "OMNI_AGENT_DISCORD_FOREGROUND_QUEUE_MODE",
+        runtime_settings.discord.foreground_queue_mode.as_deref(),
+        ForegroundQueueMode::Interrupt,
+    );
     let runtime_mode = resolve_discord_runtime_mode(
         discord_runtime_mode,
         runtime_settings.discord.runtime_mode.as_deref(),
@@ -115,8 +121,7 @@ fn resolve_discord_runtime_launch_config(
         runtime_settings.discord.ingress_path.as_deref(),
         DISCORD_DEFAULT_INGRESS_PATH,
     );
-    let ingress_secret_token = std::env::var("OMNI_AGENT_DISCORD_INGRESS_SECRET_TOKEN")
-        .ok()
+    let ingress_secret_token = env_non_empty!("OMNI_AGENT_DISCORD_INGRESS_SECRET_TOKEN")
         .or_else(|| runtime_settings.discord.ingress_secret_token.clone())
         .and_then(|secret| normalize_non_empty_secret(&secret));
 
@@ -129,6 +134,7 @@ fn resolve_discord_runtime_launch_config(
             inbound_queue_capacity,
             turn_timeout_secs,
             foreground_max_in_flight_messages,
+            foreground_queue_mode,
         },
         ingress_bind,
         ingress_path,
@@ -146,19 +152,19 @@ fn resolve_discord_acl_launch_config(
         .admin_users
         .unwrap_or_else(|| allowed_users.clone());
     let control_command_allow_from = acl_overrides.control_command_allow_from;
-    let slash_command_allow_from = acl_overrides.slash_command_allow_from;
+    let slash_global_allow_entries = acl_overrides.slash_command_allow_from;
     let slash_command_policy = DiscordSlashCommandPolicy {
-        slash_command_allow_from: slash_command_allow_from.clone(),
-        session_status_allow_from: acl_overrides.slash_session_status_allow_from,
-        session_budget_allow_from: acl_overrides.slash_session_budget_allow_from,
-        session_memory_allow_from: acl_overrides.slash_session_memory_allow_from,
-        session_feedback_allow_from: acl_overrides.slash_session_feedback_allow_from,
-        job_status_allow_from: acl_overrides.slash_job_allow_from,
-        jobs_summary_allow_from: acl_overrides.slash_jobs_allow_from,
-        background_submit_allow_from: acl_overrides.slash_bg_allow_from,
+        global: slash_global_allow_entries.clone(),
+        session_status: acl_overrides.slash_session_status_allow_from,
+        session_budget: acl_overrides.slash_session_budget_allow_from,
+        session_memory: acl_overrides.slash_session_memory_allow_from,
+        session_feedback: acl_overrides.slash_session_feedback_allow_from,
+        job_status: acl_overrides.slash_job_allow_from,
+        jobs_summary: acl_overrides.slash_jobs_allow_from,
+        background_submit: acl_overrides.slash_bg_allow_from,
     };
-    log_control_command_allow_override("discord", &control_command_allow_from);
-    log_slash_command_allow_override("discord", &slash_command_allow_from);
+    log_control_command_allow_override("discord", control_command_allow_from.as_deref());
+    log_slash_command_allow_override("discord", slash_global_allow_entries.as_deref());
 
     Ok(DiscordAclLaunchConfig {
         allowed_users,
@@ -177,6 +183,34 @@ fn normalize_non_empty_secret(secret: &str) -> Option<String> {
     } else {
         Some(trimmed)
     }
+}
+
+fn resolve_foreground_queue_mode(
+    env_name: &str,
+    settings_value: Option<&str>,
+    default: ForegroundQueueMode,
+) -> ForegroundQueueMode {
+    if let Some(raw) = env_non_empty!(env_name) {
+        if let Some(mode) = ForegroundQueueMode::parse(raw.as_str()) {
+            return mode;
+        }
+        tracing::warn!(
+            env_var = %env_name,
+            value = %raw,
+            "invalid foreground queue mode env value; using settings/default"
+        );
+    }
+    if let Some(raw) = settings_value {
+        if let Some(mode) = ForegroundQueueMode::parse(raw) {
+            return mode;
+        }
+        tracing::warn!(
+            setting = "discord.foreground_queue_mode",
+            value = %raw,
+            "invalid discord foreground queue mode in settings; using default"
+        );
+    }
+    default
 }
 
 async fn run_discord_channel_mode(

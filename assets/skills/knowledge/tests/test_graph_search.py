@@ -1,8 +1,9 @@
 import json
 
 import pytest
+from _module_loader import load_script_module
 
-from graph import search_graph  # noqa: E402  (skill scripts on sys.path via conftest)
+search_graph = load_script_module("graph", alias="knowledge_graph_test").search_graph
 
 
 def _unwrap(result):

@@ -25,6 +25,8 @@ class _Case:
     user_id: int | None = None
     chat_id: int | None = None
     thread_id: int | None = None
+    max_wait_secs: int | None = None
+    max_idle_secs: int | None = None
 
 
 @dataclass(frozen=True)
@@ -88,3 +90,40 @@ def test_run_case_with_retry_retries_transient_and_records_attempts(tmp_path: Pa
     assert len(attempts) == 2
     assert attempts[0].retry_scheduled is True
     assert attempts[1].passed is True
+
+
+def test_run_case_uses_per_case_timeout_overrides(tmp_path: Path) -> None:
+    captured_cmd: list[str] = []
+    case = _Case(
+        case_id="agenda_view_markdown",
+        prompt="/agenda",
+        event_name="telegram.zhixing.sync.completed",
+        suites=("core",),
+        max_wait_secs=120,
+        max_idle_secs=60,
+    )
+
+    def _subprocess_run(cmd: list[str], check: bool) -> object:
+        del check
+        captured_cmd.extend(cmd)
+        return type("Completed", (), {"returncode": 0})()
+
+    status = runtime_module.run_case(
+        blackbox_script=tmp_path / "agent_channel_blackbox.py",
+        case=case,
+        username="",
+        allow_chat_ids=(),
+        max_wait=25,
+        max_idle_secs=25,
+        secret_token="",
+        runtime_partition_mode=None,
+        forbidden_log_pattern="tools/call: Mcp error",
+        python_executable="python3",
+        subprocess_run_fn=_subprocess_run,
+    )
+
+    assert status == 0
+    assert "--max-wait" in captured_cmd
+    assert "--max-idle-secs" in captured_cmd
+    assert captured_cmd[captured_cmd.index("--max-wait") + 1] == "120"
+    assert captured_cmd[captured_cmd.index("--max-idle-secs") + 1] == "60"

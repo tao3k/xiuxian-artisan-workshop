@@ -7,6 +7,18 @@ use super::super::constants::TELEGRAM_SEND_MAX_RETRIES;
 use super::super::error::TelegramApiError;
 use super::super::send_types::{MediaGroupFilePart, PreparedCaption};
 
+#[derive(Clone, Copy)]
+struct MediaFileUpload<'a> {
+    method: &'a str,
+    media_field: &'a str,
+    chat_id: &'a str,
+    thread_id: Option<&'a str>,
+    file_name: &'a str,
+    file_bytes: &'a [u8],
+    caption_text: Option<&'a str>,
+    caption_parse_mode: Option<&'a str>,
+}
+
 impl TelegramChannel {
     pub(in crate::channels::telegram::channel) async fn send_media_by_url(
         &self,
@@ -93,16 +105,16 @@ impl TelegramChannel {
         let first_parse_mode = markdown_caption.map(|_| "MarkdownV2");
 
         let send_result = self
-            .send_media_file_with_retry_mode(
+            .send_media_file_with_retry_mode(&MediaFileUpload {
                 method,
                 media_field,
                 chat_id,
                 thread_id,
-                file_name.as_str(),
-                file_bytes.as_slice(),
-                first_caption_text,
-                first_parse_mode,
-            )
+                file_name: file_name.as_str(),
+                file_bytes: file_bytes.as_slice(),
+                caption_text: first_caption_text,
+                caption_parse_mode: first_parse_mode,
+            })
             .await;
         match send_result {
             Err(error) if markdown_caption.is_some() && error.should_retry_without_parse_mode() => {
@@ -112,61 +124,46 @@ impl TelegramChannel {
                     media_field,
                     "Telegram media upload caption MarkdownV2 failed; retrying with plain caption"
                 );
-                self.send_media_file_with_retry_mode(
+                self.send_media_file_with_retry_mode(&MediaFileUpload {
                     method,
                     media_field,
                     chat_id,
                     thread_id,
-                    file_name.as_str(),
-                    file_bytes.as_slice(),
-                    caption.map(PreparedCaption::plain_text),
-                    None,
-                )
+                    file_name: file_name.as_str(),
+                    file_bytes: file_bytes.as_slice(),
+                    caption_text: caption.map(PreparedCaption::plain_text),
+                    caption_parse_mode: None,
+                })
                 .await
             }
             other => other,
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn send_media_file_with_retry_mode(
         &self,
-        method: &str,
-        media_field: &str,
-        chat_id: &str,
-        thread_id: Option<&str>,
-        file_name: &str,
-        file_bytes: &[u8],
-        caption_text: Option<&str>,
-        caption_parse_mode: Option<&str>,
+        upload: &MediaFileUpload<'_>,
     ) -> Result<(), TelegramApiError> {
         for attempt in 0..=TELEGRAM_SEND_MAX_RETRIES {
-            self.wait_for_send_rate_limit_gate(method, media_field)
+            self.wait_for_send_rate_limit_gate(upload.method, upload.media_field)
                 .await;
-            match self
-                .send_media_file_once(
-                    method,
-                    media_field,
-                    chat_id,
-                    thread_id,
-                    file_name,
-                    file_bytes,
-                    caption_text,
-                    caption_parse_mode,
-                )
-                .await
-            {
+            match self.send_media_file_once(upload).await {
                 Ok(()) => return Ok(()),
                 Err(error) if attempt < TELEGRAM_SEND_MAX_RETRIES && error.should_retry_send() => {
                     let delay = error.retry_delay(attempt);
-                    self.update_send_rate_limit_gate_from_error(&error, delay, method, media_field)
-                        .await;
+                    self.update_send_rate_limit_gate_from_error(
+                        &error,
+                        delay,
+                        upload.method,
+                        upload.media_field,
+                    )
+                    .await;
                     tracing::warn!(
                         attempt,
                         max_retries = TELEGRAM_SEND_MAX_RETRIES,
                         delay_ms = delay.as_millis(),
-                        method,
-                        media_field,
+                        method = upload.method,
+                        media_field = upload.media_field,
                         error = %error,
                         "Telegram media upload transient failure; retrying"
                     );
@@ -179,39 +176,31 @@ impl TelegramChannel {
         unreachable!("send_media_file_with_retry_mode should return before exhausting attempts")
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn send_media_file_once(
         &self,
-        method: &str,
-        media_field: &str,
-        chat_id: &str,
-        thread_id: Option<&str>,
-        file_name: &str,
-        file_bytes: &[u8],
-        caption_text: Option<&str>,
-        caption_parse_mode: Option<&str>,
+        upload: &MediaFileUpload<'_>,
     ) -> Result<(), TelegramApiError> {
-        let part = Part::bytes(file_bytes.to_vec()).file_name(file_name.to_string());
+        let part = Part::bytes(upload.file_bytes.to_vec()).file_name(upload.file_name.to_string());
         let mut form = Form::new()
-            .text("chat_id", chat_id.to_string())
-            .part(media_field.to_string(), part);
-        if let Some(caption_text) = caption_text {
+            .text("chat_id", upload.chat_id.to_string())
+            .part(upload.media_field.to_string(), part);
+        if let Some(caption_text) = upload.caption_text {
             form = form.text("caption", caption_text.to_string());
         }
-        if let Some(caption_parse_mode) = caption_parse_mode {
+        if let Some(caption_parse_mode) = upload.caption_parse_mode {
             form = form.text("parse_mode", caption_parse_mode.to_string());
         }
-        if let Some(thread_id) = thread_id {
+        if let Some(thread_id) = upload.thread_id {
             form = form.text("message_thread_id", thread_id.to_string());
         }
 
         let response = self
             .client
-            .post(self.api_url(method))
+            .post(self.api_url(upload.method))
             .multipart(form)
             .send()
             .await
-            .map_err(TelegramApiError::from_reqwest)?;
+            .map_err(|error| TelegramApiError::from_reqwest(&error))?;
         Self::validate_telegram_response(response).await
     }
 
@@ -286,7 +275,7 @@ impl TelegramChannel {
             .multipart(form)
             .send()
             .await
-            .map_err(TelegramApiError::from_reqwest)?;
+            .map_err(|error| TelegramApiError::from_reqwest(&error))?;
         Self::validate_telegram_response(response).await
     }
 }

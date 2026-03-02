@@ -4,13 +4,15 @@ name = "Master_Research_Test"
 id = "Annotator"
 task_type = "annotation"
 weight = 1.0
-params = { persona_id = "artisan-engineer" }
+params = {}
+[nodes.qianhuan]
+persona_id = "artisan-engineer"
 
 [[nodes]]
 id = "Analyzer"
 task_type = "llm"
 weight = 1.0
-params = { model = "gpt-4o" }
+params = {}
 
 [[edges]]
 from = "Annotator"

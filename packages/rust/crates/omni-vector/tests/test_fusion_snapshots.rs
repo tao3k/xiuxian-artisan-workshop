@@ -13,7 +13,7 @@ use serde_json::json;
 fn make_tool_result(name: &str, score: f32) -> ToolSearchResult {
     ToolSearchResult {
         name: name.to_string(),
-        description: format!("Description of {}", name),
+        description: format!("Description of {name}"),
         input_schema: serde_json::json!({}),
         score,
         vector_score: None,

@@ -16,6 +16,8 @@ class ProbeCase:
     user_id: int | None = None
     chat_id: int | None = None
     thread_id: int | None = None
+    max_wait_secs: int | None = None
+    max_idle_secs: int | None = None
 
 
 @dataclass(frozen=True)

@@ -1,3 +1,9 @@
+---
+type: knowledge
+metadata:
+  title: "sys_query - Precision Code Extraction"
+---
+
 # sys_query - Precision Code Extraction
 
 Extract code elements from files using AST patterns. Part of **Project Cerebellum** for high-precision context management.

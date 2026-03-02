@@ -5,33 +5,33 @@ use crate::link_graph::models::{
 };
 
 #[derive(Debug, Clone, Default)]
-#[allow(clippy::struct_field_names)]
 pub(super) struct ParsedDirectiveState {
-    pub parsed_match_strategy: Option<LinkGraphMatchStrategy>,
-    pub parsed_sort_terms: Vec<LinkGraphSortTerm>,
-    pub parsed_case_sensitive: Option<bool>,
-    pub parsed_limit_override: Option<usize>,
+    pub match_strategy: Option<LinkGraphMatchStrategy>,
+    pub sort_terms: Vec<LinkGraphSortTerm>,
+    pub case_sensitive: Option<bool>,
+    pub limit_override: Option<usize>,
+    pub direct_id: Option<String>,
 
-    pub parsed_filters: LinkGraphSearchFilters,
-    pub parsed_tags_all: Vec<String>,
-    pub parsed_tags_any: Vec<String>,
-    pub parsed_tags_not: Vec<String>,
-    pub parsed_link_to: LinkGraphLinkFilter,
-    pub parsed_linked_by: LinkGraphLinkFilter,
-    pub parsed_related: LinkGraphRelatedFilter,
-    pub parsed_related_ppr: LinkGraphRelatedPprOptions,
-    pub parsed_scope: Option<LinkGraphScope>,
-    pub parsed_max_heading_level: Option<usize>,
-    pub parsed_max_tree_hops: Option<usize>,
-    pub parsed_collapse_to_doc: Option<bool>,
-    pub parsed_edge_types: Vec<LinkGraphEdgeType>,
-    pub parsed_per_doc_section_cap: Option<usize>,
-    pub parsed_min_section_words: Option<usize>,
+    pub filters: LinkGraphSearchFilters,
+    pub tags_all: Vec<String>,
+    pub tags_any: Vec<String>,
+    pub tags_not: Vec<String>,
+    pub link_to: LinkGraphLinkFilter,
+    pub linked_by: LinkGraphLinkFilter,
+    pub related: LinkGraphRelatedFilter,
+    pub related_ppr: LinkGraphRelatedPprOptions,
+    pub scope: Option<LinkGraphScope>,
+    pub max_heading_level: Option<usize>,
+    pub max_tree_hops: Option<usize>,
+    pub collapse_to_doc: Option<bool>,
+    pub edge_types: Vec<LinkGraphEdgeType>,
+    pub per_doc_section_cap: Option<usize>,
+    pub min_section_words: Option<usize>,
 
-    pub parsed_created_after: Option<i64>,
-    pub parsed_created_before: Option<i64>,
-    pub parsed_modified_after: Option<i64>,
-    pub parsed_modified_before: Option<i64>,
+    pub created_after: Option<i64>,
+    pub created_before: Option<i64>,
+    pub modified_after: Option<i64>,
+    pub modified_before: Option<i64>,
 }
 
 pub(super) fn parse_ppr_subgraph_mode(raw: &str) -> Option<LinkGraphPprSubgraphMode> {

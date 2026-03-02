@@ -86,7 +86,3 @@ pub(crate) async fn embed_litellm(
         }
     }
 }
-
-#[cfg(test)]
-#[path = "../../tests/embedding/transport_litellm.rs"]
-mod tests;

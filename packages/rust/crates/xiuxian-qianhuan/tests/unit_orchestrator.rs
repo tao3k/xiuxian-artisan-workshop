@@ -19,6 +19,8 @@ async fn test_orchestrator_assembly() {
         cot_template: "Step 1".to_string(),
         forbidden_words: vec![],
         metadata: HashMap::new(),
+        background: None,
+        guidelines: vec![],
     };
 
     // Enrich fact to satisfy CCS "Dao" anchor

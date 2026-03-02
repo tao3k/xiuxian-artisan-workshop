@@ -1,4 +1,12 @@
-# Omni-Dev Fusion
+---
+type: knowledge
+metadata:
+  title: "CyberXiuXian Artisan Workshop (赛博修仙创意工坊)"
+---
+
+# CyberXiuXian Artisan Workshop (赛博修仙创意工坊)
+
+(赛博修仙创意工坊)
 
 > One Tool + Trinity Architecture
 > Single Entry Point: `@omni("skill.command")`
@@ -52,6 +60,10 @@ Memory system, knowledge indexing, context optimization
 - **Overload Management**: Avoid activating more than 5 skills simultaneously. If you see a `COGNITIVE LOAD WARNING`, disable unused skills to maintain precision.
 - **Tool Selection**: Prioritize skill-specific MCP tools over generic shell commands for all write operations.
 
+### No Global Lint Suppressions in Rust
+
+**ABSOLUTE PROHIBITION**: You are STRICTLY FORBIDDEN from inserting `#![allow(missing_docs, unused_imports, dead_code)]` or any other `#![allow(...)]` attributes at the file or module level in Rust code. Doing so destroys modern engineering standards and bypasses essential checks. You MUST fix the underlying code issues (write the docs, remove the imports, delete dead code) instead of silencing the compiler.
+
 ### Language
 
 **All project content in English**: All documentation, commit messages, and committed content in this repository must be written in English (`docs/`, skill docs, code comments, commit messages). This is a persistent rule; do not add or commit non-English docs or messages.
@@ -67,7 +79,7 @@ Memory system, knowledge indexing, context optimization
 Follow the **strict workflow**:
 
 ```
-Rust Implementation → Add Rust Test → cargo test PASSED
+Rust Implementation → Add Rust Test → cargo nextest run PASSED
                  ↓
 Python Integration → Add Python Test → pytest PASSED
                  ↓
@@ -78,6 +90,7 @@ Build & Verify → Full integration test
 
 - Rust tests are ~0.3s, Python `uv run omni ...` is ~30s
 - Always add Rust tests before modifying Rust code
+- Default to direct crate-scoped Rust validation (for example `cargo nextest run -p <crate>`) and expand scope only when required.
 - **For pure Rust packages**: `cargo build` in the crate directory is sufficient
 - **For Rust + Python bindings**: Use `uv sync --reinstall-package omni-core-rs`
 - Pure Python changes: No rebuild needed, just run pytest

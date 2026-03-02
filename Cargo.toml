@@ -4,22 +4,23 @@ resolver = "2"
 # Include all Rust crates explicitly (no glob to avoid missing crate errors)
 members = [
     "packages/rust/bindings/python",
+    "packages/rust/crates/xiuxian-config-core",
     "packages/rust/crates/omni-ast",
     "packages/rust/crates/omni-edit",
-    "packages/rust/crates/omni-events",
+    "packages/rust/crates/xiuxian-event",
     "packages/rust/crates/omni-executor",
     "packages/rust/crates/omni-io",
     "packages/rust/crates/xiuxian-wendao",
     "packages/rust/crates/omni-lance",
-    "packages/rust/crates/omni-macros",
+    "packages/rust/crates/xiuxian-macros",
     "packages/rust/crates/omni-memory",
-    "packages/rust/crates/omni-scanner",
+    "packages/rust/crates/xiuxian-skills",
     "packages/rust/crates/omni-security",
     "packages/rust/crates/omni-sniffer",
     "packages/rust/crates/omni-sandbox",
     "packages/rust/crates/omni-tags",
     "packages/rust/crates/omni-tokenizer",
-    "packages/rust/crates/omni-tui",
+    "packages/rust/crates/xiuxian-tui",
     "packages/rust/crates/omni-types",
     "packages/rust/crates/omni-vector",
     "packages/rust/crates/xiuxian-qianhuan",
@@ -30,6 +31,7 @@ members = [
     "packages/rust/crates/xiuxian-qianji",
     "packages/rust/crates/xiuxian-memory",
     "packages/rust/crates/xiuxian-zhixing",
+    "packages/rust/crates/xiuxian-zhenfa",
 ]
 
 # Workspace package metadata (inherited by all crates)
@@ -39,7 +41,7 @@ edition = "2024"
 authors = ["CyberXiuXian Artisan Studio"]
 license = "Apache-2.0"
 publish = false
-description = "Omni-Dev-Fusion Fusion - Trinity Architecture with Rust Core"
+description = "CyberXiuXian Artisan Workshop - High-performance Agentic OS with Rust Core"
 
 # Unified dependency management
 [workspace.dependencies]
@@ -54,13 +56,19 @@ thiserror = "2.0.17"
 walkdir = "2.5.0"
 uuid = { version = "1.11", features = ["v4"] }
 chrono = { version = "0.4.38", default-features = false }
+chrono-tz = "0.10.4"
 tracing = "0.1"
 globset = "0.4"
+include_dir = "0.7.4"
 rand = "0.8"
+futures = "0.3.32"
+tokio-util = "0.7.18"
+md5 = "0.8.0"
 comrak = { version = "0.50.0", default-features = false }
 quick-xml = "0.39.2"
 petgraph = "0.7"
 async-trait = "0.1"
+mistralrs = "0.7.0"
 
 # Git operations (libgit2 for performance)
 git2 = "0.20.3"

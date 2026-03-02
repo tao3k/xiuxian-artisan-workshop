@@ -4,8 +4,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DiscoverConfidence {
+    /// High-confidence discover ranking.
     High,
+    /// Medium-confidence discover ranking.
     Medium,
+    /// Low-confidence discover ranking.
     Low,
 }
 

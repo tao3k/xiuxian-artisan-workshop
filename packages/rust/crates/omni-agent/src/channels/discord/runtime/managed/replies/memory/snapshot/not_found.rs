@@ -36,7 +36,7 @@ pub(in super::super::super::super) fn format_memory_recall_not_found(
 
 pub(in super::super::super::super) fn format_memory_recall_not_found_json(
     metrics: MemoryRecallMetricsSnapshot,
-    runtime_status: MemoryRuntimeStatusSnapshot,
+    runtime_status: &MemoryRuntimeStatusSnapshot,
     admission_status: DownstreamAdmissionRuntimeSnapshot,
     session_scope: &str,
 ) -> String {
@@ -47,7 +47,7 @@ pub(in super::super::super::super) fn format_memory_recall_not_found_json(
         "status": "not_found",
         "hint": "Run at least one normal turn first (non-command message).",
         "runtime": format_memory_runtime_status_json(runtime_status),
-        "admission": format_downstream_admission_status_json(admission_status),
+        "admission": format_downstream_admission_status_json(&admission_status),
         "metrics": format_memory_recall_metrics_json(metrics),
     })
     .to_string()

@@ -4,8 +4,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryGateVerdict {
+    /// Keep the memory in short-term context.
     Retain,
+    /// Mark memory as obsolete and safe to discard.
     Obsolete,
+    /// Promote memory into longer-term persistence.
     Promote,
 }
 

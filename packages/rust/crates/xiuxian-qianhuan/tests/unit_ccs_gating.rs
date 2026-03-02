@@ -14,6 +14,8 @@ async fn test_ccs_gating_success() {
         cot_template: "T".to_string(),
         forbidden_words: vec![],
         metadata: HashMap::new(),
+        background: None,
+        guidelines: vec![],
     };
 
     // Scenario: Fact contains all persona anchors
@@ -41,6 +43,8 @@ async fn test_ccs_gating_failure() {
         cot_template: "T".to_string(),
         forbidden_words: vec![],
         metadata: HashMap::new(),
+        background: None,
+        guidelines: vec![],
     };
 
     // Scenario: Fact only mentions 1 out of 3 anchors

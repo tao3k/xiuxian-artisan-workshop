@@ -24,27 +24,33 @@ tracing-subscriber = { workspace = true }
 reqwest = { workspace = true, features = ["multipart"] }
 redis = { version = "1.0.3", default-features = false, features = ["tokio-comp"] }
 pulldown-cmark = "0.12"
-serde_yaml = { workspace = true }
+comrak = { workspace = true }
 regex = "1"
+include_dir = { workspace = true }
+num-traits = "0.2"
 sha2 = { workspace = true }
 hex = { workspace = true }
 serenity = { version = "0.12.5", default-features = false, features = ["client", "gateway", "model", "rustls_backend"] }
 litellm-rs = { version = "0.3.1", default-features = false, features = ["redis"], optional = true }
 
 toml = { workspace = true }
-dirs = "5.0"
 
 omni-memory = { path = "../omni-memory", default-features = false, features = ["valkey"] }
-xiuxian-qianhuan = { path = "../xiuxian-qianhuan" }
+xiuxian-qianhuan = { path = "../xiuxian-qianhuan", features = ["zhenfa-router"] }
+xiuxian-qianji = { path = "../xiuxian-qianji", features = ["llm"] }
 xiuxian-llm = { path = "../xiuxian-llm" }
+xiuxian-zhenfa = { path = "../xiuxian-zhenfa" }
+xiuxian-wendao = { path = "../xiuxian-wendao", features = ["zhenfa-router"] }
 omni-window = { path = "../omni-window" }
 omni-tokenizer = { path = "../omni-tokenizer" }
 xiuxian-zhixing = { path = "../xiuxian-zhixing" }
 rmcp = { workspace = true }
 axum = { workspace = true, features = ["multipart"] }
 clap = { workspace = true }
+xiuxian-macros = { path = "../xiuxian-macros" }
 
 [dev-dependencies]
+chrono = { workspace = true }
 tempfile = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
 

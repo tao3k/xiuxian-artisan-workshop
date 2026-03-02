@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "LLM Brain Map: Understanding Omega Architecture"
 category: "llm"
 tags:
@@ -6,6 +7,8 @@ tags:
   - llm
 saliency_base: 6.6
 decay_rate: 0.04
+metadata:
+  title: "LLM Brain Map: Understanding Omega Architecture"
 ---
 
 # LLM Brain Map: Understanding Omega Architecture

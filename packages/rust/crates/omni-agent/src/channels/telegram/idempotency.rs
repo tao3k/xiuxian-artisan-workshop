@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::observability::SessionEvent;
 
@@ -156,7 +156,8 @@ struct RedisUpdateDeduplicator {
     client: redis::Client,
     key_prefix: String,
     ttl_secs: u64,
-    connection: Mutex<Option<redis::aio::MultiplexedConnection>>,
+    connection: RwLock<Option<redis::aio::MultiplexedConnection>>,
+    reconnect_lock: Mutex<()>,
 }
 
 impl RedisUpdateDeduplicator {
@@ -167,41 +168,49 @@ impl RedisUpdateDeduplicator {
             client,
             key_prefix: key_prefix.to_string(),
             ttl_secs: ttl_secs.max(1),
-            connection: Mutex::new(None),
+            connection: RwLock::new(None),
+            reconnect_lock: Mutex::new(()),
         })
     }
 
-    async fn ensure_connection(
-        &self,
-        connection: &mut Option<redis::aio::MultiplexedConnection>,
-    ) -> Result<()> {
-        if connection.is_some() {
-            return Ok(());
+    async fn acquire_connection(&self) -> Result<redis::aio::MultiplexedConnection> {
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
         }
-        *connection = Some(
-            self.client
-                .get_multiplexed_async_connection()
-                .await
-                .context("failed to open redis connection for webhook dedup")?,
-        );
+
+        let _reconnect_guard = self.reconnect_lock.lock().await;
+        if let Some(connection) = self.connection.read().await.as_ref().cloned() {
+            return Ok(connection);
+        }
+
+        let connection = self
+            .client
+            .get_multiplexed_async_connection()
+            .await
+            .context("failed to open redis connection for webhook dedup")?;
+        {
+            let mut guard = self.connection.write().await;
+            *guard = Some(connection.clone());
+        }
         tracing::debug!(
             event = SessionEvent::DedupValkeyConnected.as_str(),
             backend = "valkey",
             key_prefix = %self.key_prefix,
             "telegram webhook dedup connected to valkey"
         );
-        Ok(())
+        Ok(connection)
+    }
+
+    async fn invalidate_connection(&self) {
+        let mut guard = self.connection.write().await;
+        *guard = None;
     }
 
     async fn run_set_nx(&self, key: &str) -> Result<Option<String>> {
         // Try once with current connection, then reconnect and retry once.
         let mut last_err: Option<anyhow::Error> = None;
         for attempt in 0..2 {
-            let mut conn_guard = self.connection.lock().await;
-            self.ensure_connection(&mut conn_guard).await?;
-            let conn = conn_guard
-                .as_mut()
-                .ok_or_else(|| anyhow::anyhow!("redis connection unavailable for webhook dedup"))?;
+            let mut conn = self.acquire_connection().await?;
 
             let result: redis::RedisResult<Option<String>> = redis::cmd("SET")
                 .arg(key)
@@ -209,7 +218,7 @@ impl RedisUpdateDeduplicator {
                 .arg("EX")
                 .arg(self.ttl_secs)
                 .arg("NX")
-                .query_async(conn)
+                .query_async(&mut conn)
                 .await;
             match result {
                 Ok(value) => {
@@ -232,7 +241,7 @@ impl RedisUpdateDeduplicator {
                         "telegram webhook dedup SET NX failed; reconnecting"
                     );
                     // Drop stale connection so next attempt uses a fresh socket.
-                    *conn_guard = None;
+                    self.invalidate_connection().await;
                     last_err = Some(
                         anyhow::anyhow!(err).context("redis SET NX EX failed for webhook dedup"),
                     );

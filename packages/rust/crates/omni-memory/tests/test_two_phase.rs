@@ -1,4 +1,4 @@
-//! TwoPhaseSearch tests.
+//! `TwoPhaseSearch` tests.
 
 use omni_memory::{Episode, IntentEncoder, QTable, TwoPhaseSearch};
 use std::sync::Arc;

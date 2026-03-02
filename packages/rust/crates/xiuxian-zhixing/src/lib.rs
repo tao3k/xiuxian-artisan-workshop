@@ -1,38 +1,26 @@
-//! xiuxian-zhixing (修仙-知行合一)
-//!
-//! This crate implements an AI-driven Agenda and Journaling system,
-//! integrating actionable tasks (Xing/行) with reflected knowledge (Zhi/知).
-//! It is inspired by Wang Yangming's "Unity of Knowledge and Action".
+//! xiuxian-zhixing - The 'Unity of Knowledge and Action' logic layer.
 
-/// Agenda and task management logic.
+/// Compile-time embedded resource tree rooted at `xiuxian-zhixing/resources`.
+pub static RESOURCES: ::include_dir::Dir<'_> =
+    ::include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources");
+
+/// Action compiler runtime (Cognitive-Execution Decoupling backend).
+pub mod action_compiler;
+/// Agenda domain models and helpers.
 pub mod agenda;
-/// Alchemy logic for transforming raw text into structured actions.
-pub mod alchemist;
-/// Orchestration between Zhi (Knowledge) and Xing (Action).
+/// Error types for Zhixing orchestration.
+pub mod error;
+/// Heyi orchestration primitives bridging knowledge and action.
 pub mod heyi;
-/// Interfaces for LLM and external system interaction.
-pub mod interface;
-/// Daily reflection and journal logic.
+/// Journal domain models.
 pub mod journal;
+/// Storage backends for notebook/task persistence.
+pub mod storage;
 
 pub use agenda::AgendaEntry;
-pub use alchemist::Alchemist;
-pub use heyi::ZhixingHeyi;
+pub use error::{Error, Result};
+pub use heyi::{
+    ATTR_JOURNAL_CARRYOVER, ATTR_TIMER_RECIPIENT, ATTR_TIMER_REMINDED, ATTR_TIMER_SCHEDULED,
+    DueReminderRecord, ReminderQueueSettings, ReminderQueueStore, ReminderSignal, ZhixingHeyi,
+};
 pub use journal::JournalEntry;
-
-/// Base error type for xiuxian-zhixing.
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    /// Errors related to parsing or logic consistency.
-    #[error("Logic error: {0}")]
-    Logic(String),
-    /// Errors related to parsing context.
-    #[error("Parsing error: {0}")]
-    Parsing(String),
-    /// Generic internal errors.
-    #[error("Internal error: {0}")]
-    Internal(String),
-}
-
-/// Result type for xiuxian-zhixing operations.
-pub type Result<T> = std::result::Result<T, Error>;

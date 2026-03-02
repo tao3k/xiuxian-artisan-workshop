@@ -23,7 +23,7 @@ pyo3 = { workspace = true, features = ["extension-module"] }
 rayon = { workspace = true }
 
 # Internal crates
-omni-events = { path = "../../crates/omni-events" }
+xiuxian-event = { path = "../../crates/xiuxian-event" }
 omni-sniffer = { path = "../../crates/omni-sniffer" }
 omni-types = { path = "../../crates/omni-types" }
 omni-io = { path = "../../crates/omni-io", default-features = false }
@@ -33,9 +33,9 @@ omni-security = { path = "../../crates/omni-security" }
 omni-tags = { path = "../../crates/omni-tags" }
 omni-edit = { path = "../../crates/omni-edit" }
 omni-vector = { path = "../../crates/omni-vector" }
-omni-scanner = { path = "../../crates/omni-scanner" }
+xiuxian-skills = { path = "../../crates/xiuxian-skills" }
 omni-executor = { path = "../../crates/omni-executor" }
-omni-tui = { path = "../../crates/omni-tui" }
+xiuxian-tui = { path = "../../crates/xiuxian-tui" }
 xiuxian-wendao = { path = "../../crates/xiuxian-wendao" }
 omni-sandbox = { path = "../../crates/omni-sandbox" }
 omni-memory = { path = "../../crates/omni-memory", features = ["pybindings"] }

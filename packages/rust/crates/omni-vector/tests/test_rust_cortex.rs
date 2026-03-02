@@ -1,6 +1,11 @@
-//! Tests for Rust-Native Cortex: search_tools and load_tool_registry
+//! Tests for Rust-Native Cortex: `search_tools` and `load_tool_registry`
 
-use omni_vector::{AgenticSearchConfig, QueryIntent, ToolSearchOptions, VectorStore};
+use anyhow::Result;
+use omni_vector::{
+    AgenticSearchConfig, QueryIntent, ToolSearchOptions, ToolSearchRequest, VectorStore,
+};
+
+type KeywordDoc = (String, String, String, Vec<String>, Vec<String>);
 
 fn clean_test_db(path: &std::path::Path) {
     if path.exists() {
@@ -9,20 +14,23 @@ fn clean_test_db(path: &std::path::Path) {
 }
 
 #[tokio::test]
-async fn test_search_tools_basic() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_basic() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("cortex_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new(
-        temp_dir.path().join("cortex_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("cortex_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Add some test documents with tool-like metadata
-    let tools = vec![
+    let tools = [
         (
             "git.commit",
             "Commit changes to repository",
@@ -50,32 +58,27 @@ async fn test_search_tools_basic() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     // Search for git-related tools
     let query = vec![0.95, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    let results = store
-        .search_tools("tools", &query, None, 5, 0.0)
-        .await
-        .unwrap();
+    let results = store.search_tools("tools", &query, None, 5, 0.0).await?;
 
     assert!(!results.is_empty(), "Should find some tools");
     // Results should be sorted by score (descending)
     assert!(results.len() <= 5);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_agentic_search_delegates_to_hybrid() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_agentic_search_delegates_to_hybrid() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("agentic_test");
     clean_test_db(&db_path);
 
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(10))
-        .await
-        .unwrap();
+    let store = VectorStore::new(db_path.to_string_lossy().as_ref(), Some(10)).await?;
 
-    let tools = vec![
+    let tools = [
         (
             "git.commit",
             "Commit changes",
@@ -95,16 +98,12 @@ async fn test_agentic_search_delegates_to_hybrid() {
     let vectors: Vec<Vec<f32>> = tools.iter().map(|t| t.3.clone()).collect();
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     let query = vec![0.95, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let config = AgenticSearchConfig::default();
     let limit = config.limit;
-    let results = store
-        .agentic_search("tools", &query, None, config)
-        .await
-        .unwrap();
+    let results = store.agentic_search("tools", &query, None, config).await?;
     assert!(!results.is_empty());
     assert!(results.len() <= limit);
 
@@ -114,21 +113,19 @@ async fn test_agentic_search_delegates_to_hybrid() {
     };
     let results2 = store
         .agentic_search("tools", &query, None, config_with_intent)
-        .await
-        .unwrap();
+        .await?;
     assert!(!results2.is_empty());
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_agentic_search_semantic_vector_only() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_agentic_search_semantic_vector_only() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("agentic_semantic");
     clean_test_db(&db_path);
 
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(10))
-        .await
-        .unwrap();
-    let tools = vec![(
+    let store = VectorStore::new(db_path.to_string_lossy().as_ref(), Some(10)).await?;
+    let tools = [(
         "a.cmd",
         "desc",
         r#"{"skill_name": "a", "tool_name": "cmd", "type": "command", "command": "a.cmd", "file_path": "a/cmd.py"}"#,
@@ -140,8 +137,7 @@ async fn test_agentic_search_semantic_vector_only() {
     let vectors: Vec<Vec<f32>> = tools.iter().map(|t| t.3.clone()).collect();
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     let config = AgenticSearchConfig {
         intent: Some(QueryIntent::Semantic),
@@ -156,22 +152,20 @@ async fn test_agentic_search_semantic_vector_only() {
             None,
             config,
         )
-        .await
-        .unwrap();
+        .await?;
     assert!(!results.is_empty());
     assert_eq!(results[0].name, "a.cmd");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_agentic_search_exact_fallback_without_keyword_index() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_agentic_search_exact_fallback_without_keyword_index() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("agentic_exact_fallback");
     clean_test_db(&db_path);
 
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(10))
-        .await
-        .unwrap();
-    let tools = vec![(
+    let store = VectorStore::new(db_path.to_string_lossy().as_ref(), Some(10)).await?;
+    let tools = [(
         "git.commit",
         "Commit",
         r#"{"skill_name": "git", "tool_name": "commit", "type": "command", "command": "git.commit", "file_path": "git/commit.py"}"#,
@@ -183,8 +177,7 @@ async fn test_agentic_search_exact_fallback_without_keyword_index() {
     let vectors: Vec<Vec<f32>> = tools.iter().map(|t| t.3.clone()).collect();
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     let config = AgenticSearchConfig {
         intent: Some(QueryIntent::Exact),
@@ -195,24 +188,22 @@ async fn test_agentic_search_exact_fallback_without_keyword_index() {
     let query = vec![1.0f32; 10];
     let results = store
         .agentic_search("tools", &query, Some("commit"), config)
-        .await
-        .unwrap();
+        .await?;
     assert!(
         results.len() <= 5,
         "Exact without keyword index falls back to hybrid"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_agentic_search_skill_name_filter() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_agentic_search_skill_name_filter() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("agentic_filter_test");
     clean_test_db(&db_path);
 
-    let store = VectorStore::new(db_path.to_str().unwrap(), Some(10))
-        .await
-        .unwrap();
-    let tools = vec![
+    let store = VectorStore::new(db_path.to_string_lossy().as_ref(), Some(10)).await?;
+    let tools = [
         (
             "git.commit",
             "Commit changes",
@@ -232,41 +223,41 @@ async fn test_agentic_search_skill_name_filter() {
     let vectors: Vec<Vec<f32>> = tools.iter().map(|t| t.3.clone()).collect();
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     let config = AgenticSearchConfig {
         skill_name_filter: Some("knowledge".to_string()),
         ..AgenticSearchConfig::default()
     };
     let query = vec![0.95, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    let results = store
-        .agentic_search("tools", &query, None, config)
-        .await
-        .unwrap();
+    let results = store.agentic_search("tools", &query, None, config).await?;
     assert!(
         results.iter().all(|r| r.skill_name == "knowledge"),
         "skill_name_filter should restrict to knowledge; got: {:?}",
         results.iter().map(|r| &r.skill_name).collect::<Vec<_>>()
     );
     assert!(!results.is_empty());
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_search_tools_skips_uuid_like_tool_rows() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_skips_uuid_like_tool_rows() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("uuid_filter_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new_with_keyword_index(
-        temp_dir.path().join("uuid_filter_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("uuid_filter_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
         true,
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
     store
         .add_documents(
@@ -286,18 +277,17 @@ async fn test_search_tools_skips_uuid_like_tool_rows() {
             ],
         )
         .await
-        .unwrap();
+        ?;
 
     let results = store
         .search_tools(
             "tools",
-            &vec![0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            &[0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             Some("find python files"),
             10,
             0.0,
         )
-        .await
-        .unwrap();
+        .await?;
 
     assert!(results.iter().all(|r| !r.name.contains("6f9619ff")));
     assert!(
@@ -305,23 +295,27 @@ async fn test_search_tools_skips_uuid_like_tool_rows() {
             .iter()
             .any(|r| r.name == "advanced_tools.smart_find")
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_search_tools_with_threshold() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_with_threshold() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("threshold_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new(
-        temp_dir.path().join("threshold_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("threshold_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Add tools with different embeddings
-    let tools = vec![
+    let tools = [
         (
             "python.run",
             "Run Python code",
@@ -343,36 +337,36 @@ async fn test_search_tools_with_threshold() {
 
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     // Query similar to Python (high score for python.run, low for rust.compile)
     let query = vec![0.95, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 
     // With high threshold, only python.run should be returned
-    let results_high = store
-        .search_tools("tools", &query, None, 5, 0.9)
-        .await
-        .unwrap();
+    let results_high = store.search_tools("tools", &query, None, 5, 0.9).await?;
 
     assert!(results_high.len() <= 1);
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_load_tool_registry() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_load_tool_registry() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("registry_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new(
-        temp_dir.path().join("registry_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("registry_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Add some tools
-    let tools = vec![
+    let tools = [
         (
             "git.commit",
             "Commit changes",
@@ -400,36 +394,39 @@ async fn test_load_tool_registry() {
 
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     // Load all tools for registry
-    let registry = store.load_tool_registry("tools").await.unwrap();
+    let registry = store.load_tool_registry("tools").await?;
 
     assert_eq!(registry.len(), 3);
     for tool in registry {
         // All tools should have score = 1.0 for registry load
-        assert_eq!(tool.score, 1.0);
+        assert!((tool.score - 1.0).abs() < f32::EPSILON);
         // Verify fields are populated
         assert!(!tool.name.is_empty());
         assert!(!tool.skill_name.is_empty());
         assert!(!tool.tool_name.is_empty());
         assert!(!tool.file_path.is_empty());
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_tool_search_result_structure() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_tool_search_result_structure() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("struct_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new(
-        temp_dir.path().join("struct_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("struct_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Add a tool
     store
@@ -441,12 +438,11 @@ async fn test_tool_search_result_structure() {
             vec![r#"{"skill_name": "test", "tool_name": "tool", "type": "command", "command": "test.tool", "file_path": "test.py", "routing_keywords": ["test"], "input_schema": {"type": "object", "properties": {"arg": {"type": "string"}}}}"#.to_string()],
         )
         .await
-        .unwrap();
+        ?;
 
     let results = store
-        .search_tools("tools", &vec![0.0; 10], None, 1, 0.0)
-        .await
-        .unwrap();
+        .search_tools("tools", &[0.0; 10], None, 1, 0.0)
+        .await?;
 
     assert_eq!(results.len(), 1);
     let result = &results[0];
@@ -459,28 +455,28 @@ async fn test_tool_search_result_structure() {
     assert_eq!(result.routing_keywords, vec!["test"]);
     assert!(result.score > 0.0);
     assert!(result.description.contains("Test"));
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_search_tools_weighted_rrf() {
+async fn test_search_tools_weighted_rrf() -> Result<()> {
     // Test that Weighted RRF fusion works correctly in search_tools
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("wrrf_test");
     clean_test_db(&db_path);
 
     // Create store WITH keyword index
     let store = VectorStore::new_with_keyword_index(
-        temp_dir.path().join("wrrf_test").to_str().unwrap(),
+        temp_dir.path().join("wrrf_test").to_string_lossy().as_ref(),
         Some(10),
         true, // enable keyword index
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Add git-related tools with keyword index
-    let tools = vec![
+    let tools = [
         (
             "git.commit",
             "Commit changes to repository",
@@ -514,11 +510,10 @@ async fn test_search_tools_weighted_rrf() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     // Index keywords
-    let kw_docs: Vec<(String, String, String, Vec<String>, Vec<String>)> = vec![
+    let kw_docs: Vec<KeywordDoc> = vec![
         (
             "git.commit".to_string(),
             "Commit changes to repository".to_string(),
@@ -548,38 +543,41 @@ async fn test_search_tools_weighted_rrf() {
             vec![],
         ),
     ];
-    store.bulk_index_keywords(kw_docs).unwrap();
+    store.bulk_index_keywords(kw_docs)?;
 
     // Search with keyword text - should use Weighted RRF
     let query = vec![0.85, 0.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let results = store
         .search_tools("tools", &query, Some("commit"), 10, 0.0)
-        .await
-        .unwrap();
+        .await?;
 
     assert!(!results.is_empty());
     // git.commit should rank first due to field boosting (token "commit" matches)
     assert_eq!(results[0].name, "git.commit");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_search_tools_field_boosting() {
+async fn test_search_tools_field_boosting() -> Result<()> {
     // Test that Field Boosting (exact phrase + token match) works
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("field_boost_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new_with_keyword_index(
-        temp_dir.path().join("field_boost_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("field_boost_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
         true,
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
-    let tools = vec![
+    let tools = [
         (
             "git.commit",
             "Commit changes to repository",
@@ -601,11 +599,10 @@ async fn test_search_tools_field_boosting() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     // Index keywords
-    let kw_docs: Vec<(String, String, String, Vec<String>, Vec<String>)> = vec![
+    let kw_docs: Vec<KeywordDoc> = vec![
         (
             "git.commit".to_string(),
             "Commit changes to repository".to_string(),
@@ -621,15 +618,14 @@ async fn test_search_tools_field_boosting() {
             vec![],
         ),
     ];
-    store.bulk_index_keywords(kw_docs).unwrap();
+    store.bulk_index_keywords(kw_docs)?;
 
     // Query "git commit" - should boost git.commit significantly
     // due to matching both tokens "git" and "commit"
     let query = vec![0.5; 10];
     let results = store
         .search_tools("tools", &query, Some("git commit"), 10, 0.0)
-        .await
-        .unwrap();
+        .await?;
 
     // Should find at least our 2 indexed tools (may find more if keyword index had prior data)
     assert!(
@@ -645,27 +641,31 @@ async fn test_search_tools_field_boosting() {
         results[0].score > results[1].score,
         "Field boosting should give git.commit higher score"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_search_tools_keyword_rescue() {
+async fn test_search_tools_keyword_rescue() -> Result<()> {
     // Test that tools not found by vector search can be rescued by keyword
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("rescue_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new_with_keyword_index(
-        temp_dir.path().join("rescue_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("rescue_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
         true,
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Add tools with very different embeddings
-    let tools = vec![
+    let tools = [
         (
             "git.commit",
             "Commit changes",
@@ -687,11 +687,10 @@ async fn test_search_tools_keyword_rescue() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     // Index keywords
-    let kw_docs: Vec<(String, String, String, Vec<String>, Vec<String>)> = vec![
+    let kw_docs: Vec<KeywordDoc> = vec![
         (
             "git.commit".to_string(),
             "Commit changes".to_string(),
@@ -707,25 +706,25 @@ async fn test_search_tools_keyword_rescue() {
             vec![],
         ),
     ];
-    store.bulk_index_keywords(kw_docs).unwrap();
+    store.bulk_index_keywords(kw_docs)?;
 
     // Query with "git commit" but vector similar to filesystem
     let query = vec![0.0, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let results = store
         .search_tools("tools", &query, Some("git commit"), 10, 0.0)
-        .await
-        .unwrap();
+        .await?;
 
     // git.commit should be rescued by keyword search
     assert!(results.iter().any(|r| r.name == "git.commit"));
+    Ok(())
 }
 
 /// Test that vector search and keyword search use consistent keys (skill.command format)
 /// This is a regression test for the key mismatch bug where vector search used
-/// metadata.tool_name but keyword search used full skill.command format
+/// `metadata.tool_name` but keyword search used full skill.command format
 #[tokio::test]
-async fn test_search_tools_key_consistency() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_key_consistency() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("key_consistency_test");
     clean_test_db(&db_path);
 
@@ -733,18 +732,17 @@ async fn test_search_tools_key_consistency() {
         temp_dir
             .path()
             .join("key_consistency_test")
-            .to_str()
-            .unwrap(),
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
         true,
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Test case 1: skill_name and tool_name are different
-    let tools = vec![
+    let tools = [
         (
             "skill.discover",
             "Discover available skills and commands",
@@ -766,11 +764,10 @@ async fn test_search_tools_key_consistency() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     // Index keywords with FULL skill.command format
-    let kw_docs: Vec<(String, String, String, Vec<String>, Vec<String>)> = vec![
+    let kw_docs: Vec<KeywordDoc> = vec![
         (
             "skill.discover".to_string(),
             "Discover available skills and commands".to_string(),
@@ -786,14 +783,13 @@ async fn test_search_tools_key_consistency() {
             vec![],
         ),
     ];
-    store.bulk_index_keywords(kw_docs).unwrap();
+    store.bulk_index_keywords(kw_docs)?;
 
     // Search with keyword that matches skill.discover
     let query = vec![0.95, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let results = store
         .search_tools("tools", &query, Some("discover"), 10, 0.0)
-        .await
-        .unwrap();
+        .await?;
 
     // skill.discover should be found - this would FAIL if keys don't match
     assert!(!results.is_empty(), "Should find at least one tool");
@@ -808,27 +804,31 @@ async fn test_search_tools_key_consistency() {
         assert_eq!(r.tool_name, "skill.discover");
         assert_eq!(r.skill_name, "skill");
     }
+    Ok(())
 }
 
 /// Test hybrid search with exact skill.command query
 /// Regression test: searching "skill.discover" should return skill.discover
 #[tokio::test]
-async fn test_search_tools_exact_skill_command() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_exact_skill_command() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("exact_cmd_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new_with_keyword_index(
-        temp_dir.path().join("exact_cmd_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("exact_cmd_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
         true,
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
-    let tools = vec![
+    let tools = [
         (
             "skill.discover",
             "Capability Discovery - Find available skills",
@@ -850,10 +850,9 @@ async fn test_search_tools_exact_skill_command() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
-    let kw_docs: Vec<(String, String, String, Vec<String>, Vec<String>)> = vec![
+    let kw_docs: Vec<KeywordDoc> = vec![
         (
             "skill.discover".to_string(),
             "Capability Discovery".to_string(),
@@ -869,13 +868,12 @@ async fn test_search_tools_exact_skill_command() {
             vec![],
         ),
     ];
-    store.bulk_index_keywords(kw_docs).unwrap();
+    store.bulk_index_keywords(kw_docs)?;
 
     // Search with exact skill.command - should return that tool first
     let results = store
-        .search_tools("tools", &vec![0.5; 10], Some("skill.discover"), 10, 0.0)
-        .await
-        .unwrap();
+        .search_tools("tools", &[0.5; 10], Some("skill.discover"), 10, 0.0)
+        .await?;
 
     assert!(!results.is_empty());
     // The first result should be skill.discover
@@ -885,24 +883,28 @@ async fn test_search_tools_exact_skill_command() {
         "Searching 'skill.discover' should return it first. Got: {:?}",
         results.iter().map(|r| &r.name).collect::<Vec<_>>()
     );
+    Ok(())
 }
 
 /// Test that vector-only search (no keyword) works correctly
 #[tokio::test]
-async fn test_search_tools_vector_only() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_vector_only() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("vector_only_test");
     clean_test_db(&db_path);
 
     // Store WITHOUT keyword index
     let store = VectorStore::new(
-        temp_dir.path().join("vector_only_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("vector_only_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
     )
-    .await
-    .unwrap();
+    .await?;
 
-    let tools = vec![
+    let tools = [
         (
             "git.commit",
             "Commit changes to git",
@@ -924,30 +926,29 @@ async fn test_search_tools_vector_only() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     // Search without keyword (None)
     let results = store
         .search_tools(
             "tools",
-            &vec![0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            &[0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             None,
             10,
             0.0,
         )
-        .await
-        .unwrap();
+        .await?;
 
     assert!(!results.is_empty());
     // First result should be git.commit (highest vector similarity)
     assert_eq!(results[0].name, "git.commit");
+    Ok(())
 }
 
-/// File-discovery intent should promote smart_find even when keyword backend is unavailable.
+/// File-discovery intent should promote `smart_find` even when keyword backend is unavailable.
 #[tokio::test]
-async fn test_search_tools_file_discovery_intent_boost_without_keyword_backend() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_file_discovery_intent_boost_without_keyword_backend() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("file_discovery_intent_test");
     clean_test_db(&db_path);
 
@@ -956,14 +957,13 @@ async fn test_search_tools_file_discovery_intent_boost_without_keyword_backend()
         temp_dir
             .path()
             .join("file_discovery_intent_test")
-            .to_str()
-            .unwrap(),
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
     )
-    .await
-    .unwrap();
+    .await?;
 
-    let tools = vec![
+    let tools = [
         (
             "knowledge.search",
             "Search knowledge notes and documents",
@@ -985,8 +985,7 @@ async fn test_search_tools_file_discovery_intent_boost_without_keyword_backend()
 
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     let query = vec![0.95, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let results = store
@@ -997,8 +996,7 @@ async fn test_search_tools_file_discovery_intent_boost_without_keyword_backend()
             10,
             0.0,
         )
-        .await
-        .unwrap();
+        .await?;
 
     assert!(!results.is_empty());
     assert_eq!(
@@ -1007,12 +1005,13 @@ async fn test_search_tools_file_discovery_intent_boost_without_keyword_backend()
         "File discovery intent should prioritize smart_find. Got: {:?}",
         results.iter().map(|r| &r.name).collect::<Vec<_>>()
     );
+    Ok(())
 }
 
-/// Rerank stage should be optional via ToolSearchOptions.
+/// Rerank stage should be optional via `ToolSearchOptions`.
 #[tokio::test]
-async fn test_search_tools_with_options_can_disable_rerank_boost() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_with_options_can_disable_rerank_boost() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("file_discovery_rerank_toggle_test");
     clean_test_db(&db_path);
 
@@ -1020,14 +1019,13 @@ async fn test_search_tools_with_options_can_disable_rerank_boost() {
         temp_dir
             .path()
             .join("file_discovery_rerank_toggle_test")
-            .to_str()
-            .unwrap(),
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
     )
-    .await
-    .unwrap();
+    .await?;
 
-    let tools = vec![
+    let tools = [
         (
             "knowledge.search",
             "Search knowledge notes and documents",
@@ -1049,8 +1047,7 @@ async fn test_search_tools_with_options_can_disable_rerank_boost() {
 
     store
         .add_documents("tools", ids, vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     let query = vec![0.95, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let with_rerank = store
@@ -1061,48 +1058,50 @@ async fn test_search_tools_with_options_can_disable_rerank_boost() {
             10,
             0.0,
         )
-        .await
-        .unwrap();
+        .await?;
     let without_rerank = store
-        .search_tools_with_options(
-            "tools",
-            &query,
-            Some("Search for Python files in current directory"),
-            10,
-            0.0,
-            ToolSearchOptions {
+        .search_tools_with_options(ToolSearchRequest {
+            table_name: "tools",
+            query_vector: &query,
+            query_text: Some("Search for Python files in current directory"),
+            limit: 10,
+            threshold: 0.0,
+            options: ToolSearchOptions {
                 rerank: false,
                 semantic_weight: None,
                 keyword_weight: None,
             },
-            None,
-        )
-        .await
-        .unwrap();
+            where_filter: None,
+        })
+        .await?;
 
     assert_eq!(with_rerank[0].name, "advanced_tools.smart_find");
     assert_eq!(without_rerank[0].name, "knowledge.search");
+    Ok(())
 }
 
 /// Test keyword-only search (rescue mode)
 /// When vector search finds nothing, keyword should rescue
 #[tokio::test]
-async fn test_search_tools_keyword_only_rescue() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_keyword_only_rescue() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("kw_rescue_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new_with_keyword_index(
-        temp_dir.path().join("kw_rescue_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("kw_rescue_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
         true,
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
-    let tools = vec![(
+    let tools = [(
         "database.query",
         "Execute database query",
         r#"{"skill_name": "database", "tool_name": "query", "type": "command", "command": "database.query", "file_path": "db/scripts/query.py", "routing_keywords": ["database", "query", "sql"], "input_schema": {}}"#,
@@ -1116,8 +1115,7 @@ async fn test_search_tools_keyword_only_rescue() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     let kw_docs = vec![(
         "database.query".to_string(),
@@ -1126,43 +1124,46 @@ async fn test_search_tools_keyword_only_rescue() {
         vec!["database".to_string(), "query".to_string()],
         vec![],
     )];
-    store.bulk_index_keywords(kw_docs).unwrap();
+    store.bulk_index_keywords(kw_docs)?;
 
     // Query with completely different vector but matching keyword
     let results = store
         .search_tools(
             "tools",
-            &vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            &[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             Some("sql query"),
             10,
             0.0,
         )
-        .await
-        .unwrap();
+        .await?;
 
     // database.query should be found via keyword rescue
     assert!(results.iter().any(|r| r.name == "database.query"));
+    Ok(())
 }
 
-/// Test multiple skills with same tool_name (e.g., git.status vs filesystem.status)
+/// Test multiple skills with same `tool_name` (e.g., git.status vs filesystem.status)
 /// This ensures the skill.prefix is properly included in the key
 #[tokio::test]
-async fn test_search_tools_same_tool_name_different_skills() {
-    let temp_dir = tempfile::tempdir().unwrap();
+async fn test_search_tools_same_tool_name_different_skills() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("same_name_test");
     clean_test_db(&db_path);
 
     let store = VectorStore::new_with_keyword_index(
-        temp_dir.path().join("same_name_test").to_str().unwrap(),
+        temp_dir
+            .path()
+            .join("same_name_test")
+            .to_string_lossy()
+            .as_ref(),
         Some(10),
         true,
         None,
         None,
     )
-    .await
-    .unwrap();
+    .await?;
 
-    let tools = vec![
+    let tools = [
         (
             "git.status",
             "Show git repository status",
@@ -1184,8 +1185,7 @@ async fn test_search_tools_same_tool_name_different_skills() {
 
     store
         .add_documents("tools", ids.clone(), vectors, contents, metadatas)
-        .await
-        .unwrap();
+        .await?;
 
     let kw_docs = vec![
         (
@@ -1203,22 +1203,22 @@ async fn test_search_tools_same_tool_name_different_skills() {
             vec![],
         ),
     ];
-    store.bulk_index_keywords(kw_docs).unwrap();
+    store.bulk_index_keywords(kw_docs)?;
 
     // Search for git.status specifically
     let results = store
         .search_tools(
             "tools",
-            &vec![0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            &[0.9, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             Some("git.status"),
             10,
             0.0,
         )
-        .await
-        .unwrap();
+        .await?;
 
     // git.status should be first
     assert_eq!(results[0].name, "git.status");
     // filesystem.status should also be present
     assert!(results.iter().any(|r| r.name == "filesystem.status"));
+    Ok(())
 }

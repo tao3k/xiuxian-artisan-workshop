@@ -1,4 +1,5 @@
 ---
+type: knowledge
 title: "Keyword and Retrieval Engine Usage Guide: Scenario Boundaries and Decision Indicators"
 category: "testing"
 tags:
@@ -6,6 +7,8 @@ tags:
   - keyword
 saliency_base: 6.5
 decay_rate: 0.04
+metadata:
+  title: "Keyword and Retrieval Engine Usage Guide: Scenario Boundaries and Decision Indicators"
 ---
 
 # Keyword and Retrieval Engine Usage Guide: Scenario Boundaries and Decision Indicators
