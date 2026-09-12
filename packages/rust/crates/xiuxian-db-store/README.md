@@ -246,3 +246,19 @@ from the append log and hydrate the same-process cache in one batch. Batch
 replay and audit flows use DuckDB's Arrow appender, and the append-log
 `RecordBatch` schema is generated and validated through the shared
 `ArrowSchemaContract` surface before ingestion.
+
+### Bounded Valkey Observations
+
+`ValkeyReadSession` is a read-only, request-scoped capability. Clones share
+actual command-submission, item, raw-byte, and deadline admission. Read retries
+consume the same command budget. Queue prefixes include an overflow sentinel;
+exhaustion returns `ReadBudgetExceeded`, never successful truncation. Raw-byte
+accounting excludes transport decoding and allocator/JSON object overhead.
+Call `finish` after assembly to validate the complete request and obtain usage.
+
+Mutations are submitted once. `OutcomeUnknown` requires effect inspection before
+retry. It must not be flattened into a generic retryable storage error.
+
+The explicit ignored `valkey_observation_release_probe` requires `VALKEY_URL`.
+It compares serial reads with a bounded-concurrency experiment, not a promoted
+production optimization. Missing infrastructure is an error in that probe.

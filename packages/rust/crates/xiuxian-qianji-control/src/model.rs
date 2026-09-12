@@ -882,6 +882,10 @@ pub struct WorkerHeartbeat {
 /// Read-only observation of hot scheduling state, not a scheduling transaction.
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HotStateSnapshot {
+    /// Collection interval, witnessed missing records, and admission receipt.
+    /// None means unavailable (including legacy snapshots), not complete.
+    #[serde(default)]
+    pub observation: Option<crate::HotStateObservation>,
     /// Whether all components were read under one store consistency boundary.
     /// Absent legacy metadata conservatively means non-atomic.
     #[serde(default)]
@@ -914,6 +918,7 @@ impl HotStateSnapshot {
     pub const fn new(observed_at_ms: u64) -> Self {
         Self {
             observed_at_ms,
+            observation: None,
             atomic: false,
             collection_elapsed_ms: None,
             pending_steps: Vec::new(),

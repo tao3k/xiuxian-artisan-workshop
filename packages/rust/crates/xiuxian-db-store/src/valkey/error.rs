@@ -46,6 +46,12 @@ impl std::fmt::Display for ValkeyLeaseOwnership {
 /// Valkey command errors.
 #[derive(Debug, thiserror::Error)]
 pub enum ValkeyStoreError {
+    /// A shared observation exceeded admission; partial results are discarded.
+    #[error("Valkey observation exhausted {resource} budget")]
+    ReadBudgetExceeded {
+        /// Exhausted shared resource.
+        resource: &'static str,
+    },
     /// A submitted mutation failed without a trustworthy execution receipt.
     /// It was not replayed; the caller must reconcile its effect before retrying.
     #[error("{operation} outcome unknown; mutation was not replayed: {message}")]

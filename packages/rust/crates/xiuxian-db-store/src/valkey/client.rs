@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use super::read::ReadBudget;
 use redis::FromRedisValue;
 use tokio::sync::{Mutex, RwLock};
 
@@ -44,7 +45,7 @@ impl ValkeyClient {
         T: FromRedisValue + Send,
         F: Fn() -> redis::Cmd,
     {
-        self.execute(operation, build, false).await
+        self.execute(operation, build, false, None).await
     }
 
     pub(crate) async fn run_read_command<T, F>(
@@ -56,7 +57,20 @@ impl ValkeyClient {
         T: FromRedisValue + Send,
         F: Fn() -> redis::Cmd,
     {
-        self.execute(operation, build, true).await
+        self.execute(operation, build, true, None).await
+    }
+
+    pub(crate) async fn run_budgeted_read<T, F>(
+        &self,
+        operation: &'static str,
+        build: F,
+        budget: &ReadBudget,
+    ) -> Result<T, ValkeyStoreError>
+    where
+        T: FromRedisValue + Send,
+        F: Fn() -> redis::Cmd,
+    {
+        self.execute(operation, build, true, Some(budget)).await
     }
 
     async fn execute<T, F>(
@@ -64,6 +78,7 @@ impl ValkeyClient {
         operation: &'static str,
         build: F,
         replay_read: bool,
+        budget: Option<&ReadBudget>,
     ) -> Result<T, ValkeyStoreError>
     where
         T: FromRedisValue + Send,
@@ -74,6 +89,9 @@ impl ValkeyClient {
             let generation = self.acquire_connection().await?;
             let mut connection = (*generation).clone();
             let command = build();
+            if let Some(budget) = budget {
+                budget.admit(1, 0, 0)?;
+            }
             let result: redis::RedisResult<T> = command.query_async(&mut connection).await;
             match result {
                 Ok(value) => return Ok(value),

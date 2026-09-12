@@ -25,6 +25,7 @@ mod lease_journal;
 mod llm_inventory;
 mod memory;
 mod model;
+mod observation;
 mod observation_journal;
 mod operator_summary;
 mod policy;
@@ -53,8 +54,11 @@ mod workflow_trace_journal;
 
 #[cfg(feature = "duckdb")]
 pub use duckdb_ledger::DuckDbControlLedger;
+pub use observation::{HotStateMissingData, HotStateObservation, HotStateReadUsage};
 #[cfg(feature = "valkey")]
 pub use valkey_hot_state::{ValkeyHotStateConfig, ValkeyHotStateStore, ValkeyKeyNamespace};
+#[cfg(feature = "valkey")]
+pub use xiuxian_db_store::ValkeyReadPolicy;
 pub use {
     activity_journal::{
         ActivityCompletedJournalRecord, ActivityFailedJournalRecord, ActivityJournalScope,

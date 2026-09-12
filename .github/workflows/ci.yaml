@@ -318,6 +318,7 @@ jobs:
             pkg-config \
             protobuf-compiler \
             python3-dev \
+            heaptrack \
             valkey
 
       - name: Export Rust build environment
@@ -451,6 +452,29 @@ jobs:
 
       - name: Run xiuxian-core-rs tests
         run: bash scripts/rust/test_xiuxian_core_rs.sh --lib --no-fail-fast
+
+      - name: Verify bounded storage contracts explicitly
+        run: cargo test -p xiuxian-db-store -p xiuxian-qianji-control --features valkey
+
+      - name: Verify observation CLI evidence
+        run: |
+          set -euo pipefail
+          cargo test -p xiuxian-qianji --features qianji-full,wendao-integration,valkey --lib observation_receipt_and_legacy_uncertainty_are_visible -- --nocapture | tee observation-cli-test.log
+          grep -q 'test result: ok. 1 passed' observation-cli-test.log
+
+      - name: Measure release observation latency and allocations
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash scripts/rust/valkey_observation_evidence.sh
+
+      - name: Upload observation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: valkey-observation-${{ github.run_id }}
+          path: .run/reports/valkey-observation/
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Stop shell-managed services
         if: ${{ always() }}

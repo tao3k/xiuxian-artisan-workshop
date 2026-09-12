@@ -20,6 +20,12 @@ manual audit. Additional obligations model one mutation submission and preservat
 of a newer connection generation after stale failure. Wall-clock deadlines,
 transport allocation, and server latency are not formally proved.
 
+`ReadAdmission.lean` extends the model with request-wide command/item/byte
+transitions, absorbing exhaustion over traces, submission accounting, witnessed
+missing records, and an unknown-mutation state that cannot be resubmitted.
+The theorem-to-Rust-test mapping and unproved boundaries are recorded in
+`docs/30_research/2026-09-12-was-storage-refactoring-plan.org`.
+
 Run the proof from this directory with:
 
 ```sh

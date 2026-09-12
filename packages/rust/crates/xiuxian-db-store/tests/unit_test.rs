@@ -60,3 +60,7 @@ mod state;
 #[cfg(feature = "valkey")]
 #[path = "unit/valkey.rs"]
 mod valkey;
+
+#[cfg(feature = "valkey")]
+#[path = "unit/valkey_performance.rs"]
+mod valkey_performance;

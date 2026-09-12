@@ -8,6 +8,7 @@ mod client;
 mod config;
 mod error;
 pub mod queue;
+mod read;
 mod scan;
 
 pub use client::ValkeyClient;
@@ -19,4 +20,5 @@ pub use queue::{
     ValkeyStructuredQueueEntry, ValkeyStructuredQueueLease, ValkeyStructuredQueueLeaseRef,
     ValkeyWorkerId,
 };
+pub use read::{ValkeyReadPolicy, ValkeyReadSession, ValkeyReadUsage};
 pub use scan::ValkeyScanPolicy;

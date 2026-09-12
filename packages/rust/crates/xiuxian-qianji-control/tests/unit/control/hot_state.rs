@@ -11,6 +11,7 @@ async fn snapshot_consistency_is_explicit_and_legacy_is_conservative() -> Result
         serde_json::from_str("{\"observed_at_ms\":130}")?;
     assert!(!legacy.atomic);
     assert_eq!(legacy.collection_elapsed_ms, None);
+    assert_eq!(legacy.observation, None);
     Ok(())
 }
 

@@ -7,14 +7,14 @@
 
 This execution plan follows dependency modernization in PR 52. ASP continues
 to own Org task, SDD, and query contracts. Changes target shared Valkey storage
-and Qianji observation semantics, with vector probe optimization deferred until
-these contracts close.
+and Qianji observation semantics. Vector description reuse is already implemented;
+further vector optimization waits for the storage contracts below.
 
 At revision =82e9637ca=, Ubuntu Cargo build/check, lint, and workspace tests
 passed. Nix package Grid failed while downloading crates with HTTP 403. The
 PR remains open; neither full Grid acceptance nor merge is established.
 
-** Confirmed Audit Findings
+** Historical Baseline Audit (Before Admission Changes)
 
 - =xiuxian-db-store/src/valkey/client.rs::scan_keys= retains all matched keys
   until cursor zero, without a total request, key, byte, or deadline budget.
@@ -72,7 +72,7 @@ Concurrent reconnection fixtures test stale invalidation and shared recovery.
 
 * Architecture and Cost Model
 
-** Implementation Receipt
+** Historical First-Pass Receipt
 
 The first implementation supplies =ValkeyScanPolicy= with defaults of 1,024
 logical calls, 100,000 distinct keys, 8 MiB retained key bytes, and a five-second
@@ -139,17 +139,127 @@ flowchart TD
 $ c <= c_("max") $
 $ k_("retained") <= k_("max") $
 $ b_("retained") <= b_("max") $
-$ t_("elapsed") <= t_("deadline") $
-These are enforced client limits. Deadline enforcement depends on cancellation
-and scheduling. Retained bytes exclude response decoding and allocator overhead.
+These are admission limits, not process-memory or hard return-latency bounds.
+Deadlines depend on cooperative cancellation and scheduling. Retained bytes
+exclude response decoding and allocator overhead.
 COUNT is a server hint and does not establish any of these inequalities.
 Measured latency includes contention, network cost, retries, and serialization.
 #+end_src
 
+* Current Safety Closure
+
+The observation route now uses a read-only =ValkeyReadSession=. All cloned
+components share one admission state. Default request limits are 20,000 actual
+application command submissions (including I/O retries), 10,000 enumerated
+items, 8 MiB cumulative admitted raw bytes, and five seconds through final
+assembly. Protocol handshake traffic, wire buffers, JSON object overhead,
+allocator overhead, and server work are not counted as admitted raw bytes.
+
+Queue indexes request a bounded prefix with one overflow sentinel. Concurrent
+components cannot each obtain a fresh allowance: admissions serialize under a
+short shared mutex. Exhaustion poisons the session and returns a typed
+=ObservationBudgetExceeded= without partial success. Rank pagination is rejected
+because concurrent queue mutation can shift entries between pages.
+
+=HotStateSnapshot.observation= records a wall-clock collection interval,
+per-component missing-record counts, and request-wide usage. The caller's
+=observed_at_ms= remains an expiry reference. Wall-clock adjustments are possible;
+monotonic duration remains the latency observation. Missing legacy metadata means
+unknown, not complete. Zero witnessed missing records does not prove a non-atomic
+observation is exhaustive. Text and JSON expose this boundary.
+
+=ControlError::OutcomeUnknown= preserves uncertain mutation outcomes across the
+domain adapter. Consumers must inspect the affected operation/lease before any
+retry, not infer safety from a generic storage failure. Mutation errors remain
+conservatively unknown; classifying definite server rejections and automatic
+reconciliation are not implemented by this change.
+
+** Validation Boundary
+
+Protocol fixtures cover shared item overflow, payload-stage command/byte/time
+exhaustion, zero deadline, and vanished payloads/heartbeats. They use the real
+Redis client against a deterministic RESP peer, not production Valkey concurrency
+stress. Initial index reads stay concurrent; production payload reads stay serial
+until comparative evidence justifies a candidate.
+
+| Obligation | Rust evidence | Lean evidence |
+|------------+---------------+---------------|
+| Shared admission, absorbing failure | admission_is_shared_and_failure_is_terminal; aggregate_items_and_bytes_and_overflow_are_rejected | admission_preserves_bounds; exhausted_trace_never_succeeds |
+| Submission accounting | command_budget_includes_payload_phase; vanished_payload_and_heartbeat_are_explicit_not_complete_empty | each_accepted_submission_is_counted |
+| Payload deadline | deadline_includes_payload_phase_not_just_scan; deadline_covers_pending_io_and_stays_exhausted | expiry is an external input, not a scheduling proof |
+| Missing evidence retained | vanished_payload_and_heartbeat_are_explicit_not_complete_empty | witnessed_records_are_accounted; missing_is_not_erased |
+| Unknown mutation not replayed | applied_mutation_with_lost_response_is_not_replayed; unknown_mutation_remains_typed_at_control_boundary | unknown_cannot_be_resubmitted |
+
+The new =WasModernization/ReadAdmission.lean= models request-wide increments,
+absorbing failure, and examined-record accounting. Correspondence is manually
+audited; it is not mechanically verified Rust or a server-consistency proof.
+
+** Comparative Performance Protocol
+
+=valkey_observation_release_probe= is an explicit ignored live-server probe.
+Missing =VALKEY_URL= is an error. It compares serial payload reads with a
+bounded-32 task experiment, verifies output and actual submission counts, warms
+three runs, and records 30 samples at 100 and 1,000 keys. Empirical p99 with 30
+samples is the maximum sample, not a precise production percentile estimate.
+The candidate is not the production implementation.
+
+Measure release latency without instrumentation. Compare allocations in separate
+identical =WAS_PROBE_MODE=serial= and =WAS_PROBE_MODE=bounded32= processes;
+profiling totals include setup and runtime. Record server CPU/memory alongside
+client allocation/peak-memory evidence. Concurrent-writer and recovery stress
+remain separate acceptance items. No candidate is adopted solely from a lower
+latency number or algebraic cost model.
+
+Local uninstrumented release observation (macOS, Valkey 9.0.2, Unix socket;
+not Ubuntu acceptance and not a controlled-load baseline):
+
+| Keys | Mode | p50 us | p95 us | p99 us | Commands | Admitted bytes |
+|------+-------+--------+--------+--------+----------+----------------|
+| 100 | serial | 2437 | 2517 | 2547 | 100 | 25600 |
+| 100 | bounded32 | 495 | 525 | 532 | 100 | 25600 |
+| 1000 | serial | 25305 | 125236 | 309422 | 1000 | 256000 |
+| 1000 | bounded32 | 4822 | 103273 | 212262 | 1000 | 256000 |
+
+The noisy tails and absent local allocation profile are insufficient for
+production promotion. Ubuntu CI runs =scripts/rust/valkey_observation_evidence.sh=
+and uploads head/toolchain, uninstrumented latency, and per-mode heap profiles.
+Allocation instrumentation follows the upstream
+[[https://github.com/KDE/heaptrack][Heaptrack documentation]]; those instrumented
+latencies must not be mixed with the uninstrumented latency table.
+
+#+name: was-observation-contract
+#+begin_src mermaid
+flowchart TD
+  Request --> Session["Shared read-only admission and deadline"]
+  Session --> Index["Bounded index prefixes and cursor scan"]
+  Index --> Payload["Payload and lease reads"]
+  Payload --> Admission{"Admission succeeds?"}
+  Admission -->|no| Error["Typed exhaustion, no partial success"]
+  Admission -->|yes| Receipt["Non-atomic interval, missing data, usage"]
+  Write["Lost mutation response"] --> Unknown["OutcomeUnknown across domain boundary"]
+  Unknown --> Inspect["Inspect effects before retry"]
+#+end_src
+
+#+name: was-observation-cost
+#+begin_src typst
+#set page(width: 190mm, height: auto, margin: 14mm)
+#set text(size: 10pt)
+= Shared admission and measurement
+$ c = sum_i c_i <= c_("max") $
+$ b = sum_i b_i <= b_("max") $
+$ n_("examined") = n_("included") + n_("missing") $
+These are admitted work and witnessed records, not RSS or completeness.
+Timeouts are cooperative cancellation boundaries, not hard latency bounds.
+Compare latency without instrumentation and allocations separately.
+#+end_src
+
 * Completion Gate
 
-Each phase requires source changes, negative fixtures, corresponding Lean
-obligations, and measured performance evidence before the next phase starts.
+Functional closure requires source changes, negative fixtures, corresponding
+Lean obligations, and exact-head Ubuntu acceptance. Performance closure separately
+requires release baselines and resource measurements before candidate adoption.
 Keep Mermaid and Typst inside these Org Babel blocks. Run through the repository
 devenv profile, use the shared Cargo target, and retain Ubuntu CI as runtime
-acceptance. The Nix HTTP 403 failure remains a separate open delivery issue.
+acceptance. At =9f3efa78d= all Ubuntu Rust checks passed and Nix was still running.
+That receipt does not validate later commits. Nix is not a blocker for the
+authorized Rust development lane.

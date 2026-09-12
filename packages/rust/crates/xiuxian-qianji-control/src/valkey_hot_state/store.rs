@@ -7,6 +7,9 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
+#[path = "observation.rs"]
+mod observation;
+
 use crate::{
     ActivityId, ActivityTaskLease, ControlError, ControlResult, HotStateLeasedActivityTask,
     HotStateLeasedStep, HotStateSnapshot, HotStateStore, LeaseId, RunId, RunnableActivityTask,
@@ -64,6 +67,7 @@ pub struct ValkeyHotStateConfig {
     db_store_config: DbValkeyStoreConfig,
     step_queue_keys: ValkeyQueueKeys,
     activity_queue_keys: ValkeyQueueKeys,
+    read_policy: xiuxian_db_store::ValkeyReadPolicy,
 }
 
 impl ValkeyHotStateConfig {
@@ -88,7 +92,15 @@ impl ValkeyHotStateConfig {
             db_store_config,
             step_queue_keys,
             activity_queue_keys,
+            read_policy: xiuxian_db_store::ValkeyReadPolicy::default(),
         })
+    }
+
+    /// Sets the shared observation admission policy.
+    #[must_use]
+    pub fn with_read_policy(mut self, policy: xiuxian_db_store::ValkeyReadPolicy) -> Self {
+        self.read_policy = policy;
+        self
     }
 
     /// Sets a custom key namespace.
@@ -551,157 +563,7 @@ impl ValkeyHotStateStore {
         &self,
         observed_at_ms: u64,
     ) -> ControlResult<HotStateSnapshot> {
-        let collection_started = std::time::Instant::now();
-        let heartbeat_pattern = self.config.heartbeat_key_pattern();
-        let (
-            pending_entries,
-            lease_entries,
-            activity_pending_entries,
-            activity_lease_entries,
-            heartbeat_keys,
-        ) = tokio::try_join!(
-            self.step_queue.pending_entries(),
-            self.step_queue.lease_entries(),
-            self.activity_queue.pending_entries(),
-            self.activity_queue.lease_entries(),
-            self.client.scan_keys(&heartbeat_pattern),
-        )
-        .map_err(control_error)?;
-
-        let mut snapshot = HotStateSnapshot::new(observed_at_ms);
-        self.append_pending_steps(&mut snapshot, pending_entries)
-            .await?;
-        self.append_leased_steps(&mut snapshot, lease_entries)
-            .await?;
-        self.append_pending_activity_tasks(&mut snapshot, activity_pending_entries)
-            .await?;
-        self.append_leased_activity_tasks(&mut snapshot, activity_lease_entries)
-            .await?;
-        self.append_heartbeats(&mut snapshot, heartbeat_keys)
-            .await?;
-        sort_hot_state_snapshot(&mut snapshot);
-        snapshot.collection_elapsed_ms =
-            Some(u64::try_from(collection_started.elapsed().as_millis()).unwrap_or(u64::MAX));
-        Ok(snapshot)
-    }
-
-    async fn append_pending_steps(
-        &self,
-        snapshot: &mut HotStateSnapshot,
-        entries: Vec<ValkeyQueueEntryId>,
-    ) -> ControlResult<()> {
-        for entry_id in entries {
-            if let Some(step) = self.load_step_payload_by_entry(&entry_id).await? {
-                snapshot.pending_steps.push(step);
-            }
-        }
-        Ok(())
-    }
-
-    async fn append_leased_steps(
-        &self,
-        snapshot: &mut HotStateSnapshot,
-        entries: Vec<ValkeyQueueEntryId>,
-    ) -> ControlResult<()> {
-        for entry_id in entries {
-            let Some(step) = self.load_step_payload_by_entry(&entry_id).await? else {
-                continue;
-            };
-            let lease_hash = self
-                .step_queue
-                .load_lease_hash(&entry_id)
-                .await
-                .map_err(control_error)?;
-            if let Some(lease) = decode_lease_hash(&step, &lease_hash)? {
-                snapshot
-                    .leased_steps
-                    .push(HotStateLeasedStep { step, lease });
-            }
-        }
-        Ok(())
-    }
-
-    async fn append_pending_activity_tasks(
-        &self,
-        snapshot: &mut HotStateSnapshot,
-        entries: Vec<ValkeyQueueEntryId>,
-    ) -> ControlResult<()> {
-        for entry_id in entries {
-            if let Some(activity_task) = self.load_activity_payload_by_entry(&entry_id).await? {
-                snapshot.pending_activity_tasks.push(activity_task);
-            }
-        }
-        Ok(())
-    }
-
-    async fn append_leased_activity_tasks(
-        &self,
-        snapshot: &mut HotStateSnapshot,
-        entries: Vec<ValkeyQueueEntryId>,
-    ) -> ControlResult<()> {
-        for entry_id in entries {
-            let Some(activity_task) = self.load_activity_payload_by_entry(&entry_id).await? else {
-                continue;
-            };
-            let lease_hash = self
-                .activity_queue
-                .load_lease_hash(&entry_id)
-                .await
-                .map_err(control_error)?;
-            if let Some(lease) = decode_activity_lease_hash(&activity_task, &lease_hash)? {
-                snapshot
-                    .leased_activity_tasks
-                    .push(HotStateLeasedActivityTask {
-                        activity_task,
-                        lease,
-                    });
-            }
-        }
-        Ok(())
-    }
-
-    async fn append_heartbeats(
-        &self,
-        snapshot: &mut HotStateSnapshot,
-        keys: Vec<String>,
-    ) -> ControlResult<()> {
-        for heartbeat_key in keys {
-            if let Some(payload_json) = self
-                .client
-                .get_string(&heartbeat_key)
-                .await
-                .map_err(control_error)?
-            {
-                snapshot
-                    .worker_heartbeats
-                    .push(decode_heartbeat(&payload_json)?);
-            }
-        }
-        Ok(())
-    }
-
-    async fn load_step_payload_by_entry(
-        &self,
-        entry_id: &ValkeyQueueEntryId,
-    ) -> ControlResult<Option<RunnableStep>> {
-        self.step_queue
-            .load_payload(entry_id)
-            .await
-            .map_err(control_error)?
-            .map(|payload| decode_runnable_step(&payload))
-            .transpose()
-    }
-
-    async fn load_activity_payload_by_entry(
-        &self,
-        entry_id: &ValkeyQueueEntryId,
-    ) -> ControlResult<Option<RunnableActivityTask>> {
-        self.activity_queue
-            .load_payload(entry_id)
-            .await
-            .map_err(control_error)?
-            .map(|payload| decode_runnable_activity_task(&payload))
-            .transpose()
+        self.collect_observation(observed_at_ms).await
     }
 }
 
@@ -922,14 +784,13 @@ fn activity_task_order_tuple(entry: &RunnableActivityTask) -> (&str, &str, &str)
 
 fn control_error(error: ValkeyStoreError) -> ControlError {
     match error {
-        ValkeyStoreError::OutcomeUnknown { operation, message } => ControlError::Storage {
-            operation,
-            message: format!("outcome unknown; mutation was not replayed: {message}"),
-        },
-        ValkeyStoreError::ScanBudgetExceeded { resource } => ControlError::Storage {
-            operation: "valkey_scan_budget",
-            message: format!("incomplete enumeration: {resource} budget exhausted"),
-        },
+        ValkeyStoreError::OutcomeUnknown { operation, message } => {
+            ControlError::OutcomeUnknown { operation, message }
+        }
+        ValkeyStoreError::ScanBudgetExceeded { resource }
+        | ValkeyStoreError::ReadBudgetExceeded { resource } => {
+            ControlError::ObservationBudgetExceeded { resource }
+        }
         ValkeyStoreError::BlankId { field } => ControlError::BlankId { field },
         ValkeyStoreError::NonPositiveTtl { field } => ControlError::Storage {
             operation: "validate_valkey_ttl",
@@ -959,3 +820,7 @@ fn control_error(error: ValkeyStoreError) -> ControlError {
         },
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/valkey_errors.rs"]
+mod error_tests;
