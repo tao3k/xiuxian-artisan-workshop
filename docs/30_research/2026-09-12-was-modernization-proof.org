@@ -18,7 +18,8 @@ only as Org Babel blocks here; no parallel =.mmd= or =.typ= source is allowed.
 
 ** Audit Boundary
 
-The current proof binds these Rust implementation surfaces:
+The current model refers to these Rust implementation surfaces; the correspondence
+is reviewed manually, not established by a verified Rust translation:
 
 - =xiuxian-vector/src/store.rs=: metadata predicates borrow values from the
   parsed JSON tree instead of cloning each matched value.
@@ -33,6 +34,12 @@ The proof does not claim end-to-end production speedup. It proves local cost
 dominance under explicit assumptions; benchmarks and Ubuntu CI remain the
 runtime acceptance surfaces.
 
+The initial page-bound claim was invalid: =SCAN COUNT= is a work hint, not a
+hard reply-size bound. The collector currently retains all matched keys and
+has no total-call, retained-byte, or deadline budget. Its scan is incremental,
+but the full operation is not bounded by =COUNT=. See the
+[[https://redis.io/docs/latest/commands/scan/][SCAN protocol contract]].
+
 ** Architecture Model
 
 #+name: was-modernization-architecture
@@ -45,12 +52,12 @@ flowchart LR
   Fanout --> Activity["Activity queue reads"]
   Fanout --> Scan["Valkey SCAN pages"]
   Scan --> Dedup["Deduplicate keys"]
-  Queue --> Join["Bounded join"]
+  Queue --> Join["Concurrent join"]
   Activity --> Join
   Dedup --> Join
   Join --> Borrow["Borrow metadata values"]
   Borrow --> Verify["Contract and lifecycle verification"]
-  Verify --> Output["Deterministic output"]
+  Verify --> Output["Observation output"]
 #+end_src
 
 ** Performance Cost Model
@@ -64,7 +71,8 @@ flowchart LR
 
 Let $q$ be candidate count, $m$ metadata predicates, $b$ mean serialized value
 bytes, $r$ independent storage reads, $l$ mean read latency, $n$ keyspace size,
-and $p$ the cursor page size.
+and $p$ the cursor count hint. Latency formulas omit contention and scheduling
+overhead; they are an idealized model, not a measured speedup.
 
 $ C_("clone") = q dot m dot b $
 
@@ -76,13 +84,16 @@ $ L_("parallel") = max(l_1, dots, l_r) <= sum_(i=1)^r l_i $
 
 $ W_("KEYS") = n $
 
-$ W_("SCAN-step") = min(p, n) <= p $
+$ "COUNT hint" = p $
+
+$ "retained" + "incoming" <= "budget" $
 
 $ O_("Org") = "ASP" != "Wendao" $
 
 The optimized architecture removes metadata clone bytes, reduces independent
-read critical-path rounds from five to one, and bounds each Valkey enumeration
-step by the configured page size. Cursor results must be deduplicated because
+read fan-out rounds from five to one in the idealized model. COUNT does not bound
+reply size. The retention inequality is a proposed client admission rule, not
+implemented runtime behavior. Cursor results must be deduplicated because
 incremental scans may repeat keys while the keyspace changes. Org query and
 agent-memory ownership remains in ASP, preventing a second read-model cost and
 authority surface in Wendao.
@@ -93,14 +104,18 @@ authority surface in Wendao.
 The executable package proves:
 
 1. the legacy model violates the hot-path policy;
-2. the modern model satisfies zero-copy, single-round, non-blocking, and
+2. the modern model satisfies zero-copy, single-round, incremental, and
    duplicate-safe invariants;
 3. borrowed metadata contributes zero clone bytes;
 4. positive clone dimensions have positive allocation cost;
 5. one concurrent read round never exceeds five serial equal-latency rounds;
-6. each scan step is page-bounded while blocking key enumeration has no fixed
-   work bound;
+6. a count hint permits an oversized reply, an empty page need not terminate,
+   and proposed client admission respects its retained-key budget;
 7. ASP, rather than Wendao, owns the Org authority boundary.
+
+The architecture predicates encode design choices. They do not establish
+snapshot atomicity, safe write retries, or server latency bounds. Those are
+tracked in [[file:2026-09-12-was-storage-refactoring-plan.org][the next storage refactoring plan]].
 
 #+begin_src sh :dir ../../packages/proofs/was-modernization-proof :results verbatim
 lake build

@@ -1,0 +1,111 @@
+#+TITLE: WAS Storage Refactoring: Budgets, Observations, and Retry Semantics
+#+AUTHOR: CyberXiuXian Artisan Workshop
+#+DATE: 2026-09-12
+#+FILETAGS: :was:rust:lean:architecture:performance:
+
+* Scope and Current Evidence
+
+This execution plan follows dependency modernization in PR 52. ASP continues
+to own Org task, SDD, and query contracts. Changes target shared Valkey storage
+and Qianji observation semantics, with vector probe optimization deferred until
+these contracts close.
+
+At revision =82e9637ca=, Ubuntu Cargo build/check, lint, and workspace tests
+passed. Nix package Grid failed while downloading crates with HTTP 403. The
+PR remains open; neither full Grid acceptance nor merge is established.
+
+** Confirmed Audit Findings
+
+- =xiuxian-db-store/src/valkey/client.rs::scan_keys= retains all matched keys
+  until cursor zero, without a total request, key, byte, or deadline budget.
+  =COUNT 256= is only a hint. The preceding Lean page-bound theorem modeled a
+  stronger protocol than the server provides and has been removed.
+- =ValkeyClient::run_command= retries every command after any Redis error.
+  A lost response does not establish that a write was not applied. Replay
+  safety must be explicit per operation before changing this shared behavior.
+- =xiuxian-qianji-control::ValkeyHotStateStore= reads several mutable sources
+  concurrently. Concurrency alone supplies no atomic snapshot guarantee.
+  Consumer requirements must determine whether an observation interval or a
+  coherent generation is required.
+
+* Phase A: Explicit Scan Admission
+
+Owner: =xiuxian-db-store=, with Qianji adapting the single current scan caller.
+
+Introduce a scan policy with positive call and retained-data budgets and an
+overall deadline. Preserve deduplication and cursor-zero completion. A page
+larger than COUNT and an empty nonterminal page are valid protocol responses.
+Represent budget exhaustion explicitly; partial evidence must never appear as
+a complete empty result. A retained-data budget does not bound transport decode
+allocation or server work: document and measure these separately.
+
+Acceptance: adversarial reply fixtures exercise oversized and empty pages,
+duplicates, nonterminating cursors, deadline expiry, and partial-result handling.
+Lean models the same transition rules and each theorem maps to a Rust test.
+Measure call count, retained bytes, allocations, and latency across keyspace sizes.
+
+* Phase B: Observation Consistency
+
+Owner: =xiuxian-qianji-control=.
+
+Trace consumers before selecting consistency requirements. For telemetry, expose
+the observation interval and incomplete components. If scheduling decisions
+require a coherent generation, use a generation validation or atomic server
+operation rather than treating a concurrent join as a transaction.
+
+Acceptance: interleaved enqueue, lease transfer, expiry, and heartbeat removal
+must not yield a falsely coherent observation. Benchmark any atomic operation's
+server occupancy, payload size, and p95/p99 latency under concurrent writers.
+
+* Phase C: Retry and Connection Ownership
+
+Owner: =xiuxian-db-store=.
+
+Classify read replay, idempotent write replay, and writes with ambiguous outcomes.
+Inspect each command caller before replacing the generic retry loop. Reconnection
+must not silently repeat a mutation or let an old failed connection invalidate a
+newly installed connection. Keep transport failure distinct from execution outcome.
+
+Acceptance: fault injection drops responses after server-side application;
+non-idempotent effects occur at most once or return an explicit unknown outcome.
+Concurrent reconnection fixtures test stale invalidation and shared recovery.
+
+* Architecture and Cost Model
+
+#+name: was-storage-admission-flow
+#+begin_src mermaid
+flowchart TD
+  Request["Observation request"] --> Policy["Call, retention, deadline policy"]
+  Policy --> Scan["Cursor scan"]
+  Scan --> Admit{"Reply admission"}
+  Admit -->|"within budget"| Dedup["Deduplicate and retain"]
+  Admit -->|"exhausted"| Partial["Explicit incomplete outcome"]
+  Dedup --> Cursor{"Cursor zero?"}
+  Cursor -->|"no"| Policy
+  Cursor -->|"yes"| Complete["Complete enumeration"]
+  Complete --> Observe["Apply observation consistency contract"]
+  Partial --> Observe
+#+end_src
+
+#+name: was-storage-budget-model
+#+begin_src typst
+#set page(width: 190mm, height: auto, margin: 14mm)
+#set text(size: 10pt)
+= Client admission model
+$ c <= c_(max) $
+$ k_(retained) <= k_(max) $
+$ b_(retained) <= b_(max) $
+$ t_(elapsed) <= t_(deadline) $
+These are proposed client limits. Deadline enforcement depends on cancellation
+and scheduling. Retained bytes exclude response decoding and allocator overhead.
+COUNT is a server hint and does not establish any of these inequalities.
+Measured latency includes contention, network cost, retries, and serialization.
+#+end_src
+
+* Completion Gate
+
+Each phase requires source changes, negative fixtures, corresponding Lean
+obligations, and measured performance evidence before the next phase starts.
+Keep Mermaid and Typst inside these Org Babel blocks. Run through the repository
+devenv profile, use the shared Cargo target, and retain Ubuntu CI as runtime
+acceptance. The Nix HTTP 403 failure remains a separate open delivery issue.

@@ -34,20 +34,20 @@ def modernArchitecture : SnapshotArchitecture where
   scanResultsDeduplicated := true
   orgAuthority := .asp
 
-def isNonBlockingAndDuplicateSafe (architecture : SnapshotArchitecture) : Prop :=
+def isIncrementalAndDuplicateSafe (architecture : SnapshotArchitecture) : Prop :=
   architecture.keyEnumeration = .cursorScan ∧ architecture.scanResultsDeduplicated = true
 
 def satisfiesHotPathPolicy (architecture : SnapshotArchitecture) : Prop :=
   architecture.metadataCopies = 0 ∧
     architecture.independentReadRounds = 1 ∧
-    isNonBlockingAndDuplicateSafe architecture ∧
+    isIncrementalAndDuplicateSafe architecture ∧
     architecture.orgAuthority = .asp
 
 theorem legacyArchitectureViolatesPolicy : ¬satisfiesHotPathPolicy legacyArchitecture := by
   simp [satisfiesHotPathPolicy, legacyArchitecture]
 
 theorem modernArchitectureSatisfiesPolicy : satisfiesHotPathPolicy modernArchitecture := by
-  simp [satisfiesHotPathPolicy, isNonBlockingAndDuplicateSafe, modernArchitecture]
+  simp [satisfiesHotPathPolicy, isIncrementalAndDuplicateSafe, modernArchitecture]
 
 theorem wendaoCannotOwnModernOrgAuthority
     (architecture : SnapshotArchitecture)
@@ -90,11 +90,29 @@ theorem fiveIndependentReadsStrictlyImproveLatency
   simp [parallelReadLatency, serialReadLatency]
   omega
 
-def scanStepWork (pageSize keyCount : Nat) : Nat := min pageSize keyCount
+-- COUNT does not constrain the size of an observed protocol reply.
+structure ScanReply where
+  countHint : Nat
+  returnedKeys : Nat
+  nextCursor : Nat
+  deriving Repr
 
-theorem scanStepWorkIsPageBounded (pageSize keyCount : Nat) :
-    scanStepWork pageSize keyCount ≤ pageSize := by
-  exact Nat.min_le_left _ _
+theorem countHintIsNotAReplyBound (hint : Nat) :
+    ∃ reply : ScanReply, reply.countHint = hint ∧ hint < reply.returnedKeys := by
+  exact ⟨⟨hint, hint + 1, 0⟩, rfl, Nat.lt_succ_self hint⟩
+
+-- This is a proposed client admission rule, not the current Rust implementation.
+def admitsRetainedKeys (retained incoming budget : Nat) : Prop :=
+  retained + incoming ≤ budget
+
+theorem admittedKeysRespectBudget (retained incoming budget : Nat)
+    (admitted : admitsRetainedKeys retained incoming budget) :
+    retained + incoming ≤ budget := by
+  exact admitted
+
+theorem emptyPageDoesNotImplyCompletion :
+    ∃ reply : ScanReply, reply.returnedKeys = 0 ∧ reply.nextCursor ≠ 0 := by
+  exact ⟨⟨256, 0, 1⟩, rfl, by decide⟩
 
 theorem blockingKeysHasNoFixedWorkBound :
     ∀ budget : Nat, ∃ keyCount : Nat, budget < keyCount := by
