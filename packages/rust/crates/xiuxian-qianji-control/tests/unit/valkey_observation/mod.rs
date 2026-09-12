@@ -16,6 +16,41 @@ fn store(url: &str, policy: ValkeyReadPolicy) -> Result<ValkeyHotStateStore, Box
 }
 
 #[tokio::test]
+async fn payload_pipeline_preserves_order_and_charges_logical_commands()
+-> Result<(), Box<dyn Error>> {
+    let backend = server(|command| match command[0].as_str() {
+        "ZRANGE" if command[1] == "test:pending" => Some(array(&["run|second", "run|first"])),
+        "ZRANGE" => Some(array(&[])),
+        "SCAN" => Some(format!("*2\r\n{}{}", bulk("0"), array(&[]))),
+        "HGET" => {
+            let step_id = if command[1].ends_with("run|second") {
+                "second"
+            } else {
+                "first"
+            };
+            Some(bulk(&format!(
+                r#"{{"run_id":"run","step_id":"{step_id}","priority":0,"not_before_ms":0,"metadata":null}}"#
+            )))
+        }
+        _ => None,
+    })
+    .await?;
+    let snapshot = store(&backend.url, ValkeyReadPolicy::default())?
+        .load_snapshot(42)
+        .await?;
+    let step_ids: Vec<_> = snapshot
+        .pending_steps
+        .iter()
+        .map(|step| step.step_id.as_str())
+        .collect();
+    assert_eq!(step_ids, ["first", "second"]);
+    let observation = snapshot.observation.ok_or("missing observation receipt")?;
+    assert_eq!(observation.usage.commands, 7);
+    assert_eq!(backend.commands.load(Ordering::SeqCst), 7);
+    Ok(())
+}
+
+#[tokio::test]
 async fn vanished_payload_and_heartbeat_are_explicit_not_complete_empty()
 -> Result<(), Box<dyn Error>> {
     let backend = server(|command| match command[0].as_str() {

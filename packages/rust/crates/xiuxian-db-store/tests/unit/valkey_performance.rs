@@ -30,7 +30,7 @@ async fn valkey_observation_release_probe() -> Result<(), Box<dyn Error>> {
     )?;
     let client = ValkeyClient::new(ValkeyStoreConfig::new(url)?);
     println!(
-        "profile={} os={} samples=30 payload_bytes=256 modes=serial,bounded32",
+        "profile={} os={} samples=30 payload_bytes=256 modes=serial,pipeline32",
         if cfg!(debug_assertions) {
             "debug-NOT-PERFORMANCE-ACCEPTANCE"
         } else {
@@ -58,12 +58,12 @@ async fn valkey_observation_release_probe() -> Result<(), Box<dyn Error>> {
             let _: () = seed.query_async(&mut connection).await?;
         }
         let mode = std::env::var("WAS_PROBE_MODE").unwrap_or_else(|_| "both".into());
-        if !matches!(mode.as_str(), "both" | "serial" | "bounded32") {
-            return Err("WAS_PROBE_MODE must be both, serial, or bounded32".into());
+        if !matches!(mode.as_str(), "both" | "serial" | "pipeline32") {
+            return Err("WAS_PROBE_MODE must be both, serial, or pipeline32".into());
         }
-        for bounded in [false, true] {
-            if mode == "both" || mode == if bounded { "bounded32" } else { "serial" } {
-                measure(&client, &mut connection, &keys, &entries, bounded).await?;
+        for pipelined in [false, true] {
+            if mode == "both" || mode == if pipelined { "pipeline32" } else { "serial" } {
+                measure(&client, &mut connection, &keys, &entries, pipelined).await?;
             }
         }
         let owned_keys: Vec<_> = entries
@@ -83,7 +83,7 @@ async fn measure(
     connection: &mut redis::aio::MultiplexedConnection,
     keys: &ValkeyQueueKeys,
     entries: &[ValkeyQueueEntryId],
-    bounded: bool,
+    pipelined: bool,
 ) -> Result<(), Box<dyn Error>> {
     let count = entries.len();
     let mut micros = Vec::new();
@@ -102,8 +102,8 @@ async fn measure(
             },
         );
         let started = Instant::now();
-        let values = if bounded {
-            bounded_payloads(&reader, keys, entries).await?
+        let values = if pipelined {
+            pipelined_payloads(&reader, keys, entries).await?
         } else {
             let mut values = Vec::with_capacity(count);
             for entry in entries {
@@ -135,7 +135,7 @@ async fn measure(
     micros.sort_unstable();
     println!(
         "keys={count} mode={} p50_us={} p95_us={} p99_us={} commands={submissions} admitted_bytes={admitted_bytes} server_cpu_before={} server_cpu_after={} server_used_memory={}",
-        if bounded { "bounded32" } else { "serial" },
+        if pipelined { "pipeline32" } else { "serial" },
         micros[14],
         micros[28],
         micros[29],
@@ -146,31 +146,14 @@ async fn measure(
     Ok(())
 }
 
-async fn bounded_payloads(
+async fn pipelined_payloads(
     reader: &ValkeyReadSession,
     keys: &ValkeyQueueKeys,
     entries: &[ValkeyQueueEntryId],
 ) -> Result<Vec<Option<String>>, Box<dyn Error>> {
     let mut values = Vec::with_capacity(entries.len());
     for chunk in entries.chunks(32) {
-        let mut tasks = tokio::task::JoinSet::new();
-        for (index, entry) in chunk.iter().enumerate() {
-            let reader = reader.clone();
-            let keys = keys.clone();
-            let entry = entry.clone();
-            tasks.spawn(async move {
-                reader
-                    .payload(&keys, &entry)
-                    .await
-                    .map(|value| (index, value))
-            });
-        }
-        let mut ordered = Vec::with_capacity(chunk.len());
-        while let Some(result) = tasks.join_next().await {
-            ordered.push(result??);
-        }
-        ordered.sort_unstable_by_key(|(index, _)| *index);
-        values.extend(ordered.into_iter().map(|(_, value)| value));
+        values.extend(reader.payload_batch(keys, chunk).await?);
     }
     Ok(values)
 }

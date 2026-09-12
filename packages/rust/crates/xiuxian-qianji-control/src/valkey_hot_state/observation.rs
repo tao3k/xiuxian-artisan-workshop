@@ -9,6 +9,8 @@ use super::{
 };
 use crate::{ControlError, ControlResult, HotStateObservation, HotStateReadUsage};
 
+const OBSERVATION_PIPELINE_SIZE: usize = 32;
+
 impl ValkeyHotStateStore {
     pub(super) async fn collect_observation(
         &self,
@@ -54,12 +56,15 @@ impl ValkeyHotStateStore {
                     true,
                 )
                 .await?;
-                for key in heartbeats {
-                    match reader.string(&key).await.map_err(control_error)? {
-                        Some(payload) => {
-                            snapshot.worker_heartbeats.push(decode_heartbeat(&payload)?);
+                for keys in heartbeats.chunks(OBSERVATION_PIPELINE_SIZE) {
+                    let payloads = reader.string_batch(keys).await.map_err(control_error)?;
+                    for payload in payloads {
+                        match payload {
+                            Some(payload) => {
+                                snapshot.worker_heartbeats.push(decode_heartbeat(&payload)?);
+                            }
+                            None => observation.missing.heartbeats += 1,
                         }
-                        None => observation.missing.heartbeats += 1,
                     }
                 }
                 sort_hot_state_snapshot(&mut snapshot);
@@ -92,34 +97,46 @@ impl ValkeyHotStateStore {
         entries: Vec<ValkeyQueueEntryId>,
         leased: bool,
     ) -> ControlResult<()> {
-        for entry in entries {
-            let Some(payload) = reader
-                .payload(self.step_queue.keys(), &entry)
+        for entries in entries.chunks(OBSERVATION_PIPELINE_SIZE) {
+            let payloads = reader
+                .payload_batch(self.step_queue.keys(), entries)
                 .await
-                .map_err(control_error)?
-            else {
+                .map_err(control_error)?;
+            let mut leased_steps = Vec::with_capacity(entries.len());
+            for (entry, payload) in entries.iter().zip(payloads) {
+                let Some(payload) = payload else {
+                    if leased {
+                        observation.missing.leased_step_payloads += 1;
+                    } else {
+                        observation.missing.pending_step_payloads += 1;
+                    }
+                    continue;
+                };
+                let step = decode_runnable_step(&payload)?;
                 if leased {
-                    observation.missing.leased_step_payloads += 1;
+                    leased_steps.push((entry.clone(), step));
                 } else {
-                    observation.missing.pending_step_payloads += 1;
+                    snapshot.pending_steps.push(step);
                 }
-                continue;
-            };
-            let step = decode_runnable_step(&payload)?;
+            }
             if leased {
-                let fields = reader
-                    .lease(self.step_queue.keys(), &entry)
+                let lease_entries: Vec<_> = leased_steps
+                    .iter()
+                    .map(|(entry, _)| entry.clone())
+                    .collect();
+                let lease_fields = reader
+                    .lease_batch(self.step_queue.keys(), &lease_entries)
                     .await
                     .map_err(control_error)?;
-                if let Some(lease) = decode_lease_hash(&step, &fields)? {
-                    snapshot
-                        .leased_steps
-                        .push(HotStateLeasedStep { step, lease });
-                } else {
-                    observation.missing.step_leases += 1;
+                for ((_, step), fields) in leased_steps.into_iter().zip(lease_fields) {
+                    if let Some(lease) = decode_lease_hash(&step, &fields)? {
+                        snapshot
+                            .leased_steps
+                            .push(HotStateLeasedStep { step, lease });
+                    } else {
+                        observation.missing.step_leases += 1;
+                    }
                 }
-            } else {
-                snapshot.pending_steps.push(step);
             }
         }
         Ok(())
@@ -133,37 +150,49 @@ impl ValkeyHotStateStore {
         entries: Vec<ValkeyQueueEntryId>,
         leased: bool,
     ) -> ControlResult<()> {
-        for entry in entries {
-            let Some(payload) = reader
-                .payload(self.activity_queue.keys(), &entry)
+        for entries in entries.chunks(OBSERVATION_PIPELINE_SIZE) {
+            let payloads = reader
+                .payload_batch(self.activity_queue.keys(), entries)
                 .await
-                .map_err(control_error)?
-            else {
+                .map_err(control_error)?;
+            let mut leased_tasks = Vec::with_capacity(entries.len());
+            for (entry, payload) in entries.iter().zip(payloads) {
+                let Some(payload) = payload else {
+                    if leased {
+                        observation.missing.leased_activity_payloads += 1;
+                    } else {
+                        observation.missing.pending_activity_payloads += 1;
+                    }
+                    continue;
+                };
+                let activity_task = decode_runnable_activity_task(&payload)?;
                 if leased {
-                    observation.missing.leased_activity_payloads += 1;
+                    leased_tasks.push((entry.clone(), activity_task));
                 } else {
-                    observation.missing.pending_activity_payloads += 1;
+                    snapshot.pending_activity_tasks.push(activity_task);
                 }
-                continue;
-            };
-            let activity_task = decode_runnable_activity_task(&payload)?;
+            }
             if leased {
-                let fields = reader
-                    .lease(self.activity_queue.keys(), &entry)
+                let lease_entries: Vec<_> = leased_tasks
+                    .iter()
+                    .map(|(entry, _)| entry.clone())
+                    .collect();
+                let lease_fields = reader
+                    .lease_batch(self.activity_queue.keys(), &lease_entries)
                     .await
                     .map_err(control_error)?;
-                if let Some(lease) = decode_activity_lease_hash(&activity_task, &fields)? {
-                    snapshot
-                        .leased_activity_tasks
-                        .push(HotStateLeasedActivityTask {
-                            activity_task,
-                            lease,
-                        });
-                } else {
-                    observation.missing.activity_leases += 1;
+                for ((_, activity_task), fields) in leased_tasks.into_iter().zip(lease_fields) {
+                    if let Some(lease) = decode_activity_lease_hash(&activity_task, &fields)? {
+                        snapshot
+                            .leased_activity_tasks
+                            .push(HotStateLeasedActivityTask {
+                                activity_task,
+                                lease,
+                            });
+                    } else {
+                        observation.missing.activity_leases += 1;
+                    }
                 }
-            } else {
-                snapshot.pending_activity_tasks.push(activity_task);
             }
         }
         Ok(())

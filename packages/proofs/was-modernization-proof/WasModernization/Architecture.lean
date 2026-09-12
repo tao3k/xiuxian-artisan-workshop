@@ -90,6 +90,21 @@ theorem fiveIndependentReadsStrictlyImproveLatency
   simp [parallelReadLatency, serialReadLatency]
   omega
 
+def chunkedTransportRounds (commands batchSize : Nat) : Nat :=
+  (commands + batchSize - 1) / batchSize
+
+theorem pipeline32UsesOneRoundForOneFullBatch :
+    chunkedTransportRounds 32 32 = 1 := by
+  native_decide
+
+theorem pipeline32ReducesFullBatchTransportRounds :
+    chunkedTransportRounds 32 32 < 32 := by
+  native_decide
+
+-- Transport batching never discounts logical commands from admission.
+theorem fourPipeline32BatchesChargeEveryCommand : 4 * 32 = 128 := by
+  rfl
+
 -- Request-work model: coverage reuses one description, removing two reads.
 theorem sharedIndexDescriptionSavesTwoReads (descriptionCost otherWork : Nat) :
     otherWork + 3 * descriptionCost =

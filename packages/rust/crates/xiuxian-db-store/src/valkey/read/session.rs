@@ -43,6 +43,19 @@ impl ValkeyReadSession {
             .await
     }
 
+    async fn pipeline<T: FromRedisValue + Send>(
+        &self,
+        operation: &'static str,
+        pipeline: redis::Pipeline,
+    ) -> Result<T, ValkeyStoreError> {
+        self.budget
+            .within(
+                self.client
+                    .run_budgeted_read_pipeline(operation, pipeline, &self.budget),
+            )
+            .await
+    }
+
     /// Reads a bounded pending index, with one overflow sentinel.
     ///
     /// # Errors
@@ -128,6 +141,28 @@ impl ValkeyReadSession {
         self.string_query(command).await
     }
 
+    /// Reads an ordered payload batch in one transport round trip.
+    ///
+    /// Every Redis command, including a replay after an I/O failure, is charged
+    /// separately to the shared budget.
+    ///
+    /// # Errors
+    /// Returns budget exhaustion or backend failure without partial success.
+    pub async fn payload_batch(
+        &self,
+        keys: &ValkeyQueueKeys,
+        entries: &[ValkeyQueueEntryId],
+    ) -> Result<Vec<Option<String>>, ValkeyStoreError> {
+        let mut pipeline = redis::Pipeline::with_capacity(entries.len());
+        for entry in entries {
+            pipeline
+                .cmd("HGET")
+                .arg(keys.payload_key(entry))
+                .arg("payload");
+        }
+        self.string_pipeline(pipeline).await
+    }
+
     /// Reads one heartbeat payload.
     ///
     /// # Errors
@@ -138,11 +173,42 @@ impl ValkeyReadSession {
         self.string_query(command).await
     }
 
+    /// Reads an ordered string batch in one transport round trip.
+    ///
+    /// # Errors
+    /// Returns budget exhaustion or backend failure without partial success.
+    pub async fn string_batch(
+        &self,
+        keys: &[String],
+    ) -> Result<Vec<Option<String>>, ValkeyStoreError> {
+        let mut pipeline = redis::Pipeline::with_capacity(keys.len());
+        for key in keys {
+            pipeline.cmd("GET").arg(key);
+        }
+        self.string_pipeline(pipeline).await
+    }
+
     async fn string_query(&self, command: redis::Cmd) -> Result<Option<String>, ValkeyStoreError> {
         let value: Option<String> = self.query("observation_payload", command).await?;
         self.budget
             .admit(0, 0, value.as_ref().map_or(0, String::len))?;
         Ok(value)
+    }
+
+    async fn string_pipeline(
+        &self,
+        pipeline: redis::Pipeline,
+    ) -> Result<Vec<Option<String>>, ValkeyStoreError> {
+        if pipeline.is_empty() {
+            return Ok(Vec::new());
+        }
+        let values: Vec<Option<String>> =
+            self.pipeline("observation_payload_batch", pipeline).await?;
+        for value in &values {
+            self.budget
+                .admit(0, 0, value.as_ref().map_or(0, String::len))?;
+        }
+        Ok(values)
     }
 
     /// Reads lease fields under the same byte and command budget.
@@ -162,5 +228,32 @@ impl ValkeyReadSession {
             self.budget.admit(0, 0, value.len())?;
         }
         Ok(fields)
+    }
+
+    /// Reads ordered lease hashes in one transport round trip.
+    ///
+    /// # Errors
+    /// Returns budget exhaustion or backend failure without partial success.
+    pub async fn lease_batch(
+        &self,
+        keys: &ValkeyQueueKeys,
+        entries: &[ValkeyQueueEntryId],
+    ) -> Result<Vec<Vec<(String, String)>>, ValkeyStoreError> {
+        if entries.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut pipeline = redis::Pipeline::with_capacity(entries.len());
+        for entry in entries {
+            pipeline.cmd("HGETALL").arg(keys.lease_key(entry));
+        }
+        let leases: Vec<Vec<(String, String)>> =
+            self.pipeline("observation_lease_batch", pipeline).await?;
+        for fields in &leases {
+            for (key, value) in fields {
+                self.budget.admit(0, 0, key.len())?;
+                self.budget.admit(0, 0, value.len())?;
+            }
+        }
+        Ok(leases)
     }
 }

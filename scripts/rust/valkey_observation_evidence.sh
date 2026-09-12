@@ -25,7 +25,7 @@ WAS_PROBE_MODE=both "$executable" --exact "$test_name" --ignored --nocapture \
   --test-threads=1 | tee "$output/latency.log"
 grep -q 'test result: ok. 1 passed' "$output/latency.log"
 
-for mode in serial bounded32; do
+for mode in serial pipeline32; do
   WAS_PROBE_MODE="$mode" heaptrack --record-only --output "$output/$mode" \
     "$executable" --exact "$test_name" --ignored --nocapture --test-threads=1 \
     2>&1 | tee "$output/$mode-profile.log"
@@ -46,7 +46,7 @@ done
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
     printf '### Valkey Observation Evidence\n\n'
-    printf 'Candidate remains experimental; profiling latency is not benchmark latency.\n\n```text\n'
+    printf 'Production pipeline evidence; profiling latency is not benchmark latency.\n\n```text\n'
     grep -E '^(profile=|keys=)' "$output/latency.log"
     printf '```\n'
   } >> "$GITHUB_STEP_SUMMARY"

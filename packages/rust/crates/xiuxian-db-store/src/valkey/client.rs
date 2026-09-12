@@ -73,6 +73,45 @@ impl ValkeyClient {
         self.execute(operation, build, true, Some(budget)).await
     }
 
+    pub(crate) async fn run_budgeted_read_pipeline<T>(
+        &self,
+        operation: &'static str,
+        pipeline: redis::Pipeline,
+        budget: &ReadBudget,
+    ) -> Result<T, ValkeyStoreError>
+    where
+        T: FromRedisValue + Send,
+    {
+        let submissions = pipeline.len();
+        let mut last_error: Option<redis::RedisError> = None;
+        for _ in 0..2 {
+            let generation = self.acquire_connection().await?;
+            let mut connection = (*generation).clone();
+            budget.admit(submissions, 0, 0)?;
+            let result: redis::RedisResult<T> = pipeline.query_async(&mut connection).await;
+            match result {
+                Ok(value) => return Ok(value),
+                Err(error) if error.is_io_error() => {
+                    self.invalidate_connection(&generation).await;
+                    last_error = Some(error);
+                }
+                Err(error) => {
+                    return Err(ValkeyStoreError::Storage {
+                        operation,
+                        message: error.to_string(),
+                    });
+                }
+            }
+        }
+        Err(ValkeyStoreError::Storage {
+            operation,
+            message: last_error.map_or_else(
+                || "Valkey pipeline failed unexpectedly".to_owned(),
+                |error| error.to_string(),
+            ),
+        })
+    }
+
     async fn execute<T, F>(
         &self,
         operation: &'static str,

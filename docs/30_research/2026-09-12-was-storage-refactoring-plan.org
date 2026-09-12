@@ -179,8 +179,9 @@ reconciliation are not implemented by this change.
 Protocol fixtures cover shared item overflow, payload-stage command/byte/time
 exhaustion, zero deadline, and vanished payloads/heartbeats. They use the real
 Redis client against a deterministic RESP peer, not production Valkey concurrency
-stress. Initial index reads stay concurrent; production payload reads stay serial
-until comparative evidence justifies a candidate.
+stress. Initial index reads stay concurrent. Production payload, lease, and
+heartbeat reads now use ordered 32-command pipelines. Each logical command and
+every replay remains charged; only transport round trips are coalesced.
 
 | Obligation | Rust evidence | Lean evidence |
 |------------+---------------+---------------|
@@ -197,28 +198,34 @@ audited; it is not mechanically verified Rust or a server-consistency proof.
 ** Comparative Performance Protocol
 
 =valkey_observation_release_probe= is an explicit ignored live-server probe.
-Missing =VALKEY_URL= is an error. It compares serial payload reads with a
-bounded-32 task experiment, verifies output and actual submission counts, warms
+Missing =VALKEY_URL= is an error. It compares serial payload reads with the
+ordered 32-command production pipeline, verifies output and actual submission counts, warms
 three runs, and records 30 samples at 100 and 1,000 keys. Empirical p99 with 30
 samples is the maximum sample, not a precise production percentile estimate.
-The candidate is not the production implementation.
 
 Measure release latency without instrumentation. Compare allocations in separate
-identical =WAS_PROBE_MODE=serial= and =WAS_PROBE_MODE=bounded32= processes;
+identical =WAS_PROBE_MODE=serial= and =WAS_PROBE_MODE=pipeline32= processes;
 profiling totals include setup and runtime. Record server CPU/memory alongside
 client allocation/peak-memory evidence. Concurrent-writer and recovery stress
-remain separate acceptance items. No candidate is adopted solely from a lower
-latency number or algebraic cost model.
+remain separate acceptance items. Pipeline responses retain request order and
+are decoded one bounded chunk at a time. No implementation is accepted solely
+from a lower latency number or algebraic cost model.
 
-Local uninstrumented release observation (macOS, Valkey 9.0.2, Unix socket;
+The first Ubuntu experiment used one spawned Tokio task per command. Its 1,000-key
+p99 improved from 55,446 us to 6,468 us, but allocations rose from 716,478 to
+1,010,446 and peak heap rose from 470.04 KiB to 719.00 KiB. That =JoinSet=
+candidate was rejected rather than promoted. The production pipeline avoids
+per-command task creation and awaits Ubuntu allocation evidence at its exact head.
+
+Local uninstrumented release observation (macOS, Valkey 9.0.2, TCP loopback;
 not Ubuntu acceptance and not a controlled-load baseline):
 
 | Keys | Mode | p50 us | p95 us | p99 us | Commands | Admitted bytes |
 |------+-------+--------+--------+--------+----------+----------------|
-| 100 | serial | 2437 | 2517 | 2547 | 100 | 25600 |
-| 100 | bounded32 | 495 | 525 | 532 | 100 | 25600 |
-| 1000 | serial | 25305 | 125236 | 309422 | 1000 | 256000 |
-| 1000 | bounded32 | 4822 | 103273 | 212262 | 1000 | 256000 |
+| 100 | serial | 3748 | 5924 | 7049 | 100 | 25600 |
+| 100 | pipeline32 | 257 | 312 | 363 | 100 | 25600 |
+| 1000 | serial | 37000 | 73801 | 125407 | 1000 | 256000 |
+| 1000 | pipeline32 | 2595 | 3099 | 3130 | 1000 | 256000 |
 
 The noisy tails and absent local allocation profile are insufficient for
 production promotion. Ubuntu CI runs =scripts/rust/valkey_observation_evidence.sh=
@@ -232,7 +239,7 @@ latencies must not be mixed with the uninstrumented latency table.
 flowchart TD
   Request --> Session["Shared read-only admission and deadline"]
   Session --> Index["Bounded index prefixes and cursor scan"]
-  Index --> Payload["Payload and lease reads"]
+  Index --> Payload["Ordered payload, lease, and heartbeat pipelines (32)"]
   Payload --> Admission{"Admission succeeds?"}
   Admission -->|no| Error["Typed exhaustion, no partial success"]
   Admission -->|yes| Receipt["Non-atomic interval, missing data, usage"]
@@ -248,6 +255,7 @@ flowchart TD
 $ c = sum_i c_i <= c_("max") $
 $ b = sum_i b_i <= b_("max") $
 $ n_("examined") = n_("included") + n_("missing") $
+$ R_("transport") = ceil(c / 32), quad C_("admitted") = c $
 These are admitted work and witnessed records, not RSS or completeness.
 Timeouts are cooperative cancellation boundaries, not hard latency bounds.
 Compare latency without instrumentation and allocations separately.
