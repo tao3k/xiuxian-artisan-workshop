@@ -551,6 +551,7 @@ impl ValkeyHotStateStore {
         &self,
         observed_at_ms: u64,
     ) -> ControlResult<HotStateSnapshot> {
+        let collection_started = std::time::Instant::now();
         let heartbeat_pattern = self.config.heartbeat_key_pattern();
         let (
             pending_entries,
@@ -579,6 +580,8 @@ impl ValkeyHotStateStore {
         self.append_heartbeats(&mut snapshot, heartbeat_keys)
             .await?;
         sort_hot_state_snapshot(&mut snapshot);
+        snapshot.collection_elapsed_ms =
+            Some(u64::try_from(collection_started.elapsed().as_millis()).unwrap_or(u64::MAX));
         Ok(snapshot)
     }
 
@@ -919,6 +922,14 @@ fn activity_task_order_tuple(entry: &RunnableActivityTask) -> (&str, &str, &str)
 
 fn control_error(error: ValkeyStoreError) -> ControlError {
     match error {
+        ValkeyStoreError::OutcomeUnknown { operation, message } => ControlError::Storage {
+            operation,
+            message: format!("outcome unknown; mutation was not replayed: {message}"),
+        },
+        ValkeyStoreError::ScanBudgetExceeded { resource } => ControlError::Storage {
+            operation: "valkey_scan_budget",
+            message: format!("incomplete enumeration: {resource} budget exhausted"),
+        },
         ValkeyStoreError::BlankId { field } => ControlError::BlankId { field },
         ValkeyStoreError::NonPositiveTtl { field } => ControlError::Storage {
             operation: "validate_valkey_ttl",

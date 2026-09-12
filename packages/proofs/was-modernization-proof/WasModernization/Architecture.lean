@@ -119,4 +119,50 @@ theorem blockingKeysHasNoFixedWorkBound :
   intro budget
   exact ⟨budget + 1, Nat.lt_succ_self budget⟩
 
+structure ScanState where
+  keys : Nat
+  bytes : Nat
+  calls : Nat
+
+def withinBudget (state limits : ScanState) : Prop :=
+  state.keys ≤ limits.keys ∧ state.bytes ≤ limits.bytes ∧ state.calls ≤ limits.calls
+
+def admitKey (state limits : ScanState) (size : Nat) (duplicate : Bool) : Option ScanState :=
+  if duplicate then some state
+  else if state.keys + 1 ≤ limits.keys ∧ state.bytes + size ≤ limits.bytes then
+    some { state with keys := state.keys + 1, bytes := state.bytes + size }
+  else none
+
+theorem retainedAdmissionPreservesBudget (state limits next : ScanState) (size : Nat)
+    (duplicate : Bool) (valid : withinBudget state limits)
+    (accepted : admitKey state limits size duplicate = some next) :
+    withinBudget next limits := by
+  unfold admitKey at accepted
+  split at accepted
+  · cases accepted
+    exact valid
+  · split at accepted
+    · cases accepted
+      rename_i bounds
+      exact ⟨bounds.1, bounds.2, valid.2.2⟩
+    · contradiction
+
+inductive CommandKind where
+  | read
+  | mutation
+  deriving DecidableEq
+
+def maxSubmissions : CommandKind → Nat
+  | .read => 2
+  | .mutation => 1
+
+theorem mutationIsNeverAutomaticallyReplayed : maxSubmissions .mutation = 1 := rfl
+
+def invalidateGeneration (current failed : Nat) : Option Nat :=
+  if current = failed then none else some current
+
+theorem staleFailurePreservesGeneration (current failed : Nat) (different : current ≠ failed) :
+    invalidateGeneration current failed = some current := by
+  simp [invalidateGeneration, different]
+
 end WasModernization

@@ -14,8 +14,11 @@ The model records five implementation decisions:
 The model is not a mechanically verified translation of Rust. Its latency
 comparison assumes independent equal-latency reads without contention overhead.
 `SCAN COUNT` is a hint, not a reply-size or latency bound. Counterexamples cover
-oversized replies and empty nonterminal pages. The retained-key admission theorem
-describes a proposed client budget; the current Rust collector has no such budget.
+oversized replies and empty nonterminal pages. The admission transition models
+the Rust collector's retained-key and byte limits; correspondence remains a
+manual audit. Additional obligations model one mutation submission and preservation
+of a newer connection generation after stale failure. Wall-clock deadlines,
+transport allocation, and server latency are not formally proved.
 
 Run the proof from this directory with:
 

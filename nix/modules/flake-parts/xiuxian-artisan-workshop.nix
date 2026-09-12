@@ -56,6 +56,7 @@
         cp -f ${workspaceRoot}/Cargo.lock Cargo.lock
       '';
       commonProjectDrvConfig = {
+        deps.fetchurl = import ../../lib/crates-static-fetchurl.nix pkgs.fetchurl;
         mkDerivation = {
           nativeBuildInputs = [
             pkgs.pkg-config

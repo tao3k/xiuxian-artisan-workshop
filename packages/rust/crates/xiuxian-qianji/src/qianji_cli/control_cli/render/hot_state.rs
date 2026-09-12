@@ -10,6 +10,7 @@ pub(crate) fn render_hot_state_snapshot_text(snapshot: &HotStateSnapshot) -> Str
         concat!(
             "# Qianji Control Hot State\n\n",
             "- Observed at ms: `{}`\n",
+            "- Atomic observation: `{}`\n",
             "- Pending steps: `{}`\n",
             "- Leased steps: `{}`\n",
             "- Active leases: `{}`\n",
@@ -18,6 +19,7 @@ pub(crate) fn render_hot_state_snapshot_text(snapshot: &HotStateSnapshot) -> Str
             "- Live worker heartbeats: `{}`\n"
         ),
         snapshot.observed_at_ms,
+        snapshot.atomic,
         snapshot.pending_steps.len(),
         snapshot.leased_steps.len(),
         snapshot.active_lease_count(),

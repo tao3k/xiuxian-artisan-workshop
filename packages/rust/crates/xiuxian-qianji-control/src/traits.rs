@@ -306,6 +306,10 @@ pub trait HotStateStore: Send + Sync {
     async fn load_heartbeat(&self, worker_id: &WorkerId) -> ControlResult<Option<WorkerHeartbeat>>;
 
     /// Loads a read-only snapshot of hot queue, lease, and heartbeat state.
+    /// Check `atomic` before assuming component consistency. Valkey observations
+    /// span independent reads and must not authorize scheduling mutations.
+    /// Missing payloads may have expired during collection; scan budget exhaustion
+    /// fails the observation rather than returning a partial success.
     ///
     /// # Errors
     ///

@@ -879,9 +879,16 @@ pub struct WorkerHeartbeat {
     pub metadata: serde_json::Value,
 }
 
-/// Read-only snapshot of hot scheduling state.
+/// Read-only observation of hot scheduling state, not a scheduling transaction.
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HotStateSnapshot {
+    /// Whether all components were read under one store consistency boundary.
+    /// Absent legacy metadata conservatively means non-atomic.
+    #[serde(default)]
+    pub atomic: bool,
+    /// Monotonic elapsed collection time; unknown for legacy observations.
+    #[serde(default)]
+    pub collection_elapsed_ms: Option<u64>,
     /// Timestamp used by the caller to interpret expiry state.
     pub observed_at_ms: u64,
     /// Steps currently waiting in the runnable queue.
@@ -907,6 +914,8 @@ impl HotStateSnapshot {
     pub const fn new(observed_at_ms: u64) -> Self {
         Self {
             observed_at_ms,
+            atomic: false,
+            collection_elapsed_ms: None,
             pending_steps: Vec::new(),
             leased_steps: Vec::new(),
             pending_activity_tasks: Vec::new(),

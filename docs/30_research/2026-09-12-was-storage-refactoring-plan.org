@@ -72,6 +72,50 @@ Concurrent reconnection fixtures test stale invalidation and shared recovery.
 
 * Architecture and Cost Model
 
+** Implementation Receipt
+
+The first implementation supplies =ValkeyScanPolicy= with defaults of 1,024
+logical calls, 100,000 distinct keys, 8 MiB retained key bytes, and a five-second
+deadline. Read transport retries can double logical call submissions. Exhaustion
+returns an error without partial success. Decode buffers and allocator overhead
+are outside retained-byte accounting.
+
+=HotStateSnapshot.atomic= defaults to false, including legacy deserialization.
+The in-memory implementation sets it under its shared lock; Valkey leaves it
+false and reports monotonic collection duration. The supplied =observed_at_ms=
+remains the caller's expiry reference, not a server snapshot timestamp. Missing
+payloads during concurrent mutation remain possible. Only completed collections
+are returned; the observation is never a scheduling transaction.
+
+Mutation commands now have one submission. A failed response is conservatively
+reported as =OutcomeUnknown=, including decode errors. Callers must reconcile
+effects before retrying. Read-only commands retry once on I/O errors. Connection
+invalidation compares Arc instance identity under the lock; an old failed
+request cannot remove a newer connection.
+
+The same scan collector used by production has negative fixtures for oversized
+pages, empty nonterminal pages, duplicate retention, budget exhaustion, and
+deadlines. Duplex transport tests cover applied mutations with lost responses
+and stale connection invalidation. These are deterministic local fixtures;
+production server latency and interleaving stress measurements remain open.
+
+Synthetic debug-profile scan probe on the local macOS host:
+
+| Keys | Logical calls | Retained key bytes | Elapsed microseconds |
+|------+---------------+--------------------+----------------------|
+| 1000 |             4 |              12000 |                 1263 |
+| 10000 |           40 |             120000 |                 9528 |
+| 100000 |         391 |            1200000 |                87195 |
+
+This single probe includes generated reply data and client processing, not a
+Valkey server, network, allocator instrumentation, or a comparative speedup.
+Run =cargo test -p xiuxian-db-store --features valkey --lib scan_cost_probe --
+--ignored --nocapture= to reproduce. Broad strict Clippy passed after integration.
+
+The Nix fetch adapter now maps the crates.io API download URL to the official
+static crate URL while preserving the supplied hash and all other arguments.
+Pure evaluation checks pass; the Ubuntu package build remains the delivery gate.
+
 #+name: was-storage-admission-flow
 #+begin_src mermaid
 flowchart TD

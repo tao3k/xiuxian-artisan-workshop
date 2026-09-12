@@ -35,9 +35,9 @@ dominance under explicit assumptions; benchmarks and Ubuntu CI remain the
 runtime acceptance surfaces.
 
 The initial page-bound claim was invalid: =SCAN COUNT= is a work hint, not a
-hard reply-size bound. The collector currently retains all matched keys and
-has no total-call, retained-byte, or deadline budget. Its scan is incremental,
-but the full operation is not bounded by =COUNT=. See the
+hard reply-size bound. The collector now enforces separate logical-call,
+retained-key, retained-byte, and deadline budgets. The full operation is not
+bounded by =COUNT=. See the
 [[https://redis.io/docs/latest/commands/scan/][SCAN protocol contract]].
 
 ** Architecture Model
@@ -92,8 +92,8 @@ $ O_("Org") = "ASP" != "Wendao" $
 
 The optimized architecture removes metadata clone bytes, reduces independent
 read fan-out rounds from five to one in the idealized model. COUNT does not bound
-reply size. The retention inequality is a proposed client admission rule, not
-implemented runtime behavior. Cursor results must be deduplicated because
+reply size. The retention inequality models the client's explicit admission
+rule, excluding decode buffers and allocator overhead. Cursor results must be deduplicated because
 incremental scans may repeat keys while the keyspace changes. Org query and
 agent-memory ownership remains in ASP, preventing a second read-model cost and
 authority surface in Wendao.
@@ -110,7 +110,7 @@ The executable package proves:
 4. positive clone dimensions have positive allocation cost;
 5. one concurrent read round never exceeds five serial equal-latency rounds;
 6. a count hint permits an oversized reply, an empty page need not terminate,
-   and proposed client admission respects its retained-key budget;
+   and client admission preserves key, byte, and call budgets;
 7. ASP, rather than Wendao, owns the Org authority boundary.
 
 The architecture predicates encode design choices. They do not establish
