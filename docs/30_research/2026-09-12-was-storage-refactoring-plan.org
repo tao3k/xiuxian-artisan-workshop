@@ -140,7 +140,7 @@ $ c <= c_(max) $
 $ k_(retained) <= k_(max) $
 $ b_(retained) <= b_(max) $
 $ t_(elapsed) <= t_(deadline) $
-These are proposed client limits. Deadline enforcement depends on cancellation
+These are enforced client limits. Deadline enforcement depends on cancellation
 and scheduling. Retained bytes exclude response decoding and allocator overhead.
 COUNT is a server hint and does not establish any of these inequalities.
 Measured latency includes contention, network cost, retries, and serialization.

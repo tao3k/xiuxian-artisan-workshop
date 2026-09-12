@@ -101,7 +101,7 @@ theorem countHintIsNotAReplyBound (hint : Nat) :
     ∃ reply : ScanReply, reply.countHint = hint ∧ hint < reply.returnedKeys := by
   exact ⟨⟨hint, hint + 1, 0⟩, rfl, Nat.lt_succ_self hint⟩
 
--- This is a proposed client admission rule, not the current Rust implementation.
+-- Arithmetic admission abstraction; admitKey below also models duplicates.
 def admitsRetainedKeys (retained incoming budget : Nat) : Prop :=
   retained + incoming ≤ budget
 
