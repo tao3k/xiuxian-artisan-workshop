@@ -23,8 +23,9 @@ is reviewed manually, not established by a verified Rust translation:
 
 - =xiuxian-vector/src/store.rs=: metadata predicates borrow values from the
   parsed JSON tree instead of cloning each matched value.
-- =xiuxian-vector/src/ops/observability.rs=: five independent table probes run
-  in one =tokio::try_join!= round.
+- =xiuxian-vector/src/ops/observability.rs=: three independent table probes run
+  in one =tokio::try_join!= round. Vector and scalar coverage reuse the same
+  index-description result, removing two duplicate metadata requests.
 - =xiuxian-db-store/src/valkey/client.rs=: key enumeration uses cursor-based
   =SCAN= pages rather than the server-blocking =KEYS= command.
 - =xiuxian-qianji-control/src/valkey_hot_state.rs=: independent snapshot reads
@@ -77,6 +78,10 @@ overhead; they are an idealized model, not a measured speedup.
 $ C_("clone") = q dot m dot b $
 
 $ C_("borrow") = 0 $
+
+$ W_("index-before") = 3 dot W_("description") $
+
+$ W_("index-after") = W_("description") $
 
 $ L_("serial") = r dot l $
 

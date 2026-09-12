@@ -90,6 +90,12 @@ theorem fiveIndependentReadsStrictlyImproveLatency
   simp [parallelReadLatency, serialReadLatency]
   omega
 
+-- Request-work model: coverage reuses one description, removing two reads.
+theorem sharedIndexDescriptionSavesTwoReads (descriptionCost otherWork : Nat) :
+    otherWork + 3 * descriptionCost =
+      (otherWork + descriptionCost) + 2 * descriptionCost := by
+  omega
+
 -- COUNT does not constrain the size of an observed protocol reply.
 structure ScanReply where
   countHint : Nat
