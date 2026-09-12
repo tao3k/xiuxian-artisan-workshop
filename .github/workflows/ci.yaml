@@ -128,9 +128,11 @@ jobs:
             exit 1
           fi
           python_path="$(python -c 'import sys; print(sys.executable)')"
-          echo "PROTOC=${protoc_path}" >> "$GITHUB_ENV"
-          echo "PROTOC_INCLUDE=${proto_include}" >> "$GITHUB_ENV"
-          echo "PYO3_PYTHON=${python_path}" >> "$GITHUB_ENV"
+          {
+            echo "PROTOC=${protoc_path}"
+            echo "PROTOC_INCLUDE=${proto_include}"
+            echo "PYO3_PYTHON=${python_path}"
+          } >> "$GITHUB_ENV"
           protoc --version
           echo "PROTOC_INCLUDE=${proto_include}"
           python --version
@@ -359,18 +361,20 @@ jobs:
             exit 1
           fi
           python_path="$(python -c 'import sys; print(sys.executable)')"
-          echo "PROTOC=${protoc_path}" >> "$GITHUB_ENV"
-          echo "PROTOC_INCLUDE=${proto_include}" >> "$GITHUB_ENV"
-          echo "PYO3_PYTHON=${python_path}" >> "$GITHUB_ENV"
-          if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-            sdkroot_path="$(xcrun --sdk macosx --show-sdk-path)"
-            echo "SDKROOT=${sdkroot_path}" >> "$GITHUB_ENV"
-            echo "LIBRARY_PATH=${sdkroot_path}/usr/lib" >> "$GITHUB_ENV"
-            echo "CC=/usr/bin/clang" >> "$GITHUB_ENV"
-            echo "CXX=/usr/bin/clang++" >> "$GITHUB_ENV"
-            echo "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/clang" >> "$GITHUB_ENV"
-            echo "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/clang" >> "$GITHUB_ENV"
-          fi
+          {
+            echo "PROTOC=${protoc_path}"
+            echo "PROTOC_INCLUDE=${proto_include}"
+            echo "PYO3_PYTHON=${python_path}"
+            if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+              sdkroot_path="$(xcrun --sdk macosx --show-sdk-path)"
+              echo "SDKROOT=${sdkroot_path}"
+              echo "LIBRARY_PATH=${sdkroot_path}/usr/lib"
+              echo "CC=/usr/bin/clang"
+              echo "CXX=/usr/bin/clang++"
+              echo "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/clang"
+              echo "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/clang"
+            fi
+          } >> "$GITHUB_ENV"
           protoc --version
           echo "PROTOC_INCLUDE=${proto_include}"
           python --version
