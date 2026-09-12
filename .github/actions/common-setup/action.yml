@@ -44,13 +44,12 @@ runs:
       shell: bash
       run: nix profile add nixpkgs#devenv
 
-    - name: Install secretspec and write .env
+    - name: Write .env
       shell: bash
       env:
         GLM_API_KEY: ${{ inputs.GLM_API_KEY }}
         MIMO_API_KEY: ${{ inputs.MIMO_API_KEY }}
       run: |
-        nix profile add nixpkgs#secretspec
         {
           echo "GLM_API_KEY=$GLM_API_KEY"
           if [ -n "${MIMO_API_KEY:-}" ]; then
