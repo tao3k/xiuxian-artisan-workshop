@@ -215,7 +215,25 @@ The first Ubuntu experiment used one spawned Tokio task per command. Its 1,000-k
 p99 improved from 55,446 us to 6,468 us, but allocations rose from 716,478 to
 1,010,446 and peak heap rose from 470.04 KiB to 719.00 KiB. That =JoinSet=
 candidate was rejected rather than promoted. The production pipeline avoids
-per-command task creation and awaits Ubuntu allocation evidence at its exact head.
+per-command task creation.
+
+Ubuntu acceptance at PR head =255e6ff1382c0dae82f14a7060207cd4e8adacd2=
+(Linux 6.17 x86_64, Valkey 7.2.13, Heaptrack 1.5.0):
+
+| Keys | Mode | p50 us | p95 us | p99 us | Commands | Admitted bytes |
+|------+-------+--------+--------+--------+----------+----------------|
+| 100 | serial | 3932 | 4002 | 4005 | 100 | 25600 |
+| 100 | pipeline32 | 234 | 248 | 251 | 100 | 25600 |
+| 1000 | serial | 33158 | 38509 | 40355 | 1000 | 256000 |
+| 1000 | pipeline32 | 2099 | 2134 | 2197 | 1000 | 256000 |
+
+Across the separate instrumented processes, serial made 716,478 allocations
+with 300,617 temporary allocations; =pipeline32= made 510,393 allocations with
+265,505 temporary allocations. Peak heap was 470.04 KiB versus 477.24 KiB and
+peak RSS including Heaptrack overhead was 8.57 MiB versus 8.40 MiB. The pipeline
+therefore removes task-allocation growth while retaining an 18.4x improvement
+in the 1,000-key uninstrumented p99 observation. These figures characterize the
+dedicated CI probe, not a production-load SLA.
 
 Local uninstrumented release observation (macOS, Valkey 9.0.2, TCP loopback;
 not Ubuntu acceptance and not a controlled-load baseline):
@@ -227,8 +245,8 @@ not Ubuntu acceptance and not a controlled-load baseline):
 | 1000 | serial | 37000 | 73801 | 125407 | 1000 | 256000 |
 | 1000 | pipeline32 | 2595 | 3099 | 3130 | 1000 | 256000 |
 
-The noisy tails and absent local allocation profile are insufficient for
-production promotion. Ubuntu CI runs =scripts/rust/valkey_observation_evidence.sh=
+The local figures alone are insufficient for production acceptance. Ubuntu CI
+runs =scripts/rust/valkey_observation_evidence.sh=
 and uploads head/toolchain, uninstrumented latency, and per-mode heap profiles.
 Allocation instrumentation follows the upstream
 [[https://github.com/KDE/heaptrack][Heaptrack documentation]]; those instrumented
@@ -268,6 +286,7 @@ Lean obligations, and exact-head Ubuntu acceptance. Performance closure separate
 requires release baselines and resource measurements before candidate adoption.
 Keep Mermaid and Typst inside these Org Babel blocks. Run through the repository
 devenv profile, use the shared Cargo target, and retain Ubuntu CI as runtime
-acceptance. At =9f3efa78d= all Ubuntu Rust checks passed and Nix was still running.
-That receipt does not validate later commits. Nix is not a blocker for the
-authorized Rust development lane.
+acceptance. At implementation head
+=255e6ff1382c0dae82f14a7060207cd4e8adacd2=, Ubuntu Cargo build/check and the
+main CI, including the release/Heaptrack probe, passed. Nix and macOS are not
+blockers for the authorized Rust development lane.
