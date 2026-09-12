@@ -178,10 +178,9 @@ Behavior:
     exactly one DuckDB-dialect read-only query statement and rejects blank,
     multi-statement, or mutation SQL before table registration. The local
     relation engine is DuckDB.
-37. does not expose an `orgize` subcommand. Org parsing, SDD recovery, and
-    agent task memory are no longer owned by `xiuxian-wendao-client`; use the
-    dedicated Org provider or the owning runtime surface instead of adding Org
-    read-model state back to this client.
+37. does not expose an `orgize` subcommand. Org query, SDD recovery, agent task
+    memory, lint, capture, recall, and archive behavior are owned by the ASP Org
+    provider. Do not add Org read-model state back to this client.
 
 Diagnostic rendering is split deliberately:
 
@@ -251,9 +250,11 @@ For repeated local use, install the binary once instead of invoking
 
 ```text
 direnv exec . just install-wendao-client
-wendao-client orgize lint --format compact .agent/org/agenda.org
-wendao-client orgize task-list --text '<lane-or-package>'
+wendao-client get toc docs/
 ```
+
+Org workflow, SDD recovery, and agent-memory commands are owned by ASP and are
+intentionally absent from this client.
 
 ## Project Policy Gate
 

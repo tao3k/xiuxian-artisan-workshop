@@ -246,7 +246,7 @@ pub(super) fn render_org_task(
 :COMMAND_PROXY: rtk
 :COOKIE_DATA: direct
 :NEXT_ACTION: Run task-local research and implement the bounded slice.
-:RESUME_QUERY: wendao-client orgize task-list --text '{title}' $ARTISAN_STATE_ROOT/agent/org
+:RESUME_QUERY: asp query playbook --documents org --kind task --term '{title}'
 :ARCHIVE_TARGET: $ARTISAN_STATE_ROOT/agent/org/archives/{slug}.org
 :EVIDENCE: pending
 :END:
@@ -283,7 +283,7 @@ Pending implementation.
 ** Recovery
 
 #+begin_src text
-rtk wendao-client orgize task-list --text '{title}' $ARTISAN_STATE_ROOT/agent/org
+asp query playbook --documents org --kind task --term '{title}'
 #+end_src
 ",
         sdd_path = sdd_path.display(),

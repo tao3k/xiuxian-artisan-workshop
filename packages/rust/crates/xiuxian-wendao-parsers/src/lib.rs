@@ -23,8 +23,6 @@ pub mod literal_addressed_target;
 pub mod note;
 /// Parser-owned Org-mode document and note aggregation.
 pub mod org;
-/// Parser-owned Orgize tooling adapters for client surfaces.
-pub mod orgize_tool;
 /// Parser-owned source-preserved reference payload shared across formats.
 pub mod reference_core;
 /// Shared Markdown reference parsing and parser-owned link contracts.
@@ -87,19 +85,6 @@ pub use org::{
     compile_org_ontology_authoring_document, compile_org_reasoning_property_records,
     extract_org_attachment_links, extract_org_sections, parse_org_document, parse_org_note,
     parse_org_toc, validate_org_reasoning_properties, validate_org_reasoning_property_records,
-};
-pub use orgize_tool::{
-    OrgElementCategory, OrgElementKind, OrgizeAgentPlanningRequest, OrgizeAgentTaskProperty,
-    OrgizeAgentTaskReadModelReport, OrgizeAgentTaskReadModelRequest, OrgizeAgentTaskRepeater,
-    OrgizeAgentTaskRow, OrgizeEvalPatchRequest, OrgizeEvalPlanRequest, OrgizeFormatReport,
-    OrgizeFormatRequest, OrgizeLintFileReport, OrgizeLintFixReport, OrgizeLintOutputFormat,
-    OrgizeLintRequest, OrgizeLintRunReport, OrgizeOrgElementReadModelReport,
-    OrgizeOrgElementReadModelRequest, OrgizeOrgElementRow, OrgizeSddGraphDiffRequest,
-    OrgizeSddStatusRequest, OrgizeSparseTreeRenderOptions, OrgizeSparseTreeRequest,
-    OrgizeSparseTreeVisibility, OrgizeToolError, collect_agent_task_rows, collect_org_element_rows,
-    count_sdd_graph_drift, count_sdd_status_issues, format_org_files, lint_org_files,
-    render_agent_planning, render_eval_patch, render_eval_plan, render_sdd_graph_diff,
-    render_sdd_status, render_sdd_status_json, render_sparse_tree,
 };
 pub use reference_core::ReferenceCore;
 pub use references::{

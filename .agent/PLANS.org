@@ -36,10 +36,10 @@ SDD nodes use native Org properties:
    implementation state belongs in Org task or ExecPlan headings.
 
 Validate SDD files with:
-=wendao-client orgize lint --format compact $PRJ_CACHE_HOME/agent/sdd=.
+=asp org lint $PRJ_CACHE_HOME/agent/sdd=.
 
-Recover SDD status with:
-=wendao-client orgize sdd status $PRJ_CACHE_HOME/agent/sdd=.
+Discover SDD nodes with:
+=asp query playbook --documents org --kind property --field key=SDD_KIND=.
 
 ** Plan First Gate (Mandatory)
 
@@ -179,99 +179,24 @@ Work must not proceed until this self check is complete.
 4. Include exact verification commands in =** Validation and Acceptance=.
 5. Record rollback or retry behavior in =** Idempotence and Recovery=.
 
-** Orgize Validation
+** ASP Org Provider Validation
 
-Agent tracking files are native Org documents. When changing files under
-=$PRJ_CACHE_HOME/agent/org/=, =$PRJ_CACHE_HOME/agent/sdd/=,
-or =$PRJ_CACHE_HOME/agent/execplans/=,
-prefer the orgize-backed project entrypoint for lint and query checks before
-marking tracking work complete. Install or refresh the client with
-=cargo install --path $PRJ_ROOT/packages/rust/crates/xiuxian-wendao-client=,
-then run:
-=wendao-client orgize lint --format compact <path>=.
+ASP owns the Org semantic AST and its query, lint, capture, recall, and archive
+contracts. Plans must not depend on a Wendao-owned Org read model or recreate
+legacy domain commands.
 
-Use native Org agenda semantics for schedule/task lookup:
-=wendao-client orgize agent-planning --date YYYY-MM-DD <path>=.
+Use these provider-native surfaces:
 
-Use native Org sparse-tree semantics when the full source subtree context is
-needed:
-=wendao-client orgize sparse-tree --match '+agent' --exclude-done <path>=.
+- Task recovery: =asp query playbook --documents org --kind task --term '<remembered text>'=.
+- ID lookup: =asp query playbook --documents org --kind property --field key=ID --field value=<org-section-id>=.
+- SDD discovery: =asp query playbook --documents org --kind property --field key=SDD_KIND=.
+- Syntax validation: =asp org lint <path>=.
+- Archival: use the plan-first =asp org archive= contract and retain its edit
+  receipt.
 
-Use Org-native SDD status for system/capability/view/decision/audit recovery:
-=wendao-client orgize sdd status <path>=.
-
-Use the DuckDB-backed Org task probe for low-token remembered-task recovery:
-=wendao-client orgize task-probe --cached --text '<remembered text>' <path>=.
-If the Org section ID is known, use the local checklist recovery view:
-=wendao-client orgize orgid-show --cached --id <org-section-id> <path>=.
-Use the recent modified fallback only when the agent has no useful memory:
-=wendao-client orgize task-recover --cached <path>=.
-Use the richer task list only after a probe when extra row metadata is needed:
-=wendao-client orgize task-list [--cached] [--text TEXT] [--tag TAG] <path>=.
-Use =--output json= or =--output pretty= when automation needs limited task
-rows as a machine-readable recovery contract.
-Use named task-list views for common recovery and archive control surfaces:
-=wendao-client orgize task-list --cached --view closure-needed <path>=,
-=wendao-client orgize task-list --cached --view archive-candidate <path>=,
-=wendao-client orgize task-list --cached --view achievement <path>=, and
-=wendao-client orgize task-list --cached --view repeating <path>=.
-
-Use the DuckDB-backed Org task report for archive and achievement summaries:
-=wendao-client orgize task-report [--cached] [--summary-only] [--text TEXT] [--tag TAG] <path>=.
-Use =--output json= or =--output pretty= when automation needs the report
-summary as a machine-readable contract.
-The same named views apply when a focused summary is more useful than the full
-report:
-=wendao-client orgize task-report --cached --view archive-candidate <path>=.
-
-Use the DuckDB-backed Org task archive command for plan-first physical
-archival. Omit =--apply= for read-only planning:
-=wendao-client orgize task-archive [--apply] [--expect-selected COUNT] [--text TEXT] [--tag TAG] <path>=.
-Use =--expect-selected= after reviewing a plan so apply fails before writes if
-the selected row count changes.
-Use =--output json= or =--output pretty= in plan mode when automation needs the
-selected rows and archive target counts as a machine-readable review contract.
-When =--apply= is used, the command prints updated source/target counts and
-refreshes the DuckDB read model before returning. In JSON or pretty output
-mode, apply returns the same write receipt as a machine-readable object.
-
-** Resume and Archive Commands
-
-Recover active tasks from remembered context:
-
-=wendao-client orgize task-probe --cached --text '<remembered text>' $PRJ_CACHE_HOME/agent/org=.
-
-Recover when no useful memory remains:
-
-=wendao-client orgize task-recover --cached $PRJ_CACHE_HOME/agent/org=.
-
-Refresh active tasks after editing Org files:
-
-=wendao-client orgize read-model $PRJ_CACHE_HOME/agent/org=.
-
-Recover scheduled tasks:
-
-=wendao-client orgize agent-planning --date YYYY-MM-DD $PRJ_CACHE_HOME/agent/org=.
-
-Recover one lane or package with richer row metadata:
-
-=wendao-client orgize task-list --cached --text '<lane-or-package>' $PRJ_CACHE_HOME/agent/org=.
-
-Review completed achievements:
-
-=wendao-client orgize task-list --cached --view achievement $PRJ_CACHE_HOME/agent/org=.
-
-Review archive candidates and repeating task counts:
-
-=wendao-client orgize task-report --cached --summary-only $PRJ_CACHE_HOME/agent/org=.
-
-Plan physical archival:
-
-=wendao-client orgize task-archive $PRJ_CACHE_HOME/agent/org=.
-
-Use sparse-tree when full source context is needed:
-
-=wendao-client orgize sparse-tree --match '+agent+achievement' $PRJ_CACHE_HOME/agent/org=.
+If a former cached view or task report has no provider-native equivalent, add
+the missing parser fact and reusable query/search recipe to ASP. Do not add a
+compatibility implementation to Wendao.
 
 ** Reflection and Quality Audit (Required)
 

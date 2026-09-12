@@ -86,9 +86,9 @@ Use this heading as the task-local recovery anchor. At turn start, query active
 work with the lowest-token query that matches the agent's memory state:
 
 #+begin_src bash
-wendao-client orgize task-probe --cached --text '<remembered title-or-file-key>' $PRJ_CACHE_HOME/agent/org
-wendao-client orgize orgid-show --cached --id <org-section-id> $PRJ_CACHE_HOME/agent/org
-wendao-client orgize task-recover --cached $PRJ_CACHE_HOME/agent/org
+asp query playbook --documents org --kind task --term '<remembered title-or-file-key>'
+asp query playbook --documents org --kind property --field key=ID --field value=<org-section-id>
+asp org lint $PRJ_CACHE_HOME/agent/org
 #+end_src
 
 ** Notes
@@ -100,4 +100,4 @@ Lifecycle contract for agent-owned task headings:
 - When the heading reaches =100%=, change =DOING= to =DONE=, add an inactive =CLOSED: [YYYY-MM-DD Day]= timestamp after validation/evidence is recorded, and complete the =Reflection Questions= table.
 - Archive readiness requires all closure signals: =DONE= + =100%= + =CLOSED= + non-empty =Value= cells for every =Reflection Questions= table row that has a =Question= value.
 - After archive readiness is reached, move the task to the default archive path derived from the task source filename so completed work does not pollute active memory recovery.
-- =wendao-client orgize lint= warns when these lifecycle/progress states drift.
+- =asp org lint= validates the ASP-owned Org contract surface.
