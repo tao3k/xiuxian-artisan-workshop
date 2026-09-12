@@ -27,11 +27,13 @@ impl VectorStore {
         &self,
         table_name: &str,
     ) -> Result<TableHealthReport, VectorStoreError> {
-        let row_count = self.count(table_name).await?;
-        let fragments = self.get_fragment_stats(table_name).await?;
-        let indices = self.describe_indices(table_name).await?;
-        let has_vector = self.has_vector_index(table_name).await?;
-        let has_scalar = self.has_scalar_index(table_name).await?;
+        let (row_count, fragments, indices, has_vector, has_scalar) = tokio::try_join!(
+            self.count(table_name),
+            self.get_fragment_stats(table_name),
+            self.describe_indices(table_name),
+            self.has_vector_index(table_name),
+            self.has_scalar_index(table_name),
+        )?;
         let fragment_count = fragments.len();
         let fragmentation_ratio = fragmentation_ratio(row_count, fragment_count);
         let indices_status = index_statuses(&indices);

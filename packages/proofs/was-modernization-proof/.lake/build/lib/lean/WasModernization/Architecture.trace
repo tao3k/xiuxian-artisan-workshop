@@ -1,0 +1,31 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["4ab0c8f043cf5187.olean"],
+  "m": false,
+  "i": "1be8e747b776542a.ilean",
+  "c": "fbae9b813c4d79e1.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/private/tmp/xiuxian-deps-green/packages/proofs/was-modernization-proof/.lake/build/lib/lean /Users/guangtao/.elan/toolchains/leanprover--lean4---v4.33.1/bin/lean /private/tmp/xiuxian-deps-green/packages/proofs/was-modernization-proof/WasModernization/Architecture.lean -o /private/tmp/xiuxian-deps-green/packages/proofs/was-modernization-proof/.lake/build/lib/lean/WasModernization/Architecture.olean -i /private/tmp/xiuxian-deps-green/packages/proofs/was-modernization-proof/.lake/build/lib/lean/WasModernization/Architecture.ilean -c /private/tmp/xiuxian-deps-green/packages/proofs/was-modernization-proof/.lake/build/ir/WasModernization/Architecture.c --setup /private/tmp/xiuxian-deps-green/packages/proofs/was-modernization-proof/.lake/build/ir/WasModernization/Architecture.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["deps",
+   [["«was-modernization-proof»/WasModernization:extraDep",
+     [["@«was-modernization-proof»:extraDep", "00000000000006bb"]]],
+    ["imports", "00000000000006bb"]]],
+  ["libs",
+   [["import dynlibs", "00000000000006bb"],
+    ["package external libraries", "00000000000006bb"],
+    ["module dynlibs", "00000000000006bb"],
+    ["module plugins", "00000000000006bb"]]],
+  ["Lean 4.33.1, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6",
+   "0051240b7c23c453"],
+  ["/private/tmp/xiuxian-deps-green/packages/proofs/was-modernization-proof/WasModernization/Architecture.lean",
+   "2325f9493e4ecaed"],
+  ["options", "00000000000006bb"],
+  ["isModule: false", "feefd2a0d3a1847e"],
+  ["Module.name: WasModernization.Architecture", "891eb35fda07f3b3"],
+  ["Package.id?: (some was-modernization-proof)", "f4c6c900264dea62"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "207e1c286d9e5751"}

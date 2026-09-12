@@ -551,31 +551,21 @@ impl ValkeyHotStateStore {
         &self,
         observed_at_ms: u64,
     ) -> ControlResult<HotStateSnapshot> {
-        let pending_entries = self
-            .step_queue
-            .pending_entries()
-            .await
-            .map_err(control_error)?;
-        let lease_entries = self
-            .step_queue
-            .lease_entries()
-            .await
-            .map_err(control_error)?;
-        let activity_pending_entries = self
-            .activity_queue
-            .pending_entries()
-            .await
-            .map_err(control_error)?;
-        let activity_lease_entries = self
-            .activity_queue
-            .lease_entries()
-            .await
-            .map_err(control_error)?;
-        let heartbeat_keys = self
-            .client
-            .keys(&self.config.heartbeat_key_pattern())
-            .await
-            .map_err(control_error)?;
+        let heartbeat_pattern = self.config.heartbeat_key_pattern();
+        let (
+            pending_entries,
+            lease_entries,
+            activity_pending_entries,
+            activity_lease_entries,
+            heartbeat_keys,
+        ) = tokio::try_join!(
+            self.step_queue.pending_entries(),
+            self.step_queue.lease_entries(),
+            self.activity_queue.pending_entries(),
+            self.activity_queue.lease_entries(),
+            self.client.scan_keys(&heartbeat_pattern),
+        )
+        .map_err(control_error)?;
 
         let mut snapshot = HotStateSnapshot::new(observed_at_ms);
         self.append_pending_steps(&mut snapshot, pending_entries)

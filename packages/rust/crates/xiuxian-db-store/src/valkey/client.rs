@@ -1,5 +1,6 @@
 //! Shared multiplexed Valkey client execution and reconnect handling.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use redis::FromRedisValue;
@@ -139,17 +140,35 @@ impl ValkeyClient {
         .await
     }
 
-    /// Lists keys matching a pattern.
+    /// Scans keys matching a pattern without blocking the Valkey server.
+    /// Results are deduplicated and their order is unspecified.
     ///
     /// # Errors
     ///
     /// Returns an error when the Valkey command fails.
-    pub async fn keys(&self, pattern: &str) -> Result<Vec<String>, ValkeyStoreError> {
-        self.run_command("valkey_keys", || {
-            let mut command = redis::cmd("KEYS");
-            command.arg(pattern);
-            command
-        })
-        .await
+    pub async fn scan_keys(&self, pattern: &str) -> Result<Vec<String>, ValkeyStoreError> {
+        const PAGE_SIZE: usize = 256;
+
+        let mut cursor = 0_u64;
+        let mut keys = HashSet::new();
+        loop {
+            let (next_cursor, page): (u64, Vec<String>) = self
+                .run_command("valkey_scan_keys", || {
+                    let mut command = redis::cmd("SCAN");
+                    command
+                        .arg(cursor)
+                        .arg("MATCH")
+                        .arg(pattern)
+                        .arg("COUNT")
+                        .arg(PAGE_SIZE);
+                    command
+                })
+                .await?;
+            keys.extend(page);
+            if next_cursor == 0 {
+                return Ok(keys.into_iter().collect());
+            }
+            cursor = next_cursor;
+        }
     }
 }

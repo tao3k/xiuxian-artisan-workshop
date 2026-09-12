@@ -1,0 +1,9 @@
+{"plugins": [],
+ "package": "was-modernization-proof",
+ "options": {},
+ "name": "WasModernization",
+ "isModule": false,
+ "importArts":
+ {"WasModernization.Architecture":
+  [["/private/tmp/xiuxian-deps-green/packages/proofs/was-modernization-proof/.lake/build/lib/lean/WasModernization/Architecture.olean"]]},
+ "dynlibs": []}
