@@ -13,6 +13,14 @@ inputs:
   MIMO_API_KEY:
     required: false
     description: "MIMO API Key"
+  NIX_HATCHET_PROTOCOL:
+    required: false
+    default: "carve"
+    description: "Disk reclamation level for Linux Nix jobs"
+  NIX_WITNESS_CARNAGE:
+    required: false
+    default: "false"
+    description: "Wait for Linux disk reclamation to finish before continuing"
 
 runs:
   using: "composite"
@@ -20,7 +28,15 @@ runs:
     - uses: wimpysworld/nothing-but-nix@main
       if: runner.os == 'Linux'
       with:
-        hatchet-protocol: "carve"
+        hatchet-protocol: ${{ inputs.NIX_HATCHET_PROTOCOL }}
+        witness-carnage: ${{ inputs.NIX_WITNESS_CARNAGE }}
+
+    - name: Route temporary files to the Nix volume
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo chmod 1777 /nix/build
+        echo "TMPDIR=/nix/build" >> "$GITHUB_ENV"
 
     - name: Install nix
       uses: cachix/install-nix-action@v31

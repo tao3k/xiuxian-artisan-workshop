@@ -42,6 +42,8 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
           MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+          NIX_HATCHET_PROTOCOL: "rampage"
+          NIX_WITNESS_CARNAGE: "true"
 
       - name: Build nix package
         run: nix build .#${{ matrix.package }} -v
