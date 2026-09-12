@@ -49,55 +49,55 @@ description = "CyberXiuXian Artisan Workshop - High-performance Agentic OS with 
 # Unified dependency management
 [workspace.dependencies]
 # Core dependencies
-tokio = { version = "1.49.0", features = ["rt", "rt-multi-thread", "macros", "io-util", "fs", "net", "time", "sync"] }
-serde = { version = "1.0.228", features = ["derive", "rc"] }
-serde_json = "1.0.149"
-serde_yaml = "0.9"
-toml = "0.8"
-anyhow = "1.0.100"
+tokio = { version = "1.53.1", features = ["rt", "rt-multi-thread", "macros", "io-util", "fs", "net", "time", "sync"] }
+serde = { version = "1.0.229", features = ["derive", "rc"] }
+serde_json = "1.0.151"
+serde_yaml = "0.9.34"
+toml = "0.8.23"
+anyhow = "1.0.104"
 ariadne = "0.6.0"
-thiserror = "2.0.17"
+thiserror = "2.0.20"
 walkdir = "2.5.0"
-uuid = { version = "1.11", features = ["v4", "serde"] }
-chrono = { version = "0.4.38", default-features = false, features = ["clock", "serde", "std"] }
+uuid = { version = "1.26.1", features = ["v4", "serde"] }
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "serde", "std"] }
 chrono-tz = "0.10.4"
 tracing = "0.1"
 tracing-log = "0.2"
-globset = "0.4"
+globset = "0.4.20"
 include_dir = "0.7.4"
-rand = "0.8"
-futures = "0.3.32"
-foyer = { version = "0.22.3", default-features = false, features = ["runtime-tokio"] }
-tokio-util = { version = "0.7.18", features = ["rt"] }
-tokio-stream = { version = "0.1", features = ["net"] }
-tokio-postgres = "0.7"
-flate2 = "1.1.9"
-tar = "0.4.45"
-md5 = "0.8.0"
-regex = "1"
-blake3 = "1"
-inventory = "0.3"
+rand = "0.8.8"
+futures = "0.3.34"
+foyer = { version = "0.22.6", default-features = false, features = ["runtime-tokio"] }
+tokio-util = { version = "0.7.19", features = ["rt"] }
+tokio-stream = { version = "0.1.19", features = ["net"] }
+tokio-postgres = "0.7.18"
+flate2 = "1.1.10"
+tar = "0.4.46"
+md5 = "0.8.1"
+regex = "1.13.1"
+blake3 = "1.8.7"
+inventory = "0.3.24"
 comrak = { version = "0.50.0", default-features = false }
 orgize = { git = "https://github.com/tao3k/orgize", rev = "69b5326b0ba04bbfe6ad3a0d1c5cf77d4292df34" }
 pulldown-cmark = "0.12"
-quick-xml = { version = "0.39.2", features = ["serialize"] }
-petgraph = "0.7"
-async-trait = "0.1"
-num-traits = "0.2"
-url = "2.5.7"
-tower = { version = "0.5", features = ["limit", "load-shed", "timeout", "util"] }
-tower-http = { version = "0.6", features = ["limit"] }
-proc-macro2 = "1"
-syn = { version = "2.0", features = ["full"] }
-quote = "1"
-tera = "1"
-aho-corasick = "1.1"
-ignore = "0.4"
+quick-xml = { version = "0.39.4", features = ["serialize"] }
+petgraph = "0.7.1"
+async-trait = "0.1.92"
+num-traits = "0.2.19"
+url = "2.5.8"
+tower = { version = "0.5.3", features = ["limit", "load-shed", "timeout", "util"] }
+tower-http = { version = "0.6.11", features = ["limit"] }
+proc-macro2 = "1.0.107"
+syn = { version = "2.0.119", features = ["full"] }
+quote = "1.0.47"
+tera = "1.20.1"
+aho-corasick = "1.1.5"
+ignore = "0.4.33"
 similar = "2.7"
 unicode-normalization = "0.1"
-xxhash-rust = "0.8"
+xxhash-rust = "0.8.18"
 graphql-parser = "0.4"
-merman-core = "0.5.0"
+merman-core = "0.5.2"
 image = "0.25"
 imageproc = "0.25"
 duckdb = { version = "=1.10502.0", default-features = false, features = ["bundled", "appender-arrow", "parquet"] }
@@ -111,14 +111,14 @@ pyo3-build-config = "0.27.2"
 pyo3-asyncio = { version = "0.27", features = ["tokio"] }
 
 # Safe I/O
-memchr = "2.7.6"
-tempfile = "3.24"
-sha2 = "0.10"
+memchr = "2.8.3"
+tempfile = "3.27.0"
+sha2 = "0.10.9"
 hex = "0.4"
 base64 = "0.22"
 
 # JSON Schema generation for Schema Singularity (SSOT)
-schemars = "1.2.0"
+schemars = "1.2.2"
 jsonschema = { version = "0.18.3", default-features = false, features = [] }
 specta = { version = "2.0.0-rc.23", features = ["derive"] }
 specta-typescript = "0.0.10"
@@ -138,34 +138,34 @@ arrow-ipc = "58"
 arrow-schema = { version = "58", features = ["ffi"] }
 arrow-string = "58"
 parquet = "58"
-datafusion = "53.0.0"
+datafusion = "53.1.0"
 sqlparser = "0.61.0"
 
 # Redis cache and session backend
-redis = { version = "1.0.3", default-features = false, features = ["tokio-comp", "connection-manager"] }
+redis = { version = "1.7.0", default-features = false, features = ["tokio-comp", "connection-manager"] }
 
 # Logging
-log = "0.4"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+log = "0.4.34"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 
 # Parallel processing
-rayon = "1.11"
+rayon = "1.12.0"
 
-reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "gzip", "brotli", "deflate", "zstd", "http2"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "rustls", "gzip", "brotli", "deflate", "zstd", "http2"] }
 
 # CLI and HTTP
-clap = { version = "4.5", features = ["derive"] }
-axum = "0.8"
-tonic = { version = "0.14.5", default-features = false, features = ["transport"] }
+clap = { version = "4.6.6", features = ["derive"] }
+axum = "0.8.9"
+tonic = { version = "0.14.6", default-features = false, features = ["transport"] }
 tonic-web = "0.14"
-prost = "0.14"
+prost = "0.14.4"
 notify = "8.2.0"
 notify-debouncer-full = "0.7.0"
 
 # Testing utilities
-insta = { version = "1.46.3", features = ["json", "redactions"] }
-serial_test = { version = "3", features = ["file_locks"] }
-criterion = { version = "0.5", features = ["html_reports"] }
+insta = { version = "1.48.0", features = ["json", "redactions"] }
+serial_test = { version = "3.5.0", features = ["file_locks"] }
+criterion = { version = "0.5.1", features = ["html_reports"] }
 hdrhistogram = "7.5"
 rust-lang-project-harness = { git = "https://github.com/tao3k/rust-lang-project-harness", rev = "6dea4b1afc46bec0b4b480b9ab99b9d471d045ee" }
 xiuxian-rust-workspace-harness = { path = "packages/rust/crates/xiuxian-rust-workspace-harness" }

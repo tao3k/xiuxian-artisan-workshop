@@ -478,3 +478,22 @@ hot-state work, lease steps, or execute workers.
 - `RequiredEvidenceGate`
 - `DuckDbControlLedger` behind the `duckdb` feature
 - `ValkeyHotStateStore` behind the `valkey` feature
+
+## Observation And Recovery Boundary
+
+`ValkeyHotStateConfig::with_read_policy` configures one shared read budget for
+the entire snapshot, including index enumeration, payloads, leases, retries,
+and final assembly. Exhaustion yields `ControlError::ObservationBudgetExceeded`
+without partial success.
+
+Valkey observations are non-atomic. `HotStateSnapshot::observation` records the
+collection interval, witnessed missing components, and admitted work. Missing
+legacy metadata means unknown, not complete. Zero missing records cannot prove
+exhaustiveness under concurrent mutation. The expiry reference `observed_at_ms`
+is not a server snapshot timestamp; monotonic collection duration measures time.
+Neither the snapshot nor its statistics may authorize scheduling mutations.
+
+`ControlError::OutcomeUnknown` means a mutation might have applied. Inspect its
+operation/lease state before retrying; this crate does not automatically
+reconcile or replay that mutation. Definitive rejection classification remains
+conservative at the shared storage boundary.

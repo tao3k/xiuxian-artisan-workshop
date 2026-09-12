@@ -10,6 +10,7 @@ pub(crate) fn render_hot_state_snapshot_text(snapshot: &HotStateSnapshot) -> Str
         concat!(
             "# Qianji Control Hot State\n\n",
             "- Observed at ms: `{}`\n",
+            "- Atomic observation: `{}`\n",
             "- Pending steps: `{}`\n",
             "- Leased steps: `{}`\n",
             "- Active leases: `{}`\n",
@@ -18,6 +19,7 @@ pub(crate) fn render_hot_state_snapshot_text(snapshot: &HotStateSnapshot) -> Str
             "- Live worker heartbeats: `{}`\n"
         ),
         snapshot.observed_at_ms,
+        snapshot.atomic,
         snapshot.pending_steps.len(),
         snapshot.leased_steps.len(),
         snapshot.active_lease_count(),
@@ -25,6 +27,24 @@ pub(crate) fn render_hot_state_snapshot_text(snapshot: &HotStateSnapshot) -> Str
         snapshot.worker_heartbeats.len(),
         snapshot.live_heartbeat_count()
     );
+
+    if let Some(observation) = &snapshot.observation {
+        push_fmt(
+            &mut output,
+            format_args!(
+                "- Collection interval ms: `{}..{}`\n- Collection elapsed ms: `{:?}`\n- Read submissions: `{}`\n- Enumerated items: `{}`\n- Admitted raw bytes: `{}`\n- Witnessed missing components: `{:?}`\n",
+                observation.started_at_ms,
+                observation.finished_at_ms,
+                snapshot.collection_elapsed_ms,
+                observation.usage.commands,
+                observation.usage.items,
+                observation.usage.bytes,
+                observation.missing,
+            ),
+        );
+    } else {
+        output.push_str("- Collection details: unavailable (not a completeness guarantee)\n");
+    }
 
     if !snapshot.pending_steps.is_empty() {
         output.push_str("\n## Pending Steps\n\n");
@@ -81,3 +101,7 @@ pub(crate) fn render_hot_state_snapshot_text(snapshot: &HotStateSnapshot) -> Str
 pub(crate) fn render_hot_state_snapshot_json(snapshot: &HotStateSnapshot) -> io::Result<String> {
     serde_json::to_string_pretty(snapshot).map_err(io::Error::other)
 }
+
+#[cfg(test)]
+#[path = "../../../../tests/unit/bin/qianji/control_cli/render_observation.rs"]
+mod observation_tests;

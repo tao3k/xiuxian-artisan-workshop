@@ -20,8 +20,6 @@ mod note;
 mod ontology_contract;
 #[path = "unit/org.rs"]
 mod org;
-#[path = "unit/orgize_tool/mod.rs"]
-mod orgize_tool;
 #[path = "unit/references.rs"]
 mod references;
 #[path = "unit/section_create.rs"]

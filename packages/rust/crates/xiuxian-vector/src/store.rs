@@ -53,24 +53,30 @@ impl VectorStore {
 
         obj.iter().all(|(key, expected)| {
             metadata_value_for_key(metadata, key)
-                .is_some_and(|actual| metadata_values_match(&actual, expected))
+                .is_some_and(|actual| metadata_values_match(actual, expected))
         })
     }
 }
 
-fn metadata_value_for_key(metadata: &serde_json::Value, key: &str) -> Option<serde_json::Value> {
+fn metadata_value_for_key<'a>(
+    metadata: &'a serde_json::Value,
+    key: &str,
+) -> Option<&'a serde_json::Value> {
     if key.contains('.') {
         return nested_metadata_value(metadata, key);
     }
-    metadata.get(key).cloned()
+    metadata.get(key)
 }
 
-fn nested_metadata_value(metadata: &serde_json::Value, key: &str) -> Option<serde_json::Value> {
+fn nested_metadata_value<'a>(
+    metadata: &'a serde_json::Value,
+    key: &str,
+) -> Option<&'a serde_json::Value> {
     let mut current = metadata;
     for part in key.split('.') {
         current = current.as_object()?.get(part)?;
     }
-    Some(current.clone())
+    Some(current)
 }
 
 fn metadata_values_match(actual: &serde_json::Value, expected: &serde_json::Value) -> bool {

@@ -1,6 +1,20 @@
 use std::error::Error;
 use std::io;
 
+#[tokio::test]
+async fn snapshot_consistency_is_explicit_and_legacy_is_conservative() -> Result<(), Box<dyn Error>>
+{
+    let store = InMemoryHotStateStore::new();
+    let snapshot = store.load_snapshot(130).await?;
+    assert!(snapshot.atomic);
+    let legacy: xiuxian_qianji_control::HotStateSnapshot =
+        serde_json::from_str("{\"observed_at_ms\":130}")?;
+    assert!(!legacy.atomic);
+    assert_eq!(legacy.collection_elapsed_ms, None);
+    assert_eq!(legacy.observation, None);
+    Ok(())
+}
+
 use xiuxian_qianji_control::{
     ActivityId, ActivityType, HotStateStore, IdempotencyKey, InMemoryHotStateStore, RunId,
     RunnableActivityTask, RunnableStep, StepId, TaskQueue, WorkerActivityTask, WorkerHeartbeat,

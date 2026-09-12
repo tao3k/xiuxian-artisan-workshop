@@ -1,0 +1,6 @@
+name = "was-modernization-proof"
+version = "0.1.0"
+defaultTargets = ["WasModernization"]
+
+[[lean_lib]]
+name = "WasModernization"

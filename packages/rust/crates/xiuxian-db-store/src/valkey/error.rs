@@ -46,6 +46,27 @@ impl std::fmt::Display for ValkeyLeaseOwnership {
 /// Valkey command errors.
 #[derive(Debug, thiserror::Error)]
 pub enum ValkeyStoreError {
+    /// A shared observation exceeded admission; partial results are discarded.
+    #[error("Valkey observation exhausted {resource} budget")]
+    ReadBudgetExceeded {
+        /// Exhausted shared resource.
+        resource: &'static str,
+    },
+    /// A submitted mutation failed without a trustworthy execution receipt.
+    /// It was not replayed; the caller must reconcile its effect before retrying.
+    #[error("{operation} outcome unknown; mutation was not replayed: {message}")]
+    OutcomeUnknown {
+        /// Mutation label.
+        operation: &'static str,
+        /// Backend or response decoding error.
+        message: String,
+    },
+    /// Full enumeration could not complete within the configured budget.
+    #[error("Valkey scan exhausted {resource} budget; enumeration is incomplete")]
+    ScanBudgetExceeded {
+        /// Exhausted client resource.
+        resource: &'static str,
+    },
     /// A required identifier was blank.
     #[error("{field} must not be blank")]
     BlankId {

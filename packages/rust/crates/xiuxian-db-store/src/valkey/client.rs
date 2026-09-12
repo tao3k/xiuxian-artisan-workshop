@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use super::read::ReadBudget;
 use redis::FromRedisValue;
 use tokio::sync::{Mutex, RwLock};
 
@@ -14,7 +15,7 @@ use crate::valkey::{
 #[derive(Clone)]
 pub struct ValkeyClient {
     config: ValkeyStoreConfig,
-    connection: Arc<RwLock<Option<redis::aio::MultiplexedConnection>>>,
+    connection: Arc<RwLock<Option<Arc<redis::aio::MultiplexedConnection>>>>,
     reconnect_lock: Arc<Mutex<()>>,
 }
 
@@ -44,15 +45,111 @@ impl ValkeyClient {
         T: FromRedisValue + Send,
         F: Fn() -> redis::Cmd,
     {
+        self.execute(operation, build, false, None).await
+    }
+
+    pub(crate) async fn run_read_command<T, F>(
+        &self,
+        operation: &'static str,
+        build: F,
+    ) -> Result<T, ValkeyStoreError>
+    where
+        T: FromRedisValue + Send,
+        F: Fn() -> redis::Cmd,
+    {
+        self.execute(operation, build, true, None).await
+    }
+
+    pub(crate) async fn run_budgeted_read<T, F>(
+        &self,
+        operation: &'static str,
+        build: F,
+        budget: &ReadBudget,
+    ) -> Result<T, ValkeyStoreError>
+    where
+        T: FromRedisValue + Send,
+        F: Fn() -> redis::Cmd,
+    {
+        self.execute(operation, build, true, Some(budget)).await
+    }
+
+    pub(crate) async fn run_budgeted_read_pipeline<T>(
+        &self,
+        operation: &'static str,
+        pipeline: redis::Pipeline,
+        budget: &ReadBudget,
+    ) -> Result<T, ValkeyStoreError>
+    where
+        T: FromRedisValue + Send,
+    {
+        let submissions = pipeline.len();
         let mut last_error: Option<redis::RedisError> = None;
         for _ in 0..2 {
-            let mut connection = self.acquire_connection().await?;
+            let generation = self.acquire_connection().await?;
+            let mut connection = (*generation).clone();
+            budget.admit(submissions, 0, 0)?;
+            let result: redis::RedisResult<T> = pipeline.query_async(&mut connection).await;
+            match result {
+                Ok(value) => return Ok(value),
+                Err(error) if error.is_io_error() => {
+                    self.invalidate_connection(&generation).await;
+                    last_error = Some(error);
+                }
+                Err(error) => {
+                    return Err(ValkeyStoreError::Storage {
+                        operation,
+                        message: error.to_string(),
+                    });
+                }
+            }
+        }
+        Err(ValkeyStoreError::Storage {
+            operation,
+            message: last_error.map_or_else(
+                || "Valkey pipeline failed unexpectedly".to_owned(),
+                |error| error.to_string(),
+            ),
+        })
+    }
+
+    async fn execute<T, F>(
+        &self,
+        operation: &'static str,
+        build: F,
+        replay_read: bool,
+        budget: Option<&ReadBudget>,
+    ) -> Result<T, ValkeyStoreError>
+    where
+        T: FromRedisValue + Send,
+        F: Fn() -> redis::Cmd,
+    {
+        let mut last_error: Option<redis::RedisError> = None;
+        for _ in 0..if replay_read { 2 } else { 1 } {
+            let generation = self.acquire_connection().await?;
+            let mut connection = (*generation).clone();
             let command = build();
+            if let Some(budget) = budget {
+                budget.admit(1, 0, 0)?;
+            }
             let result: redis::RedisResult<T> = command.query_async(&mut connection).await;
             match result {
                 Ok(value) => return Ok(value),
                 Err(error) => {
-                    self.invalidate_connection().await;
+                    if error.is_io_error() {
+                        self.invalidate_connection(&generation).await;
+                    }
+                    if !replay_read {
+                        return Err(ValkeyStoreError::OutcomeUnknown {
+                            operation,
+                            message: error.to_string(),
+                        });
+                    }
+                    if !error.is_io_error() {
+                        return Err(ValkeyStoreError::Storage {
+                            operation,
+                            message: error.to_string(),
+                        });
+                    }
                     last_error = Some(error);
                 }
             }
@@ -68,7 +165,7 @@ impl ValkeyClient {
 
     async fn acquire_connection(
         &self,
-    ) -> Result<redis::aio::MultiplexedConnection, ValkeyStoreError> {
+    ) -> Result<Arc<redis::aio::MultiplexedConnection>, ValkeyStoreError> {
         if let Some(connection) = self.connection.read().await.as_ref().cloned() {
             return Ok(connection);
         }
@@ -91,6 +188,7 @@ impl ValkeyClient {
                 operation: "connect_valkey",
                 message: error.to_string(),
             })?;
+        let connection = Arc::new(connection);
         {
             let mut guard = self.connection.write().await;
             *guard = Some(connection.clone());
@@ -98,9 +196,14 @@ impl ValkeyClient {
         Ok(connection)
     }
 
-    async fn invalidate_connection(&self) {
+    async fn invalidate_connection(&self, failed: &Arc<redis::aio::MultiplexedConnection>) {
         let mut guard = self.connection.write().await;
-        *guard = None;
+        if guard
+            .as_ref()
+            .is_some_and(|current| Arc::ptr_eq(current, failed))
+        {
+            *guard = None;
+        }
     }
 
     /// Stores a string with a millisecond TTL.
@@ -131,7 +234,7 @@ impl ValkeyClient {
     ///
     /// Returns an error when the Valkey command fails.
     pub async fn get_string(&self, key: &str) -> Result<Option<String>, ValkeyStoreError> {
-        self.run_command("valkey_get_string", || {
+        self.run_read_command("valkey_get_string", || {
             let mut command = redis::cmd("GET");
             command.arg(key);
             command
@@ -139,17 +242,17 @@ impl ValkeyClient {
         .await
     }
 
-    /// Lists keys matching a pattern.
+    /// Completes an incremental scan using the default client resource policy.
     ///
     /// # Errors
     ///
-    /// Returns an error when the Valkey command fails.
-    pub async fn keys(&self, pattern: &str) -> Result<Vec<String>, ValkeyStoreError> {
-        self.run_command("valkey_keys", || {
-            let mut command = redis::cmd("KEYS");
-            command.arg(pattern);
-            command
-        })
-        .await
+    /// Returns an error on storage failure or incomplete enumeration.
+    pub async fn scan_keys(&self, pattern: &str) -> Result<Vec<String>, ValkeyStoreError> {
+        self.scan_keys_with_policy(pattern, super::ValkeyScanPolicy::default())
+            .await
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/valkey_client.rs"]
+mod tests;

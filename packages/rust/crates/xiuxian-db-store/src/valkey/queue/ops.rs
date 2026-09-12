@@ -67,7 +67,7 @@ impl ValkeyStructuredQueue {
             .await?;
         let lease_exists: bool = self
             .client
-            .run_command("valkey_structured_queue_lease_exists", || {
+            .run_read_command("valkey_structured_queue_lease_exists", || {
                 let mut command = redis::cmd("EXISTS");
                 command.arg(&lease_key);
                 command
@@ -272,7 +272,7 @@ impl ValkeyStructuredQueue {
     ) -> Result<Vec<ValkeyQueueEntryId>, ValkeyStoreError> {
         let entries: Vec<String> = self
             .client
-            .run_command(operation, || {
+            .run_read_command(operation, || {
                 let mut command = redis::cmd("ZRANGE");
                 command.arg(key(&self.keys)).arg(0).arg(-1);
                 command
@@ -295,7 +295,7 @@ impl ValkeyStructuredQueue {
     ) -> Result<Option<String>, ValkeyStoreError> {
         let payload_key = self.keys.payload_key(entry_id);
         self.client
-            .run_command("valkey_structured_queue_payload", || {
+            .run_read_command("valkey_structured_queue_payload", || {
                 let mut command = redis::cmd("HGET");
                 command.arg(&payload_key).arg("payload");
                 command
@@ -314,7 +314,7 @@ impl ValkeyStructuredQueue {
     ) -> Result<Vec<(String, String)>, ValkeyStoreError> {
         let lease_key = self.keys.lease_key(entry_id);
         self.client
-            .run_command("valkey_structured_queue_lease_hash", || {
+            .run_read_command("valkey_structured_queue_lease_hash", || {
                 let mut command = redis::cmd("HGETALL");
                 command.arg(&lease_key);
                 command

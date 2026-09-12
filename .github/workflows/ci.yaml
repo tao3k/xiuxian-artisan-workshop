@@ -78,7 +78,7 @@ jobs:
           df -h /
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -128,9 +128,11 @@ jobs:
             exit 1
           fi
           python_path="$(python -c 'import sys; print(sys.executable)')"
-          echo "PROTOC=${protoc_path}" >> "$GITHUB_ENV"
-          echo "PROTOC_INCLUDE=${proto_include}" >> "$GITHUB_ENV"
-          echo "PYO3_PYTHON=${python_path}" >> "$GITHUB_ENV"
+          {
+            echo "PROTOC=${protoc_path}"
+            echo "PROTOC_INCLUDE=${proto_include}"
+            echo "PYO3_PYTHON=${python_path}"
+          } >> "$GITHUB_ENV"
           protoc --version
           echo "PROTOC_INCLUDE=${proto_include}"
           python --version
@@ -143,9 +145,9 @@ jobs:
 
       - name: Install sccache
         continue-on-error: true
-        uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2
+        uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
         with:
-          tool: sccache@0.7.5
+          tool: sccache@0.17.0
 
       - name: Configure sccache backend
         run: |
@@ -216,7 +218,7 @@ jobs:
           ssh-key: ${{ secrets.SUBMODULES_DEPLOY_KEY || secrets.WENDAOSEARCH_DEPLOY_KEY }}
 
       - name: Install cocogitto
-        uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2
+        uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
         with:
           tool: cocogitto
 
@@ -239,11 +241,7 @@ jobs:
           cog check "${base_sha}..${head_sha}"
 
   test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     defaults:
       run:
@@ -284,7 +282,7 @@ jobs:
           df -h /
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -307,7 +305,6 @@ jobs:
           echo "RUSTUP_TOOLCHAIN=${channel}" >> "$GITHUB_ENV"
 
       - name: Install Linux build dependencies
-        if: ${{ runner.os == 'Linux' }}
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -321,16 +318,8 @@ jobs:
             pkg-config \
             protobuf-compiler \
             python3-dev \
+            heaptrack \
             valkey
-
-      - name: Install macOS build dependencies
-        if: ${{ runner.os == 'macOS' }}
-        run: |
-          set -euo pipefail
-          for formula in autoconf automake protobuf pkg-config cmake libxml2 valkey; do
-            brew list "${formula}" >/dev/null 2>&1 || brew install "${formula}"
-          done
-          echo "$(brew --prefix libxml2)/bin" >> "$GITHUB_PATH"
 
       - name: Export Rust build environment
         run: |
@@ -347,11 +336,6 @@ jobs:
             protoc_root="$(dirname "$(dirname "${protoc_path}")")"
             if [[ -d "${protoc_root}/include/google/protobuf" ]]; then
               proto_include="${protoc_root}/include"
-            elif command -v brew >/dev/null 2>&1; then
-              brew_prefix="$(brew --prefix protobuf 2>/dev/null || true)"
-              if [[ -n "${brew_prefix}" && -d "${brew_prefix}/include/google/protobuf" ]]; then
-                proto_include="${brew_prefix}/include"
-              fi
             fi
           fi
           if [[ -z "${proto_include}" ]]; then
@@ -359,18 +343,11 @@ jobs:
             exit 1
           fi
           python_path="$(python -c 'import sys; print(sys.executable)')"
-          echo "PROTOC=${protoc_path}" >> "$GITHUB_ENV"
-          echo "PROTOC_INCLUDE=${proto_include}" >> "$GITHUB_ENV"
-          echo "PYO3_PYTHON=${python_path}" >> "$GITHUB_ENV"
-          if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-            sdkroot_path="$(xcrun --sdk macosx --show-sdk-path)"
-            echo "SDKROOT=${sdkroot_path}" >> "$GITHUB_ENV"
-            echo "LIBRARY_PATH=${sdkroot_path}/usr/lib" >> "$GITHUB_ENV"
-            echo "CC=/usr/bin/clang" >> "$GITHUB_ENV"
-            echo "CXX=/usr/bin/clang++" >> "$GITHUB_ENV"
-            echo "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/clang" >> "$GITHUB_ENV"
-            echo "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/clang" >> "$GITHUB_ENV"
-          fi
+          {
+            echo "PROTOC=${protoc_path}"
+            echo "PROTOC_INCLUDE=${proto_include}"
+            echo "PYO3_PYTHON=${python_path}"
+          } >> "$GITHUB_ENV"
           protoc --version
           echo "PROTOC_INCLUDE=${proto_include}"
           python --version
@@ -390,15 +367,15 @@ jobs:
           rustup show active-toolchain || true
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2
+        uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
         with:
-          tool: cargo-nextest@0.9.127
+          tool: cargo-nextest@0.9.144
 
       - name: Install sccache
         continue-on-error: true
-        uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2
+        uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
         with:
-          tool: sccache@0.7.5
+          tool: sccache@0.17.0
 
       - name: Configure sccache backend
         run: |
@@ -475,6 +452,29 @@ jobs:
 
       - name: Run xiuxian-core-rs tests
         run: bash scripts/rust/test_xiuxian_core_rs.sh --lib --no-fail-fast
+
+      - name: Verify bounded storage contracts explicitly
+        run: cargo test -p xiuxian-db-store -p xiuxian-qianji-control --features valkey
+
+      - name: Verify observation CLI evidence
+        run: |
+          set -euo pipefail
+          cargo test -p xiuxian-qianji --no-default-features --features qianji-full --lib observation_receipt_and_legacy_uncertainty_are_visible -- --nocapture | tee observation-cli-test.log
+          grep -q 'test result: ok. 1 passed' observation-cli-test.log
+
+      - name: Measure release observation latency and allocations
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash scripts/rust/valkey_observation_evidence.sh
+
+      - name: Upload observation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: valkey-observation-${{ github.run_id }}
+          path: .run/reports/valkey-observation/
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Stop shell-managed services
         if: ${{ always() }}

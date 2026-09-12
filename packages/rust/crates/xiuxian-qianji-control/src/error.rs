@@ -8,6 +8,21 @@ pub type ControlResult<T> = Result<T, ControlError>;
 /// Errors returned by control-plane contracts.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ControlError {
+    /// A submitted mutation has no trustworthy execution receipt.
+    /// Inspect the affected operation/lease before retrying; never blindly replay.
+    #[error("control mutation `{operation}` outcome unknown; reconcile before retry: {message}")]
+    OutcomeUnknown {
+        /// Operation whose effect must be reconciled.
+        operation: &'static str,
+        /// Backend diagnostic, not a retry decision.
+        message: String,
+    },
+    /// Observation admission failed; no partial snapshot is returned.
+    #[error("control observation exhausted {resource} budget")]
+    ObservationBudgetExceeded {
+        /// Exhausted shared resource.
+        resource: &'static str,
+    },
     /// A stable identifier was blank.
     #[error("control-plane identifier `{field}` cannot be blank")]
     BlankId {

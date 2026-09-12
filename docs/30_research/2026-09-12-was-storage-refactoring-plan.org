@@ -1,0 +1,292 @@
+#+TITLE: WAS Storage Refactoring: Budgets, Observations, and Retry Semantics
+#+AUTHOR: CyberXiuXian Artisan Workshop
+#+DATE: 2026-09-12
+#+FILETAGS: :was:rust:lean:architecture:performance:
+
+* Scope and Current Evidence
+
+This execution plan follows dependency modernization in PR 52. ASP continues
+to own Org task, SDD, and query contracts. Changes target shared Valkey storage
+and Qianji observation semantics. Vector description reuse is already implemented;
+further vector optimization waits for the storage contracts below.
+
+At revision =82e9637ca=, Ubuntu Cargo build/check, lint, and workspace tests
+passed. Nix package Grid failed while downloading crates with HTTP 403. The
+PR remains open; neither full Grid acceptance nor merge is established.
+
+** Historical Baseline Audit (Before Admission Changes)
+
+- =xiuxian-db-store/src/valkey/client.rs::scan_keys= retains all matched keys
+  until cursor zero, without a total request, key, byte, or deadline budget.
+  =COUNT 256= is only a hint. The preceding Lean page-bound theorem modeled a
+  stronger protocol than the server provides and has been removed.
+- =ValkeyClient::run_command= retries every command after any Redis error.
+  A lost response does not establish that a write was not applied. Replay
+  safety must be explicit per operation before changing this shared behavior.
+- =xiuxian-qianji-control::ValkeyHotStateStore= reads several mutable sources
+  concurrently. Concurrency alone supplies no atomic snapshot guarantee.
+  Consumer requirements must determine whether an observation interval or a
+  coherent generation is required.
+
+* Phase A: Explicit Scan Admission
+
+Owner: =xiuxian-db-store=, with Qianji adapting the single current scan caller.
+
+Introduce a scan policy with positive call and retained-data budgets and an
+overall deadline. Preserve deduplication and cursor-zero completion. A page
+larger than COUNT and an empty nonterminal page are valid protocol responses.
+Represent budget exhaustion explicitly; partial evidence must never appear as
+a complete empty result. A retained-data budget does not bound transport decode
+allocation or server work: document and measure these separately.
+
+Acceptance: adversarial reply fixtures exercise oversized and empty pages,
+duplicates, nonterminating cursors, deadline expiry, and partial-result handling.
+Lean models the same transition rules and each theorem maps to a Rust test.
+Measure call count, retained bytes, allocations, and latency across keyspace sizes.
+
+* Phase B: Observation Consistency
+
+Owner: =xiuxian-qianji-control=.
+
+Trace consumers before selecting consistency requirements. For telemetry, expose
+the observation interval and incomplete components. If scheduling decisions
+require a coherent generation, use a generation validation or atomic server
+operation rather than treating a concurrent join as a transaction.
+
+Acceptance: interleaved enqueue, lease transfer, expiry, and heartbeat removal
+must not yield a falsely coherent observation. Benchmark any atomic operation's
+server occupancy, payload size, and p95/p99 latency under concurrent writers.
+
+* Phase C: Retry and Connection Ownership
+
+Owner: =xiuxian-db-store=.
+
+Classify read replay, idempotent write replay, and writes with ambiguous outcomes.
+Inspect each command caller before replacing the generic retry loop. Reconnection
+must not silently repeat a mutation or let an old failed connection invalidate a
+newly installed connection. Keep transport failure distinct from execution outcome.
+
+Acceptance: fault injection drops responses after server-side application;
+non-idempotent effects occur at most once or return an explicit unknown outcome.
+Concurrent reconnection fixtures test stale invalidation and shared recovery.
+
+* Architecture and Cost Model
+
+** Historical First-Pass Receipt
+
+The first implementation supplies =ValkeyScanPolicy= with defaults of 1,024
+logical calls, 100,000 distinct keys, 8 MiB retained key bytes, and a five-second
+deadline. Read transport retries can double logical call submissions. Exhaustion
+returns an error without partial success. Decode buffers and allocator overhead
+are outside retained-byte accounting.
+
+=HotStateSnapshot.atomic= defaults to false, including legacy deserialization.
+The in-memory implementation sets it under its shared lock; Valkey leaves it
+false and reports monotonic collection duration. The supplied =observed_at_ms=
+remains the caller's expiry reference, not a server snapshot timestamp. Missing
+payloads during concurrent mutation remain possible. Only completed collections
+are returned; the observation is never a scheduling transaction.
+
+Mutation commands now have one submission. A failed response is conservatively
+reported as =OutcomeUnknown=, including decode errors. Callers must reconcile
+effects before retrying. Read-only commands retry once on I/O errors. Connection
+invalidation compares Arc instance identity under the lock; an old failed
+request cannot remove a newer connection.
+
+The same scan collector used by production has negative fixtures for oversized
+pages, empty nonterminal pages, duplicate retention, budget exhaustion, and
+deadlines. Duplex transport tests cover applied mutations with lost responses
+and stale connection invalidation. These are deterministic local fixtures;
+production server latency and interleaving stress measurements remain open.
+
+Synthetic debug-profile scan probe on the local macOS host:
+
+| Keys | Logical calls | Retained key bytes | Elapsed microseconds |
+|------+---------------+--------------------+----------------------|
+| 1000 |             4 |              12000 |                 1263 |
+| 10000 |           40 |             120000 |                 9528 |
+| 100000 |         391 |            1200000 |                87195 |
+
+This single probe includes generated reply data and client processing, not a
+Valkey server, network, allocator instrumentation, or a comparative speedup.
+Run =cargo test -p xiuxian-db-store --features valkey --lib scan_cost_probe --
+--ignored --nocapture= to reproduce. Broad strict Clippy passed after integration.
+
+The Nix fetch adapter now maps the crates.io API download URL to the official
+static crate URL while preserving the supplied hash and all other arguments.
+Pure evaluation checks pass; the Ubuntu package build remains the delivery gate.
+
+#+name: was-storage-admission-flow
+#+begin_src mermaid
+flowchart TD
+  Request["Observation request"] --> Policy["Call, retention, deadline policy"]
+  Policy --> Scan["Cursor scan"]
+  Scan --> Admit{"Reply admission"}
+  Admit -->|"within budget"| Dedup["Deduplicate and retain"]
+  Admit -->|"exhausted"| Partial["Explicit incomplete outcome"]
+  Dedup --> Cursor{"Cursor zero?"}
+  Cursor -->|"no"| Policy
+  Cursor -->|"yes"| Complete["Complete enumeration"]
+  Complete --> Observe["Apply observation consistency contract"]
+  Partial --> Observe
+#+end_src
+
+#+name: was-storage-budget-model
+#+begin_src typst
+#set page(width: 190mm, height: auto, margin: 14mm)
+#set text(size: 10pt)
+= Client admission model
+$ c <= c_("max") $
+$ k_("retained") <= k_("max") $
+$ b_("retained") <= b_("max") $
+These are admission limits, not process-memory or hard return-latency bounds.
+Deadlines depend on cooperative cancellation and scheduling. Retained bytes
+exclude response decoding and allocator overhead.
+COUNT is a server hint and does not establish any of these inequalities.
+Measured latency includes contention, network cost, retries, and serialization.
+#+end_src
+
+* Current Safety Closure
+
+The observation route now uses a read-only =ValkeyReadSession=. All cloned
+components share one admission state. Default request limits are 20,000 actual
+application command submissions (including I/O retries), 10,000 enumerated
+items, 8 MiB cumulative admitted raw bytes, and five seconds through final
+assembly. Protocol handshake traffic, wire buffers, JSON object overhead,
+allocator overhead, and server work are not counted as admitted raw bytes.
+
+Queue indexes request a bounded prefix with one overflow sentinel. Concurrent
+components cannot each obtain a fresh allowance: admissions serialize under a
+short shared mutex. Exhaustion poisons the session and returns a typed
+=ObservationBudgetExceeded= without partial success. Rank pagination is rejected
+because concurrent queue mutation can shift entries between pages.
+
+=HotStateSnapshot.observation= records a wall-clock collection interval,
+per-component missing-record counts, and request-wide usage. The caller's
+=observed_at_ms= remains an expiry reference. Wall-clock adjustments are possible;
+monotonic duration remains the latency observation. Missing legacy metadata means
+unknown, not complete. Zero witnessed missing records does not prove a non-atomic
+observation is exhaustive. Text and JSON expose this boundary.
+
+=ControlError::OutcomeUnknown= preserves uncertain mutation outcomes across the
+domain adapter. Consumers must inspect the affected operation/lease before any
+retry, not infer safety from a generic storage failure. Mutation errors remain
+conservatively unknown; classifying definite server rejections and automatic
+reconciliation are not implemented by this change.
+
+** Validation Boundary
+
+Protocol fixtures cover shared item overflow, payload-stage command/byte/time
+exhaustion, zero deadline, and vanished payloads/heartbeats. They use the real
+Redis client against a deterministic RESP peer, not production Valkey concurrency
+stress. Initial index reads stay concurrent. Production payload, lease, and
+heartbeat reads now use ordered 32-command pipelines. Each logical command and
+every replay remains charged; only transport round trips are coalesced.
+
+| Obligation | Rust evidence | Lean evidence |
+|------------+---------------+---------------|
+| Shared admission, absorbing failure | admission_is_shared_and_failure_is_terminal; aggregate_items_and_bytes_and_overflow_are_rejected | admission_preserves_bounds; exhausted_trace_never_succeeds |
+| Submission accounting | command_budget_includes_payload_phase; vanished_payload_and_heartbeat_are_explicit_not_complete_empty | each_accepted_submission_is_counted |
+| Payload deadline | deadline_includes_payload_phase_not_just_scan; deadline_covers_pending_io_and_stays_exhausted | expiry is an external input, not a scheduling proof |
+| Missing evidence retained | vanished_payload_and_heartbeat_are_explicit_not_complete_empty | witnessed_records_are_accounted; missing_is_not_erased |
+| Unknown mutation not replayed | applied_mutation_with_lost_response_is_not_replayed; unknown_mutation_remains_typed_at_control_boundary | unknown_cannot_be_resubmitted |
+
+The new =WasModernization/ReadAdmission.lean= models request-wide increments,
+absorbing failure, and examined-record accounting. Correspondence is manually
+audited; it is not mechanically verified Rust or a server-consistency proof.
+
+** Comparative Performance Protocol
+
+=valkey_observation_release_probe= is an explicit ignored live-server probe.
+Missing =VALKEY_URL= is an error. It compares serial payload reads with the
+ordered 32-command production pipeline, verifies output and actual submission counts, warms
+three runs, and records 30 samples at 100 and 1,000 keys. Empirical p99 with 30
+samples is the maximum sample, not a precise production percentile estimate.
+
+Measure release latency without instrumentation. Compare allocations in separate
+identical =WAS_PROBE_MODE=serial= and =WAS_PROBE_MODE=pipeline32= processes;
+profiling totals include setup and runtime. Record server CPU/memory alongside
+client allocation/peak-memory evidence. Concurrent-writer and recovery stress
+remain separate acceptance items. Pipeline responses retain request order and
+are decoded one bounded chunk at a time. No implementation is accepted solely
+from a lower latency number or algebraic cost model.
+
+The first Ubuntu experiment used one spawned Tokio task per command. Its 1,000-key
+p99 improved from 55,446 us to 6,468 us, but allocations rose from 716,478 to
+1,010,446 and peak heap rose from 470.04 KiB to 719.00 KiB. That =JoinSet=
+candidate was rejected rather than promoted. The production pipeline avoids
+per-command task creation.
+
+Ubuntu acceptance at PR head =255e6ff1382c0dae82f14a7060207cd4e8adacd2=
+(Linux 6.17 x86_64, Valkey 7.2.13, Heaptrack 1.5.0):
+
+| Keys | Mode | p50 us | p95 us | p99 us | Commands | Admitted bytes |
+|------+-------+--------+--------+--------+----------+----------------|
+| 100 | serial | 3932 | 4002 | 4005 | 100 | 25600 |
+| 100 | pipeline32 | 234 | 248 | 251 | 100 | 25600 |
+| 1000 | serial | 33158 | 38509 | 40355 | 1000 | 256000 |
+| 1000 | pipeline32 | 2099 | 2134 | 2197 | 1000 | 256000 |
+
+Across the separate instrumented processes, serial made 716,478 allocations
+with 300,617 temporary allocations; =pipeline32= made 510,393 allocations with
+265,505 temporary allocations. Peak heap was 470.04 KiB versus 477.24 KiB and
+peak RSS including Heaptrack overhead was 8.57 MiB versus 8.40 MiB. The pipeline
+therefore removes task-allocation growth while retaining an 18.4x improvement
+in the 1,000-key uninstrumented p99 observation. These figures characterize the
+dedicated CI probe, not a production-load SLA.
+
+Local uninstrumented release observation (macOS, Valkey 9.0.2, TCP loopback;
+not Ubuntu acceptance and not a controlled-load baseline):
+
+| Keys | Mode | p50 us | p95 us | p99 us | Commands | Admitted bytes |
+|------+-------+--------+--------+--------+----------+----------------|
+| 100 | serial | 3748 | 5924 | 7049 | 100 | 25600 |
+| 100 | pipeline32 | 257 | 312 | 363 | 100 | 25600 |
+| 1000 | serial | 37000 | 73801 | 125407 | 1000 | 256000 |
+| 1000 | pipeline32 | 2595 | 3099 | 3130 | 1000 | 256000 |
+
+The local figures alone are insufficient for production acceptance. Ubuntu CI
+runs =scripts/rust/valkey_observation_evidence.sh=
+and uploads head/toolchain, uninstrumented latency, and per-mode heap profiles.
+Allocation instrumentation follows the upstream
+[[https://github.com/KDE/heaptrack][Heaptrack documentation]]; those instrumented
+latencies must not be mixed with the uninstrumented latency table.
+
+#+name: was-observation-contract
+#+begin_src mermaid
+flowchart TD
+  Request --> Session["Shared read-only admission and deadline"]
+  Session --> Index["Bounded index prefixes and cursor scan"]
+  Index --> Payload["Ordered payload, lease, and heartbeat pipelines (32)"]
+  Payload --> Admission{"Admission succeeds?"}
+  Admission -->|no| Error["Typed exhaustion, no partial success"]
+  Admission -->|yes| Receipt["Non-atomic interval, missing data, usage"]
+  Write["Lost mutation response"] --> Unknown["OutcomeUnknown across domain boundary"]
+  Unknown --> Inspect["Inspect effects before retry"]
+#+end_src
+
+#+name: was-observation-cost
+#+begin_src typst
+#set page(width: 190mm, height: auto, margin: 14mm)
+#set text(size: 10pt)
+= Shared admission and measurement
+$ c = sum_i c_i <= c_("max") $
+$ b = sum_i b_i <= b_("max") $
+$ n_("examined") = n_("included") + n_("missing") $
+$ R_("transport") = ceil(c / 32), quad C_("admitted") = c $
+These are admitted work and witnessed records, not RSS or completeness.
+Timeouts are cooperative cancellation boundaries, not hard latency bounds.
+Compare latency without instrumentation and allocations separately.
+#+end_src
+
+* Completion Gate
+
+Functional closure requires source changes, negative fixtures, corresponding
+Lean obligations, and exact-head Ubuntu acceptance. Performance closure separately
+requires release baselines and resource measurements before candidate adoption.
+Keep Mermaid and Typst inside these Org Babel blocks. Run through the repository
+devenv profile, use the shared Cargo target, and retain Ubuntu CI as runtime
+acceptance. At implementation head
+=255e6ff1382c0dae82f14a7060207cd4e8adacd2=, Ubuntu Cargo build/check and the
+main CI, including the release/Heaptrack probe, passed. Nix and macOS are not
+blockers for the authorized Rust development lane.

@@ -10,6 +10,7 @@ use lance::dataset::cleanup::CleanupPolicyBuilder;
 use lance::dataset::optimize::{CompactionOptions, compact_files};
 use lance::index::DatasetIndexExt;
 
+use super::index_classification::{is_scalar, is_vector};
 use crate::error::VectorStoreError;
 use crate::ops::types::{CompactionStats, IndexStats, IndexThresholds};
 use crate::{CATEGORY_COLUMN, SKILL_NAME_COLUMN, VectorStore};
@@ -24,16 +25,7 @@ impl VectorStore {
     /// Returns [`VectorStoreError`] when index descriptions cannot be loaded.
     pub async fn has_vector_index(&self, table_name: &str) -> Result<bool, VectorStoreError> {
         let indices = self.describe_indices(table_name).await?;
-        let is_vector_type = |t: &str| {
-            t.contains("Vector")
-                || t.contains("IVF")
-                || t.contains("FLAT")
-                || t.eq_ignore_ascii_case("flat")
-        };
-        Ok(indices.iter().any(|d| {
-            let n = d.name();
-            n == "vector" || n == "vector_idx" || is_vector_type(d.index_type())
-        }))
+        Ok(indices.iter().any(|d| is_vector(d.name(), d.index_type())))
     }
 
     /// Returns true if the table has any scalar index (`BTree` or Bitmap) on `skill_name` or category.
@@ -43,11 +35,7 @@ impl VectorStore {
     /// Returns [`VectorStoreError`] when index descriptions cannot be loaded.
     pub async fn has_scalar_index(&self, table_name: &str) -> Result<bool, VectorStoreError> {
         let indices = self.describe_indices(table_name).await?;
-        Ok(indices.iter().any(|d| {
-            let t = d.index_type();
-            (t == "BTree" || t == "Bitmap")
-                && (d.name().contains("skill_name") || d.name().contains("category"))
-        }))
+        Ok(indices.iter().any(|d| is_scalar(d.name(), d.index_type())))
     }
 
     /// List index descriptions for the table (empty if table missing or no indices).

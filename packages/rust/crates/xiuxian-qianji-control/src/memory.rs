@@ -301,6 +301,7 @@ impl HotStateStore for InMemoryHotStateStore {
     async fn load_snapshot(&self, observed_at_ms: u64) -> ControlResult<HotStateSnapshot> {
         let guard = lock(&self.state, "hot_state")?;
         let mut snapshot = HotStateSnapshot::new(observed_at_ms);
+        snapshot.atomic = true;
         snapshot.pending_steps.extend(guard.queue.iter().cloned());
         snapshot.leased_steps = guard
             .leases

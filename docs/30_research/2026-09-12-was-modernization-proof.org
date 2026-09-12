@@ -1,0 +1,141 @@
+#+TITLE: WAS Rust Modernization Architecture and Performance Proof
+#+AUTHOR: CyberXiuXian Artisan Workshop
+#+DATE: 2026-09-12
+#+FILETAGS: :was:rust:lean:performance:architecture:
+
+* WAS Rust Modernization Proof
+:PROPERTIES:
+:ID: 019fce35-4e26-7000-8000-000000000001
+:SDD_KIND: system
+:SDD_STATUS: active
+:SDD_CONCERN: Keep dependency modernization, architecture safety, and hot-path performance connected by executable evidence.
+:SDD_SLUG: was-rust-modernization-proof
+:END:
+
+This document is the Org source for the WAS modernization architecture model.
+The Lean package proves its safety and cost invariants. Mermaid and Typst exist
+only as Org Babel blocks here; no parallel =.mmd= or =.typ= source is allowed.
+
+** Audit Boundary
+
+The current model refers to these Rust implementation surfaces; the correspondence
+is reviewed manually, not established by a verified Rust translation:
+
+- =xiuxian-vector/src/store.rs=: metadata predicates borrow values from the
+  parsed JSON tree instead of cloning each matched value.
+- =xiuxian-vector/src/ops/observability.rs=: three independent table probes run
+  in one =tokio::try_join!= round. Vector and scalar coverage reuse the same
+  index-description result, removing two duplicate metadata requests.
+- =xiuxian-db-store/src/valkey/client.rs=: key enumeration uses cursor-based
+  =SCAN= pages rather than the server-blocking =KEYS= command.
+- =xiuxian-qianji-control/src/valkey_hot_state.rs=: independent snapshot reads
+  execute concurrently and scan results are duplicate-safe.
+
+The proof does not claim end-to-end production speedup. It proves local cost
+dominance under explicit assumptions; benchmarks and Ubuntu CI remain the
+runtime acceptance surfaces.
+
+The initial page-bound claim was invalid: =SCAN COUNT= is a work hint, not a
+hard reply-size bound. The collector now enforces separate logical-call,
+retained-key, retained-byte, and deadline budgets. The full operation is not
+bounded by =COUNT=. See the
+[[https://redis.io/docs/latest/commands/scan/][SCAN protocol contract]].
+
+** Architecture Model
+
+#+name: was-modernization-architecture
+#+begin_src mermaid
+flowchart LR
+  Query["WAS query or snapshot request"] --> Fanout{"Independent I/O fan-out"}
+  ASP["ASP Org authority"] --> Query
+  Wendao["Wendao document parser"] --> Query
+  Fanout --> Queue["Step queue reads"]
+  Fanout --> Activity["Activity queue reads"]
+  Fanout --> Scan["Valkey SCAN pages"]
+  Scan --> Dedup["Deduplicate keys"]
+  Queue --> Join["Concurrent join"]
+  Activity --> Join
+  Dedup --> Join
+  Join --> Borrow["Borrow metadata values"]
+  Borrow --> Verify["Contract and lifecycle verification"]
+  Verify --> Output["Observation output"]
+#+end_src
+
+** Performance Cost Model
+
+#+name: was-modernization-cost-model
+#+begin_src typst
+#set page(width: 190mm, height: auto, margin: 14mm)
+#set text(size: 10pt)
+
+= WAS modernization cost model
+
+Let $q$ be candidate count, $m$ metadata predicates, $b$ mean serialized value
+bytes, $r$ independent storage reads, $l$ mean read latency, $n$ keyspace size,
+and $p$ the cursor count hint. Latency formulas omit contention and scheduling
+overhead; they are an idealized model, not a measured speedup.
+
+$ C_("clone") = q dot m dot b $
+
+$ C_("borrow") = 0 $
+
+$ W_("index-before") = 3 dot W_("description") $
+
+$ W_("index-after") = W_("description") $
+
+$ L_("serial") = r dot l $
+
+$ L_("parallel") = max(l_1, dots, l_r) <= sum_(i=1)^r l_i $
+
+$ R_("pipeline") = ceil(c / 32), quad C_("admitted") = c $
+
+$ W_("KEYS") = n $
+
+$ "COUNT hint" = p $
+
+$ "retained" + "incoming" <= "budget" $
+
+$ O_("Org") = "ASP" != "Wendao" $
+
+The optimized architecture removes metadata clone bytes, reduces independent
+read fan-out rounds from five to one in the idealized model, and reduces a
+32-command payload batch to one transport round without discounting any logical
+command from admission. COUNT does not bound
+reply size. The retention inequality models the client's explicit admission
+rule, excluding decode buffers and allocator overhead. Cursor results must be deduplicated because
+incremental scans may repeat keys while the keyspace changes. Org query and
+agent-memory ownership remains in ASP, preventing a second read-model cost and
+authority surface in Wendao.
+#+end_src
+
+** Lean Obligations
+
+The executable package proves:
+
+1. the legacy model violates the hot-path policy;
+2. the modern model satisfies zero-copy, single-round, incremental, and
+   duplicate-safe invariants;
+3. borrowed metadata contributes zero clone bytes;
+4. positive clone dimensions have positive allocation cost;
+5. one concurrent read round never exceeds five serial equal-latency rounds;
+6. a full 32-command pipeline uses one transport round while admission still
+   charges all 32 logical commands;
+7. a count hint permits an oversized reply, an empty page need not terminate,
+   and client admission preserves key, byte, and call budgets;
+8. ASP, rather than Wendao, owns the Org authority boundary.
+
+The architecture predicates encode design choices. They do not establish
+snapshot atomicity, safe write retries, or server latency bounds. Those are
+tracked in [[file:2026-09-12-was-storage-refactoring-plan.org][the next storage refactoring plan]].
+
+#+begin_src sh :dir ../../packages/proofs/was-modernization-proof :results verbatim
+lake build
+#+end_src
+
+** Acceptance Criteria
+
+- Lean compilation completes without =sorry= or admitted obligations.
+- Mermaid and Typst remain named Org Babel blocks without parallel source
+  files.
+- The affected Rust tests and strict Clippy gate pass on the upgraded lockfile.
+- Ubuntu Grid is green; expensive macOS jobs are not an acceptance dependency.

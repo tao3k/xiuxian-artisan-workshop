@@ -86,10 +86,10 @@ pub use error::VectorStoreError;
 #[cfg(feature = "valkey")]
 pub use valkey::{
     ValkeyClient, ValkeyKeyNamespace, ValkeyLeaseId, ValkeyLeaseOwnership, ValkeyLeaseScriptResult,
-    ValkeyQueueEntryId, ValkeyQueueKeys, ValkeyStoreConfig, ValkeyStoreError,
-    ValkeyStructuredClaimFilter, ValkeyStructuredClaimRequest, ValkeyStructuredQueue,
-    ValkeyStructuredQueueEntry, ValkeyStructuredQueueLease, ValkeyStructuredQueueLeaseRef,
-    ValkeyWorkerId,
+    ValkeyQueueEntryId, ValkeyQueueKeys, ValkeyReadPolicy, ValkeyReadSession, ValkeyReadUsage,
+    ValkeyStoreConfig, ValkeyStoreError, ValkeyStructuredClaimFilter, ValkeyStructuredClaimRequest,
+    ValkeyStructuredQueue, ValkeyStructuredQueueEntry, ValkeyStructuredQueueLease,
+    ValkeyStructuredQueueLeaseRef, ValkeyWorkerId,
 };
 
 #[cfg(feature = "vector-store")]

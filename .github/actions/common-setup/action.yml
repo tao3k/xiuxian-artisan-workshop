@@ -1,4 +1,5 @@
 name: Setup Environment
+description: Install and configure the shared CI environment
 inputs:
   CACHIX_AUTH_TOKEN:
     required: true
@@ -12,6 +13,14 @@ inputs:
   MIMO_API_KEY:
     required: false
     description: "MIMO API Key"
+  NIX_HATCHET_PROTOCOL:
+    required: false
+    default: "carve"
+    description: "Disk reclamation level for Linux Nix jobs"
+  NIX_WITNESS_CARNAGE:
+    required: false
+    default: "false"
+    description: "Wait for Linux disk reclamation to finish before continuing"
 
 runs:
   using: "composite"
@@ -19,12 +28,20 @@ runs:
     - uses: wimpysworld/nothing-but-nix@main
       if: runner.os == 'Linux'
       with:
-        hatchet-protocol: "carve"
+        hatchet-protocol: ${{ inputs.NIX_HATCHET_PROTOCOL }}
+        witness-carnage: ${{ inputs.NIX_WITNESS_CARNAGE }}
 
     - name: Install nix
       uses: cachix/install-nix-action@v31
       with:
         github_access_token: ${{ inputs.SECRET_GITHUB_TOKEN }}
+
+    - name: Route temporary files to the Nix volume
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo chmod 1777 /nix/build
+        echo "TMPDIR=/nix/build" >> "$GITHUB_ENV"
     # - uses: DeterminateSystems/nix-installer-action@main
     #   with:
     #     extra-conf: |
@@ -44,13 +61,12 @@ runs:
       shell: bash
       run: nix profile add nixpkgs#devenv
 
-    - name: Install secretspec and write .env
+    - name: Write .env
       shell: bash
       env:
         GLM_API_KEY: ${{ inputs.GLM_API_KEY }}
         MIMO_API_KEY: ${{ inputs.MIMO_API_KEY }}
       run: |
-        nix profile add nixpkgs#secretspec
         {
           echo "GLM_API_KEY=$GLM_API_KEY"
           if [ -n "${MIMO_API_KEY:-}" ]; then

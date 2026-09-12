@@ -10,3 +10,7 @@ mod duckdb;
 #[cfg(feature = "valkey")]
 #[path = "unit/valkey.rs"]
 mod valkey;
+
+#[cfg(feature = "valkey")]
+#[path = "unit/valkey_observation/mod.rs"]
+mod valkey_observation;
