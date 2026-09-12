@@ -136,10 +136,10 @@ flowchart TD
 #set page(width: 190mm, height: auto, margin: 14mm)
 #set text(size: 10pt)
 = Client admission model
-$ c <= c_(max) $
-$ k_(retained) <= k_(max) $
-$ b_(retained) <= b_(max) $
-$ t_(elapsed) <= t_(deadline) $
+$ c <= c_("max") $
+$ k_("retained") <= k_("max") $
+$ b_("retained") <= b_("max") $
+$ t_("elapsed") <= t_("deadline") $
 These are enforced client limits. Deadline enforcement depends on cancellation
 and scheduling. Retained bytes exclude response decoding and allocator overhead.
 COUNT is a server hint and does not establish any of these inequalities.
