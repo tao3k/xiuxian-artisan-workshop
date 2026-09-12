@@ -31,17 +31,17 @@ runs:
         hatchet-protocol: ${{ inputs.NIX_HATCHET_PROTOCOL }}
         witness-carnage: ${{ inputs.NIX_WITNESS_CARNAGE }}
 
+    - name: Install nix
+      uses: cachix/install-nix-action@v31
+      with:
+        github_access_token: ${{ inputs.SECRET_GITHUB_TOKEN }}
+
     - name: Route temporary files to the Nix volume
       if: runner.os == 'Linux'
       shell: bash
       run: |
         sudo chmod 1777 /nix/build
         echo "TMPDIR=/nix/build" >> "$GITHUB_ENV"
-
-    - name: Install nix
-      uses: cachix/install-nix-action@v31
-      with:
-        github_access_token: ${{ inputs.SECRET_GITHUB_TOKEN }}
     # - uses: DeterminateSystems/nix-installer-action@main
     #   with:
     #     extra-conf: |
