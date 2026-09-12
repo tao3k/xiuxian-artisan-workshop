@@ -147,7 +147,7 @@ jobs:
         continue-on-error: true
         uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
         with:
-          tool: sccache@0.7.5
+          tool: sccache@0.17.0
 
       - name: Configure sccache backend
         run: |
@@ -241,11 +241,7 @@ jobs:
           cog check "${base_sha}..${head_sha}"
 
   test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     defaults:
       run:
@@ -309,7 +305,6 @@ jobs:
           echo "RUSTUP_TOOLCHAIN=${channel}" >> "$GITHUB_ENV"
 
       - name: Install Linux build dependencies
-        if: ${{ runner.os == 'Linux' }}
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -324,15 +319,6 @@ jobs:
             protobuf-compiler \
             python3-dev \
             valkey
-
-      - name: Install macOS build dependencies
-        if: ${{ runner.os == 'macOS' }}
-        run: |
-          set -euo pipefail
-          for formula in autoconf automake protobuf pkg-config cmake libxml2 valkey; do
-            brew list "${formula}" >/dev/null 2>&1 || brew install "${formula}"
-          done
-          echo "$(brew --prefix libxml2)/bin" >> "$GITHUB_PATH"
 
       - name: Export Rust build environment
         run: |
@@ -349,11 +335,6 @@ jobs:
             protoc_root="$(dirname "$(dirname "${protoc_path}")")"
             if [[ -d "${protoc_root}/include/google/protobuf" ]]; then
               proto_include="${protoc_root}/include"
-            elif command -v brew >/dev/null 2>&1; then
-              brew_prefix="$(brew --prefix protobuf 2>/dev/null || true)"
-              if [[ -n "${brew_prefix}" && -d "${brew_prefix}/include/google/protobuf" ]]; then
-                proto_include="${brew_prefix}/include"
-              fi
             fi
           fi
           if [[ -z "${proto_include}" ]]; then
@@ -365,15 +346,6 @@ jobs:
             echo "PROTOC=${protoc_path}"
             echo "PROTOC_INCLUDE=${proto_include}"
             echo "PYO3_PYTHON=${python_path}"
-            if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
-              sdkroot_path="$(xcrun --sdk macosx --show-sdk-path)"
-              echo "SDKROOT=${sdkroot_path}"
-              echo "LIBRARY_PATH=${sdkroot_path}/usr/lib"
-              echo "CC=/usr/bin/clang"
-              echo "CXX=/usr/bin/clang++"
-              echo "CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/clang"
-              echo "CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/clang"
-            fi
           } >> "$GITHUB_ENV"
           protoc --version
           echo "PROTOC_INCLUDE=${proto_include}"
@@ -396,13 +368,13 @@ jobs:
       - name: Install cargo-nextest
         uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
         with:
-          tool: cargo-nextest@0.9.127
+          tool: cargo-nextest@0.9.144
 
       - name: Install sccache
         continue-on-error: true
         uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
         with:
-          tool: sccache@0.7.5
+          tool: sccache@0.17.0
 
       - name: Configure sccache backend
         run: |

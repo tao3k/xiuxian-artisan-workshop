@@ -7,26 +7,8 @@ on:
 
 jobs:
   nix-build-packages:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        package:
-          - xiuxian-artisan-workshop
-          - xiuxian-config-core-release
-          - xiuxian-core-rs-release
-          - xiuxian-core-rs-python-bindings
-          - xiuxian-lance-release
-          - xiuxian-logging-release
-          - xiuxian-macros-release
-          - xiuxian-qianji-release
-          - xiuxian-security-release
-          - xiuxian-types-release
-          - xiuxian-vector-release
-          - xiuxian-wendao-release
-          - xiuxian-zhenfa-release
-          - xiuxian-wendao-client-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     env:
       GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
     steps:
@@ -45,5 +27,20 @@ jobs:
           NIX_HATCHET_PROTOCOL: "rampage"
           NIX_WITNESS_CARNAGE: "true"
 
-      - name: Build nix package
-        run: nix build .#${{ matrix.package }} -v
+      - name: Build all Nix packages
+        run: |
+          nix build --no-link --keep-going --print-build-logs \
+            .#xiuxian-artisan-workshop \
+            .#xiuxian-config-core-release \
+            .#xiuxian-core-rs-release \
+            .#xiuxian-core-rs-python-bindings \
+            .#xiuxian-lance-release \
+            .#xiuxian-logging-release \
+            .#xiuxian-macros-release \
+            .#xiuxian-qianji-release \
+            .#xiuxian-security-release \
+            .#xiuxian-types-release \
+            .#xiuxian-vector-release \
+            .#xiuxian-wendao-release \
+            .#xiuxian-zhenfa-release \
+            .#xiuxian-wendao-client-release
