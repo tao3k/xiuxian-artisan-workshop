@@ -30,8 +30,12 @@ for mode in serial bounded32; do
     "$executable" --exact "$test_name" --ignored --nocapture --test-threads=1 \
     2>&1 | tee "$output/$mode-profile.log"
   grep -q 'test result: ok. 1 passed' "$output/$mode-profile.log"
-  shopt -s nullglob
-  traces=("$output/$mode.gz" "$output/$mode.zst")
+  traces=()
+  for candidate in "$output/$mode.gz" "$output/$mode.zst"; do
+    if [[ -f "$candidate" ]]; then
+      traces+=("$candidate")
+    fi
+  done
   if [[ ${#traces[@]} -ne 1 ]]; then
     printf 'Expected one heap trace for %s, found %s\n' "$mode" "${#traces[@]}" >&2
     exit 1

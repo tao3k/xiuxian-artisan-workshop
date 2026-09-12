@@ -459,7 +459,7 @@ jobs:
       - name: Verify observation CLI evidence
         run: |
           set -euo pipefail
-          cargo test -p xiuxian-qianji --features qianji-full,wendao-integration,valkey --lib observation_receipt_and_legacy_uncertainty_are_visible -- --nocapture | tee observation-cli-test.log
+          cargo test -p xiuxian-qianji --no-default-features --features qianji-full --lib observation_receipt_and_legacy_uncertainty_are_visible -- --nocapture | tee observation-cli-test.log
           grep -q 'test result: ok. 1 passed' observation-cli-test.log
 
       - name: Measure release observation latency and allocations
