@@ -92,7 +92,7 @@ jobs:
 
       - name: Install sccache
         continue-on-error: true
-        uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2
         with:
           tool: sccache@0.7.5
 
@@ -231,7 +231,7 @@ jobs:
 
       - name: Install sccache
         continue-on-error: true
-        uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2
         with:
           tool: sccache@0.7.5
 
@@ -369,7 +369,7 @@ jobs:
 
       - name: Install sccache
         continue-on-error: true
-        uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2
         with:
           tool: sccache@0.7.5
 
