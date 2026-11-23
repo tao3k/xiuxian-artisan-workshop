@@ -11,9 +11,7 @@ feature-depth = 1
 
 [advisories]
 ignore = [
-  { id = "RUSTSEC-2025-0141", reason = "bincode is unmaintained; transitive via litellm-rs/sqlx path in xiuxian-daochang; remove once upstream stack migrates off bincode 1.x" },
   { id = "RUSTSEC-2024-0436", reason = "paste is unmaintained; transitive via lance/datafusion path in xiuxian-vector; remove once upstream graph no longer resolves paste 1.0.x" },
-  { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile is unmaintained; transitive via reqwest 0.11 from litellm-rs/serenity in xiuxian-daochang; remove once those dependencies are on maintained pem parser stack" },
 ]
 
 [bans]
